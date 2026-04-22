@@ -1,88 +1,93 @@
-<svg width="100%" viewBox="0 0 680 620" role="img" xmlns="http://www.w3.org/2000/svg">
-  <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">HVEL Proof of Humanity Flow</title>
-  <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Flowchart showing how clicking Human Verified triggers a CAPTCHA or OTP challenge, then stamps the email and sends it.</desc>
+<svg width="100%" viewBox="0 0 760 740" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>HVEL Proof of Humanity Flow</title>
+  <desc>Architecture showing how HVEL Extension blocks Gmail and enforces Biometric + TOTP verification.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-  <mask id="imagine-text-gaps-gluhd2" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="680" height="620" fill="white"/><rect x="268.8606262207031" y="39.55552673339844" width="142.2787322998047" height="22.88894271850586" fill="black" rx="2"/><rect x="272.74664306640625" y="57.81479263305664" width="134.65113830566406" height="20.37041664123535" fill="black" rx="2"/><rect x="268.0981750488281" y="129.55552673339844" width="143.80361938476562" height="22.88894271850586" fill="black" rx="2"/><rect x="270.47406005859375" y="147.81478881835938" width="139.0518798828125" height="20.370426177978516" fill="black" rx="2"/><rect x="244.9198760986328" y="222.5555419921875" width="190.2751007080078" height="22.88894271850586" fill="black" rx="2"/><rect x="232.5731964111328" y="241.81478881835938" width="214.8535919189453" height="20.37041664123535" fill="black" rx="2"/><rect x="263.6956787109375" y="255.81478881835938" width="152.60862731933594" height="20.37041664123535" fill="black" rx="2"/><rect x="311.38043212890625" y="329.5555419921875" width="57.31838607788086" height="22.88894271850586" fill="black" rx="2"/><rect x="294.3902282714844" y="347.8148193359375" width="91.55451202392578" height="20.37041664123535" fill="black" rx="2"/><rect x="441.89984130859375" y="322.7777404785156" width="25.57065200805664" height="20.37041664123535" fill="black" rx="2"/><rect x="171.64573669433594" y="322.7777404785156" width="77.04169464111328" height="20.37041664123535" fill="black" rx="2"/><rect x="61.10957336425781" y="325.5555419921875" width="78.25788879394531" height="22.88894271850586" fill="black" rx="2"/><rect x="61.070220947265625" y="344.8147888183594" width="77.85957336425781" height="20.37041664123535" fill="black" rx="2"/><rect x="506.8519592285156" y="325.5555419921875" width="129.6664276123047" height="22.88894271850586" fill="black" rx="2"/><rect x="504.74169921875" y="344.8147888183594" width="134.5165557861328" height="20.37041664123535" fill="black" rx="2"/><rect x="478.9002380371094" y="419.5555114746094" width="190.63729858398438" height="22.88894271850586" fill="black" rx="2"/><rect x="488.8021545410156" y="438.8148193359375" width="170.72805786132812" height="20.37041664123535" fill="black" rx="2"/><rect x="251.14739990234375" y="479.5555419921875" width="109.70514678955078" height="22.88894271850586" fill="black" rx="2"/><rect x="232.071533203125" y="498.8147888183594" width="147.85687255859375" height="20.37041664123535" fill="black" rx="2"/><rect x="235.357421875" y="567.5555419921875" width="141.40280151367188" height="22.88894271850586" fill="black" rx="2"/><rect x="219.08538818359375" y="586.8148193359375" width="173.82916259765625" height="20.37041664123535" fill="black" rx="2"/></mask></defs>
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.1" />
+    </filter>
+  </defs>
 
-  <!-- Step 1: User in Gmail -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="240" y="30" width="200" height="52" rx="8" stroke-width="0.5" style="fill:rgb(68, 68, 65);stroke:rgb(180, 178, 169);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="51" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211, 209, 199);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">User composes email</text>
-    <text x="340" y="68" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180, 178, 169);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Gmail compose window</text>
+  <!-- Step 1: Gmail Blocker -->
+  <g transform="translate(280, 20)" filter="url(#shadow)">
+    <rect width="200" height="60" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="100" y="28" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="600" fill="#1e293b">Compose Email</text>
+    <text x="100" y="46" text-anchor="middle" font-family="'Inter', sans-serif" font-size="11" fill="#ef4444">Send Button Blocked 🔒</text>
   </g>
-  <line x1="340" y1="82" x2="340" y2="118" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="380" y1="80" x2="380" y2="110" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
 
-  <!-- Step 2: Click Verify -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="240" y="120" width="200" height="52" rx="8" stroke-width="0.5" style="fill:rgb(12, 68, 124);stroke:rgb(133, 183, 235);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="141" text-anchor="middle" dominant-baseline="central" style="fill:rgb(181, 212, 244);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Clicks "Verify" button</text>
-    <text x="340" y="158" text-anchor="middle" dominant-baseline="central" style="fill:rgb(133, 183, 235);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Selects "Human Verified"</text>
+  <!-- Step 2: Modal Appears -->
+  <g transform="translate(260, 115)" filter="url(#shadow)">
+    <rect width="240" height="65" rx="12" fill="url(#indigoGrad)" stroke="#4338ca" stroke-width="1"/>
+    <text x="120" y="27" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="700" fill="#ffffff">HVEL 2FA Modal</text>
+    <text x="120" y="47" text-anchor="middle" font-family="'Inter', sans-serif" font-size="11" fill="#e0e7ff">Verification Required</text>
   </g>
-  <line x1="340" y1="172" x2="340" y2="208" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="380" y1="180" x2="380" y2="210" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
 
-  <!-- Step 3: Challenge popup -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="200" y="210" width="280" height="64" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="340" y="234" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Proof-of-humanity challenge</text>
-    <text x="340" y="252" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">CAPTCHA popup or OTP via email/SMS</text>
-    <text x="340" y="266" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">overlay appears in Gmail UI</text>
+  <!-- Step 3: Biometric Step (WebAuthn) -->
+  <g transform="translate(230, 215)" filter="url(#shadow)">
+    <rect width="300" height="85" rx="15" fill="#ffffff" stroke="#6366f1" stroke-width="2"/>
+    <text x="150" y="28" text-anchor="middle" font-family="'Inter', sans-serif" font-size="12" font-weight="800" fill="#6366f1" opacity="0.8">STEP 1: BIOMETRIC</text>
+    <rect x="20" y="38" width="260" height="35" rx="8" fill="#f5f3ff"/>
+    <text x="150" y="60" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="600" fill="#4338ca">Passkey / FaceID Check 👤</text>
   </g>
+  <line x1="380" y1="300" x2="380" y2="330" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
 
-  <!-- Branch: Pass vs Fail -->
-  <line x1="340" y1="274" x2="340" y2="310" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-gluhd2)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Decision diamond -->
-  <polygon points="340,312 410,345 340,378 270,345" fill="var(--color-background-secondary)" stroke="var(--color-border-primary)" stroke-width="0.5" style="fill:rgb(38, 38, 36);stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="340" y="341" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 249, 245);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Passed?</text>
-  <text x="340" y="358" text-anchor="middle" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">challenge result</text>
-
-  <!-- Yes path -->
-  <line x1="410" y1="345" x2="500" y2="345" marker-end="url(#arrow)" stroke="#1D9E75" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="455" y="338" text-anchor="middle" fill="#1D9E75" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">Yes</text>
-
-  <!-- No path -->
-  <line x1="270" y1="345" x2="150" y2="345" marker-end="url(#arrow)" stroke="#A32D2D" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <text x="210" y="338" text-anchor="middle" fill="#A32D2D" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">No / timeout</text>
-
-  <!-- Fail box -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="50" y="316" width="100" height="52" rx="8" stroke-width="0.5" style="fill:rgb(121, 31, 31);stroke:rgb(240, 149, 149);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="100" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(247, 193, 193);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Show error</text>
-    <text x="100" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240, 149, 149);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Button resets</text>
+  <!-- Step 4: TOTP Step -->
+  <g transform="translate(230, 335)" filter="url(#shadow)">
+    <rect width="300" height="85" rx="15" fill="#ffffff" stroke="#10b981" stroke-width="2"/>
+    <text x="150" y="28" text-anchor="middle" font-family="'Inter', sans-serif" font-size="12" font-weight="800" fill="#059669" opacity="0.8">STEP 2: TOTP CODE</text>
+    <rect x="20" y="38" width="260" height="35" rx="8" fill="#ecfdf5"/>
+    <text x="150" y="60" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="600" fill="#065f46">Enter 6-digit App Code ⌨️</text>
   </g>
+  <line x1="380" y1="420" x2="380" y2="450" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
 
-  <!-- Pass: Call API -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="500" y="316" width="145" height="52" rx="8" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="572" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">API call to backend</text>
-    <text x="572" y="355" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Store verification record</text>
-  </g>
-  <line x1="572" y1="368" x2="572" y2="408" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Stamp email -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="462" y="410" width="225" height="52" rx="8" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="574" y="431" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Inject badge into email body</text>
-    <text x="574" y="449" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">🧑 Human Verified + trust link</text>
-  </g>
-  <line x1="572" y1="462" x2="572" y2="498" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <line x1="572" y1="498" x2="380" y2="498" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-
-  <!-- Send -->
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="230" y="470" width="152" height="52" rx="8" stroke-width="0.5" style="fill:rgb(39, 80, 10);stroke:rgb(151, 196, 89);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="306" y="491" text-anchor="middle" dominant-baseline="central" style="fill:rgb(192, 221, 151);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">User clicks Send</text>
-    <text x="306" y="509" text-anchor="middle" dominant-baseline="central" style="fill:rgb(151, 196, 89);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Email goes out with stamp</text>
+  <!-- Step 5: Backend Validation -->
+  <g transform="translate(260, 455)" filter="url(#shadow)">
+    <rect width="240" height="70" rx="12" fill="#1e293b" stroke="#0f172a" stroke-width="1"/>
+    <text x="120" y="30" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="700" fill="#ffffff">Backend API</text>
+    <text x="120" y="50" text-anchor="middle" font-family="'Inter', sans-serif" font-size="11" fill="#94a3b8">Validates Secrets & Session</text>
   </g>
 
-  <!-- Recipient -->
-  <line x1="306" y1="522" x2="306" y2="556" marker-end="url(#arrow)" style="fill:none;stroke:rgb(156, 154, 146);color:rgb(255, 255, 255);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-  <g style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
-    <rect x="196" y="558" width="220" height="52" rx="8" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
-    <text x="306" y="579" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Recipient sees badge</text>
-    <text x="306" y="597" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">Clicks link → public trust record</text>
+  <!-- Success Branch -->
+  <line x1="500" y1="490" x2="570" y2="490" marker-end="url(#arrow)" stroke="#10b981" stroke-width="2"/>
+  <text x="535" y="482" text-anchor="middle" font-family="'Inter', sans-serif" font-size="11" fill="#059669" font-weight="700">Verified</text>
+
+  <!-- Step 6: Extension Action -->
+  <g transform="translate(575, 455)" filter="url(#shadow)">
+    <rect width="160" height="70" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+    <text x="80" y="30" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="700" fill="#166534">Unblock Gmail</text>
+    <text x="80" y="50" text-anchor="middle" font-family="'Inter', sans-serif" font-size="10" fill="#15803d">Send Button Enabled 🎉</text>
   </g>
+
+  <!-- Step 7: Stamp & Trust -->
+  <line x1="655" y1="525" x2="655" y2="570" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
+  <g transform="translate(530, 575)" filter="url(#shadow)">
+    <rect width="210" height="65" rx="12" fill="#ffffff" stroke="#bae6fd" stroke-width="1"/>
+    <text x="105" y="27" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="700" fill="#0369a1">Trust Stamp Injection</text>
+    <text x="105" y="47" text-anchor="middle" font-family="'Inter', sans-serif" font-size="10" fill="#0284c7">🧑 Human Verified (Badge + URL)</text>
+  </g>
+
+  <!-- Recipient Side -->
+  <line x1="635" y1="640" x2="635" y2="675" marker-end="url(#arrow)" stroke="#94a3b8" stroke-width="2"/>
+  <g transform="translate(530, 680)" filter="url(#shadow)">
+    <rect width="210" height="50" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="105" y="22" text-anchor="middle" font-family="'Inter', sans-serif" font-size="12" font-weight="700" fill="#334155">Recipient View</text>
+    <text x="105" y="38" text-anchor="middle" font-family="'Inter', sans-serif" font-size="10" fill="#64748b">Validates Proof via Trust Record</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(30, 600)">
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-size="12" font-weight="800" fill="#64748b">ARCHITECTURE LAYERS</text>
+    <circle cx="10" cy="25" r="5" fill="#6366f1"/> <text x="25" y="29" font-family="'Inter', sans-serif" font-size="11" fill="#475569">HVEL Extension (UI/Logic)</text>
+    <circle cx="10" cy="45" r="5" fill="#1e293b"/> <text x="25" y="49" font-family="'Inter', sans-serif" font-size="11" fill="#475569">HVEL Backend (API/DB)</text>
+    <circle cx="10" cy="65" r="5" fill="#10b981"/> <text x="25" y="69" font-family="'Inter', sans-serif" font-size="11" fill="#475569">Success state</text>
+  </g>
+
 </svg>
