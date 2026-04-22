@@ -39,6 +39,10 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   ssl: {
     rejectUnauthorized: false
+  },
+  // Hard-force IPv4 lookup to bypass Render's IPv6 issues
+  lookup: (hostname, options, callback) => {
+    dns.lookup(hostname, { family: 4 }, callback);
   }
 });
 
