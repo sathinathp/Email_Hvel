@@ -493,10 +493,12 @@ async function scanIncomingMessages() {
 
         // Only proceed if we have a valid sender, they are NOT the current user, and NOT a whitelisted domain
         if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
-            console.log(`[HVEL] Processing message from: ${senderEmail}`);
+            console.log(`[HVEL] 🔍 Analyzing message from: ${senderEmail}`);
+            console.log(`[HVEL] 🛡️ Badge found? ${!!badgeLink}`);
 
             if (badgeLink) {
                 const url = badgeLink.href;
+                console.log(`[HVEL] 🔗 Found Badge URL: ${url}`);
                 const id = url.split('/v/').pop();
                 
                 // Validate the stamp
@@ -518,16 +520,19 @@ async function scanIncomingMessages() {
                 // No HVEL found on a reply - Trigger Mandatory Nudge
                 const nudgeKey = `hvel_nudged_${senderEmail}`;
                 if (!sessionStorage.getItem(nudgeKey)) {
-                    console.log(`[HVEL] Mandatory nudge triggered for: ${senderEmail}`);
+                    console.log(`[HVEL] 🚀 Triggering Nudge API for: ${senderEmail}`);
                     chrome.runtime.sendMessage({
                         action: 'reportUnverifiedReply',
                         hvelUserEmail: recipientEmail,
                         noExtensionEmail: senderEmail
                     }, (response) => {
+                        console.log(`[HVEL] 📬 Nudge API Response:`, response);
                         if (response && response.success) {
                             sessionStorage.setItem(nudgeKey, 'true');
                         }
                     });
+                } else {
+                    console.log(`[HVEL] ⏩ Nudge already sent to ${senderEmail} in this session.`);
                 }
                 showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
             }
