@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: hvel-backend
+    env: node
+    plan: free
+    rootDir: hvel-backend
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: RP_ID
+        sync: false
+      - key: ORIGIN
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_PORT
+        value: 6543
+      - key: DB_NAME
+        value: postgres
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: HRMS_EMAIL_PASS
+        sync: false
