@@ -31,6 +31,8 @@ app.get('/auth', (req, res) => {
 });
 
 // Set up PostgreSQL connection
+const net = require('net');
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -40,9 +42,13 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  // Hard-force IPv4 lookup to bypass Render's IPv6 issues
-  lookup: (hostname, options, callback) => {
-    dns.lookup(hostname, { family: 4 }, callback);
+  // This is the strongest way to force IPv4 on Render
+  stream: (options) => {
+    return net.connect({
+      host: options.host,
+      port: options.port,
+      family: 4
+    });
   }
 });
 
@@ -546,7 +552,7 @@ app.post('/api/verify', async (req, res) => {
             </div>
             <p>To verify your own emails and earn the "Human Verified" trust badge, download the
                free HVEL Chrome extension:</p>
-            <a href="https://hvel.io/download"
+            <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
                style="display:inline-block;background:#6366f1;color:white;padding:12px 25px;
                       text-decoration:none;border-radius:5px;font-weight:bold;">
               Download HVEL Extension
@@ -707,8 +713,8 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
             <ol style="margin:10px 0 0 0; padding-left:20px; font-size:14px; line-height:2;">
               <li>
                 <strong>Download the HVEL Chrome Extension</strong><br/>
-                <a href="https://hvel.io/download" style="color:#6366f1;">
-                  https://hvel.io/download
+                <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1;">
+                  https://hvel-backend.onrender.com/hvel-extension.zip
                 </a>
               </li>
               <li>
@@ -726,7 +732,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           <p>Once verified, your emails will display a green <strong>✅ Human Verified</strong>
              badge that tells recipients your message is genuine and AI-spam-free.</p>
 
-          <a href="https://hvel.io/download"
+          <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
              style="display:inline-block;background:#6366f1;color:white;padding:12px 25px;
                     text-decoration:none;border-radius:5px;font-weight:bold;margin-top:10px;">
             Get HVEL for Chrome — It's Free
