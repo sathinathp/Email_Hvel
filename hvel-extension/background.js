@@ -3,7 +3,7 @@ console.log("HVEL Background Service Worker initialized.");
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'heartbeat') {
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/heartbeat', {
+    fetch('https://hvel-backend.onrender.com/api/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: request.url })
@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Received verification request for type:", request.type);
     
     // Make actual API call to the backend
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/verify', {
+    fetch('https://hvel-backend.onrender.com/api/verify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'requestOTP') {
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/request-otp', {
+    fetch('https://hvel-backend.onrender.com/api/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail })
@@ -56,7 +56,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyOTP') {
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/verify-otp', {
+    fetch('https://hvel-backend.onrender.com/api/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail, code: request.code })
@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'setupTOTP') {
     console.log(`[HVEL EXT] Setting up TOTP for ${request.senderEmail} (Force: ${request.force})`);
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/totp-setup', {
+    fetch('https://hvel-backend.onrender.com/api/totp-setup', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyTOTP') {
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/totp-verify', {
+    fetch('https://hvel-backend.onrender.com/api/totp-verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail, code: request.code })
@@ -108,7 +108,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'validateVerification') {
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/validate', {
+    fetch('https://hvel-backend.onrender.com/api/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -125,7 +125,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'reportUnverifiedReply') {
     console.log(`[HVEL EXT] Reporting unverified reply from: ${request.noExtensionEmail}`);
-    fetch('https://unmagnetized-unprudential-beth.ngrok-free.dev/api/notify-unverified-reply', {
+    fetch('https://hvel-backend.onrender.com/api/notify-unverified-reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -133,6 +133,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         noExtensionEmail: request.noExtensionEmail
       })
     })
+
     .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));

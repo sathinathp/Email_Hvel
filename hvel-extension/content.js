@@ -254,11 +254,11 @@ function showOTPModal(sendBtn, onVerified) {
     }
 
     overlay.querySelector('#hvel-bio-btn').onclick = () => {
-        window.open(`https://unmagnetized-unprudential-beth.ngrok-free.dev/auth?action=verify&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
+        window.open(`https://hvel-backend.onrender.com/auth?action=verify&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
     };
 
     overlay.querySelector('#hvel-no-passkey').onclick = () => {
-        window.open(`https://unmagnetized-unprudential-beth.ngrok-free.dev/auth?action=register&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
+        window.open(`https://hvel-backend.onrender.com/auth?action=register&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
     };
 
     const handleMessage = (e) => {
