@@ -116,7 +116,7 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/api/heartbeat', (req, res) => {
-  console.log(`[HVEL API] 💓 Heartbeat from Ext: ${req.body.url}`);
+  // Heartbeat is silent — no log to keep Render logs clean
   res.json({ success: true });
 });
 
@@ -642,9 +642,6 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   const unverifiedUser = noExtensionEmail || req.body.recipientEmail;
 
   // ── LOOP GUARD ────────────────────────────────────────────────────────────
-  // Block any HVEL-internal/system emails from triggering nudges.
-  // This prevents an infinite loop where the nudge email itself is detected
-  // as an "unverified reply" by the extension and re-triggers this endpoint.
   const INTERNAL_EMAILS = [
     process.env.EMAIL_USER?.toLowerCase()
   ].filter(Boolean);
@@ -663,31 +660,28 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid recipient email' });
   }
 
-  if (INTERNAL_EMAILS.includes(verifiedUser?.toLowerCase()) ||
-    INTERNAL_EMAILS.includes(unverifiedUser?.toLowerCase()) ||
+  // Only block if the RECIPIENT (non-extension user) is an internal/system email
+  // Do NOT block based on the hvelUser — they can be any real user
+  if (INTERNAL_EMAILS.includes(unverifiedUser?.toLowerCase()) ||
     IGNORED_DOMAINS.includes(unverifiedDomain)) {
-    console.log(`[HVEL API] ⛔ Guard triggered — ignoring internal or whitelisted domain. recipient=${unverifiedUser}`);
+    console.log(`[HVEL API] ⛔ Guard — recipient is internal/whitelisted: ${unverifiedUser}`);
     return res.status(200).json({ success: false, message: 'Ignored: internal email or whitelisted service domain' });
   }
 
   // ── SELF-NUDGE GUARD ──────────────────────────────────────────────────────
   if (verifiedUser?.toLowerCase() === unverifiedUser?.toLowerCase()) {
-    console.log(`[HVEL API] ⛔ Self-nudge guard triggered — ignoring nudge request for self. user=${verifiedUser}`);
-    return res.status(200).json({ success: false, message: 'Ignored: self-nudge — user is looking at their own mail' });
+    console.log(`[HVEL API] ⛔ Self-nudge — same email on both sides: ${verifiedUser}`);
+    return res.status(200).json({ success: false, message: 'Ignored: self-nudge' });
   }
-  // ── END SELF-NUDGE GUARD ──────────────────────────────────────────────────
   // ── END LOOP GUARD ────────────────────────────────────────────────────────
 
-  console.log(`[HVEL API] Unverified reply detected. HVEL user: ${verifiedUser} | No-extension user: ${unverifiedUser}`);
-
   if (!verifiedUser || !unverifiedUser) {
-    console.log(`[HVEL API] Missing emails: hvelUser=${verifiedUser}, noExtensionUser=${unverifiedUser}`);
     return res.status(400).json({ error: 'hvelUserEmail and noExtensionEmail are required' });
   }
 
   if (!process.env.HRMS_EMAIL_PASS) {
-    console.error('[HVEL API] HRMS_EMAIL_PASS not set in .env — cannot send nudge email.');
-    return res.status(503).json({ error: 'HRMS email service not configured. Add HRMS_EMAIL_PASS to .env' });
+    console.error('[HVEL API] ❌ HRMS_EMAIL_PASS not set — cannot send nudge email.');
+    return res.status(503).json({ error: 'HRMS email service not configured' });
   }
 
   try {
