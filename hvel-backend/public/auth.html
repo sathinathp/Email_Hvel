@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVEL Security Hub</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        p { color: #64748b; font-size: 0.95rem; margin-bottom: 2rem; }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+        .status { margin-top: 1.5rem; font-size: 0.875rem; min-height: 1.25rem; }
+        .error { color: #ef4444; }
+        .success { color: #10b981; }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .email-display {
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="setup-view">
+            <h1>Setup Passkey (Step 1/2)</h1>
+            <div class="email-display" id="setup-email"></div>
+            <p>Secure your HVEL identity with Touch ID, Face ID, or Windows Hello.</p>
+            <button id="register-btn" class="btn">
+                <span>🔐 Setup Biometrics</span>
+            </button>
+        </div>
+
+        <div id="verify-view" style="display: none;">
+            <h1>Human Verification (Step 1/2)</h1>
+            <div class="email-display" id="verify-email"></div>
+            <p>Approve this sensitive action using your device biometrics.</p>
+            <button id="login-btn" class="btn">
+                <span>🛡️ Approve as Human</span>
+            </button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <!-- Use SimpleWebAuthn Browser helper from CDN -->
+    <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
+    <script>
+        const { startRegistration, startAuthentication } = SimpleWebAuthnBrowser;
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action') || 'verify';
+        const email = urlParams.get('email');
+
+        const setupView = document.getElementById('setup-view');
+        const verifyView = document.getElementById('verify-view');
+        const statusDiv = document.getElementById('status');
+        const registerBtn = document.getElementById('register-btn');
+        const loginBtn = document.getElementById('login-btn');
+
+        if (!email) {
+            statusDiv.innerHTML = '<span class="error">Error: Email parameter missing</span>';
+            registerBtn.disabled = true;
+            loginBtn.disabled = true;
+        } else {
+            document.getElementById('setup-email').innerText = email;
+            document.getElementById('verify-email').innerText = email;
+        }
+
+        if (action === 'register') {
+            setupView.style.display = 'block';
+            verifyView.style.display = 'none';
+        } else {
+            setupView.style.display = 'none';
+            verifyView.style.display = 'block';
+        }
+
+        function setStatus(msg, type = '') {
+            statusDiv.className = 'status ' + type;
+            statusDiv.innerText = msg;
+        }
+
+        async function handleRegister() {
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<div class="spinner"></div> Processing...';
+            setStatus('Getting options from server...');
+
+            try {
+                const resp = await fetch('/api/passkey/register-options', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const options = await resp.json();
+
+                if (options.error) throw new Error(options.error);
+
+                setStatus('Waiting for device interaction...');
+                const attResp = await startRegistration(options);
+
+                setStatus('Verifying with server...');
+                const verifyResp = await fetch('/api/passkey/register-verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, registrationResponse: attResp })
+                });
+                const verification = await verifyResp.json();
+
+                if (verification.success) {
+                    setStatus('Success! Sending signal back to extension...', 'success');
+                    window.opener?.postMessage({ type: 'hvel_auth_success', email, action: 'register' }, '*');
+                    setTimeout(() => window.close(), 1500);
+                } else {
+                    throw new Error(verification.error || 'Verification failed');
+                }
+            } catch (err) {
+                console.error(err);
+                setStatus('Error: ' + err.message, 'error');
+                registerBtn.disabled = false;
+                registerBtn.innerHTML = '<span>🔐 Setup Biometrics</span>';
+            }
+        }
+
+        async function handleLogin() {
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<div class="spinner"></div> Processing...';
+            setStatus('Getting challenge...');
+
+            try {
+                const resp = await fetch('/api/passkey/login-options', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const options = await resp.json();
+
+                if (options.error) throw new Error(options.error);
+
+                setStatus('Identify yourself...');
+                const asseResp = await startAuthentication(options);
+
+                setStatus('Validating signature...');
+                const verifyResp = await fetch('/api/passkey/login-verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, authResponse: asseResp })
+                });
+                const verification = await verifyResp.json();
+
+                if (verification.success) {
+                    setStatus('Verified! Sending signal...', 'success');
+                    window.opener?.postMessage({ type: 'hvel_auth_success', email, action: 'login' }, '*');
+                    setTimeout(() => window.close(), 1000);
+                } else {
+                    throw new Error(verification.error || 'Identity proof failed');
+                }
+            } catch (err) {
+                console.error(err);
+                setStatus('Error: ' + err.message, 'error');
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<span>🛡️ Approve as Human</span>';
+                
+                if (err.message.includes('No passkeys found')) {
+                    setStatus('No passkey found. Switching to setup...', 'error');
+                    setTimeout(() => {
+                        window.location.search = `?action=register&email=${email}`;
+                    }, 2000);
+                }
+            }
+        }
+
+        registerBtn.onclick = handleRegister;
+        loginBtn.onclick = handleLogin;
+
+        // Auto-trigger if appropriate
+        if (action === 'verify') {
+            // Give the user a moment to see the UI
+            setTimeout(handleLogin, 500);
+        }
+    </script>
+</body>
+</html>

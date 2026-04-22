@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "HVEL - Human Verified Email Layer",
+  "version": "1.0.0",
+  "description": "Add a visible trust signal to your emails. Verify as Human, AI Assisted, or Automated.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "webauthn"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://unmagnetized-unprudential-beth.ngrok-free.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_title": "HVEL Settings"
+  }
+}
