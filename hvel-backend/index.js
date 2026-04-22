@@ -685,10 +685,21 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   }
 
   try {
+    // ── DB DEDUP: only send once per (hvel_user, no_extension_user) pair ─────
+    const already = await pool.query(
+      `SELECT id FROM nudge_log WHERE hvel_user = $1 AND no_extension_user = $2`,
+      [verifiedUser.toLowerCase(), unverifiedUser.toLowerCase()]
+    );
+    if (already.rows.length > 0) {
+      console.log(`[HVEL API] ⏩ Nudge already sent to ${unverifiedUser} from ${verifiedUser} — skipping.`);
+      return res.json({ success: false, message: 'Nudge already sent to this user' });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const nudgeMailOptions = {
-      from: `"HVEL Security Hub" <${process.env.EMAIL_USER}>`,
+      from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
       to: unverifiedUser,
-      subject: `Human Verification for your email to ${verifiedUser}`,
+      subject: `⚠️ Your reply to ${verifiedUser} was not Human Verified`,
       headers: {
         'X-Priority': '1 (Highest)',
         'X-MSMail-Priority': 'High',
@@ -696,75 +707,123 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
         'X-Entity-Ref-ID': Date.now().toString()
       },
       html: `
-        <div style="font-family: sans-serif; color: #333; max-width: 600px;
-                    border: 1px solid #fecaca; padding: 20px; border-radius: 10px;">
-          <h3 style="color: #4f46e5;">Verification Secure Context</h3>
-          <p>Hello,</p>
-          <p>You recently sent an email to <strong>${verifiedUser}</strong>.</p>
-          <p>This recipient uses <strong>HVEL (Human-Verified Email Layer)</strong> to ensure they only receive messages from verified humans.</p>
-          <p>Professional recipients increasingly filter unverified emails to protect themselves
-             from AI-generated spam and phishing attacks. Your message may be flagged or ignored.</p>
+        <div style="font-family:'Segoe UI',Arial,sans-serif; color:#1f2937; max-width:580px; margin:0 auto; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
 
-          <div style="background:#fef2f2; padding:15px; border-radius:8px;
-                      margin:20px 0; border-left:4px solid #ef4444;">
-            <p style="margin:0; font-weight:bold;">How to fix this in 3 easy steps:</p>
-            <ol style="margin:10px 0 0 0; padding-left:20px; font-size:14px; line-height:2;">
-              <li>
-                <strong>Download the HVEL Chrome Extension</strong><br/>
-                <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1;">
-                  https://hvel-backend.onrender.com/hvel-extension.zip
-                </a>
-              </li>
-              <li>
-                <strong>Install &amp; open Gmail</strong> — you will see the HVEL toolbar
-                appear inside your compose window.
-              </li>
-              <li>
-                <strong>Click "Verify as Human"</strong> before sending — HVEL will run a quick
-                2-factor identity check (OTP or Authenticator app) and attach a tamper-proof
-                trust badge to your email.
-              </li>
-            </ol>
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#6366f1,#4f46e5); padding:28px 30px;">
+            <h2 style="margin:0; color:white; font-size:20px; font-weight:700;">⚠️ Your Reply Was Not Verified</h2>
+            <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;">
+              HVEL — Human Verified Email Layer
+            </p>
           </div>
 
-          <p>Once verified, your emails will display a green <strong>✅ Human Verified</strong>
-             badge that tells recipients your message is genuine and AI-spam-free.</p>
+          <!-- Body -->
+          <div style="padding:28px 30px;">
+            <p style="margin:0 0 16px; font-size:15px;">Hello,</p>
 
-          <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
-             style="display:inline-block;background:#6366f1;color:white;padding:12px 25px;
-                    text-decoration:none;border-radius:5px;font-weight:bold;margin-top:10px;">
-            Get HVEL for Chrome — It's Free
-          </a>
+            <p style="margin:0 0 16px; font-size:14px; line-height:1.6;">
+              You recently replied to <strong>${verifiedUser}</strong>.<br/>
+              That recipient uses <strong>HVEL</strong> — a security layer that ensures emails
+              come from verified humans, not bots or AI.
+            </p>
 
-          <p style="font-size:12px; color:#999; margin-top:30px;">
-            This notification was sent automatically by the HVEL Security Layer on behalf of
-            ${verifiedUser}.<br/>
-            Learn more at <a href="https://hvel.io" style="color:#6366f1;">hvel.io</a>
-          </p>
+            <div style="background:#fef3c7; border-left:4px solid #f59e0b; border-radius:8px; padding:14px 16px; margin:0 0 20px;">
+              <p style="margin:0; font-size:13px; font-weight:600; color:#92400e;">
+                ⚠️ Your reply did not carry an HVEL verification badge.
+              </p>
+              <p style="margin:6px 0 0; font-size:12px; color:#78350f; line-height:1.5;">
+                Unverified emails may be filtered or flagged by HVEL users.
+                Install the free extension to verify yourself in seconds.
+              </p>
+            </div>
+
+            <!-- Steps -->
+            <p style="margin:0 0 12px; font-size:14px; font-weight:700; color:#111827;">
+              How to get verified — 3 simple steps:
+            </p>
+
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td style="width:36px; vertical-align:top; padding:0 12px 16px 0;">
+                  <div style="width:32px; height:32px; background:#6366f1; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; text-align:center; line-height:32px;">1</div>
+                </td>
+                <td style="vertical-align:top; padding-bottom:16px;">
+                  <p style="margin:0; font-size:14px; font-weight:600; color:#111827;">Download the HVEL Chrome Extension</p>
+                  <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
+                     style="color:#6366f1; font-size:13px; word-break:break-all;">
+                    https://hvel-backend.onrender.com/hvel-extension.zip
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="width:36px; vertical-align:top; padding:0 12px 16px 0;">
+                  <div style="width:32px; height:32px; background:#6366f1; color:white; border-radius:50%; font-weight:700; font-size:14px; text-align:center; line-height:32px;">2</div>
+                </td>
+                <td style="vertical-align:top; padding-bottom:16px;">
+                  <p style="margin:0; font-size:14px; font-weight:600; color:#111827;">Install in Chrome</p>
+                  <p style="margin:4px 0 0; font-size:13px; color:#6b7280; line-height:1.5;">
+                    Open <strong>chrome://extensions</strong> → Enable <strong>Developer mode</strong>
+                    → Click <strong>Load unpacked</strong> → Select the extracted folder.
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="width:36px; vertical-align:top; padding:0 12px 0 0;">
+                  <div style="width:32px; height:32px; background:#10b981; color:white; border-radius:50%; font-weight:700; font-size:14px; text-align:center; line-height:32px;">3</div>
+                </td>
+                <td style="vertical-align:top;">
+                  <p style="margin:0; font-size:14px; font-weight:600; color:#111827;">Verify before sending in Gmail</p>
+                  <p style="margin:4px 0 0; font-size:13px; color:#6b7280; line-height:1.5;">
+                    Open Gmail → Compose a reply → Click <strong>"Verify"</strong> in the toolbar
+                    → Complete the quick 2FA check → Send with your ✅ Human Verified badge.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- CTA -->
+            <div style="text-align:center; margin:28px 0 0;">
+              <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
+                 style="display:inline-block; background:#6366f1; color:white; padding:13px 32px;
+                        text-decoration:none; border-radius:8px; font-weight:700; font-size:14px;">
+                Download HVEL Extension — Free
+              </a>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background:#f9fafb; padding:16px 30px; border-top:1px solid #e5e7eb;">
+            <p style="margin:0; font-size:11px; color:#9ca3af; line-height:1.6;">
+              This email was sent automatically by HVEL on behalf of <strong>${verifiedUser}</strong>
+              because you replied to their Human Verified email without a verification badge.<br/>
+              You will only receive this notification once.
+            </p>
+          </div>
+
         </div>
       `
     };
 
     await hrmsTransporter.sendMail(nudgeMailOptions);
 
-    // Log to DB
+    // Log to DB (after successful send)
     await pool.query(
       `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`,
-      [verifiedUser, unverifiedUser]
+      [verifiedUser.toLowerCase(), unverifiedUser.toLowerCase()]
     );
 
     console.log('================================================================');
     console.log(`[HVEL API] ✅ NUDGE EMAIL SENT`);
     console.log(`           HVEL User (Extension):  ${verifiedUser}`);
     console.log(`           Non-Extension User:      ${unverifiedUser}`);
-    console.log(`           HVEL Email Sent From:    ${process.env.EMAIL_USER}`);
+    console.log(`           Sent From:               ${process.env.EMAIL_USER}`);
     console.log(`           Sent At:                 ${new Date().toISOString()}`);
     console.log('================================================================');
 
-    res.json({ success: true, message: `Nudge email sent to ${unverifiedUser} from ${process.env.EMAIL_USER}` });
+    res.json({ success: true, message: `Nudge email sent to ${unverifiedUser}` });
 
   } catch (err) {
-    console.error('[HVEL API] HRMS SMTP Error:', err);
+    console.error('[HVEL API] ❌ Nudge email error:', err.message);
     res.status(500).json({ error: 'Server error while sending nudge email' });
   }
 });
