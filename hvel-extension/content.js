@@ -39,30 +39,42 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Extract actual user email from Gmail DOM
+// Extract actual user email from Gmail DOM — tries multiple selectors
 function getSenderEmail() {
-    // Attempt 1: Title check
-    const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (titleMatch) return titleMatch[0].toLowerCase();
-
-    // Attempt 2: Google Account button aria-label (very reliable)
+    // Attempt 1: Google Account button aria-label (most reliable)
     const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
     if (accountBtn) {
-        const label = accountBtn.getAttribute('aria-label') || "";
+        const label = accountBtn.getAttribute('aria-label') || '';
         const emailMatch = label.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (emailMatch) return emailMatch[0].toLowerCase();
     }
 
-    // Attempt 3: Gmail identity container
-    const identity = document.querySelector('.gb_d.gb_Ba.gb_z'); // Older selector
-    if (identity && identity.innerText.includes('@')) return identity.innerText.trim().toLowerCase();
-    
-    return 'unknown-sender@gmail.com';
+    // Attempt 2: data-email attribute on account switcher
+    const accountEl = document.querySelector('[data-email]');
+    if (accountEl) {
+        const e = accountEl.getAttribute('data-email');
+        if (e && e.includes('@')) return e.toLowerCase();
+    }
+
+    // Attempt 3: Gmail header profile image alt text
+    const profileImg = document.querySelector('img.gb_P[alt]');
+    if (profileImg) {
+        const alt = profileImg.getAttribute('alt') || '';
+        const m = alt.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (m) return m[0].toLowerCase();
+    }
+
+    // Attempt 4: Title bar (Gmail sets title to "Inbox (N) - email@domain - Gmail")
+    const titleMatch = document.title.match(/[\w._%+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+    if (titleMatch) return titleMatch[0].toLowerCase();
+
+    // Could not detect — return null so callers can bail out safely
+    return null;
 }
 
 // Function to find the recipient of an incoming message (the current user)
 function getCurrentUserEmail() {
-    return getSenderEmail(); // In Gmail, your own email is the one you're logged into
+    return getSenderEmail();
 }
 
 function showOTPModal(sendBtn, onVerified) {
@@ -449,93 +461,124 @@ async function injectHvelUI() {
     });
 }
 
-// NEW: Scanning Incoming Emails for Trust Signals
+// Scanning Incoming Emails for Trust Signals — INBOX ONLY
 async function scanIncomingMessages() {
-    // Broaden the search: scan any element that looks like a message container
+    // ── INBOX-ONLY GUARD ─────────────────────────────────────────────────────
+    // Only scan when the user is viewing their inbox, not sent/drafts/spam etc.
+    const url = window.location.href;
+    const isInbox = url.includes('#inbox') || url.includes('/inbox');
+    const isSent  = url.includes('#sent')  || url.includes('/sent');
+    const isDraft = url.includes('#draft') || url.includes('/draft');
+    if (!isInbox || isSent || isDraft) return;
+    // ── END INBOX-ONLY GUARD ─────────────────────────────────────────────────
+
+    const myEmail = getCurrentUserEmail();
+
+    // ── MY EMAIL GUARD ───────────────────────────────────────────────────────
+    // If we can't detect the logged-in user's email, bail out entirely.
+    // This prevents nudges being sent to/from "unknown-sender@gmail.com".
+    if (!myEmail) {
+        console.warn('[HVEL] ⚠️ Could not detect logged-in email — skipping scan.');
+        return;
+    }
+    // ── END MY EMAIL GUARD ───────────────────────────────────────────────────
+
     const messages = document.querySelectorAll('.adn, .ads, div[role="listitem"]');
-    
+
     messages.forEach(async (msg) => {
         if (msg.hasAttribute('data-hvel-scanned')) return;
         msg.setAttribute('data-hvel-scanned', 'true');
 
         const badgeLink = msg.querySelector('a[href*="/v/"]');
-        
-        // Improved Sender Detection: Highly robust for Gmail
+
+        // ── SENDER DETECTION ─────────────────────────────────────────────────
         let senderEmail = null;
-        
-        // 1. Look for .gD (the actual name/email element)
+
+        // 1. .gD element (most reliable in Gmail)
         const gD = msg.querySelector('.gD');
         if (gD) {
             senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
         }
-        
-        // 2. Look for any element with an 'email' attribute in the header
+
+        // 2. Any span with an email attribute
         if (!senderEmail || !senderEmail.includes('@')) {
             const emailSpan = msg.querySelector('span[email]');
             if (emailSpan) senderEmail = emailSpan.getAttribute('email');
         }
 
-        // 3. Fallback: Parse from the header text/names
+        // 3. Regex fallback inside message header text
         if (!senderEmail || !senderEmail.includes('@')) {
-            const headerText = msg.innerText.substring(0, 500); // Check first 500 chars
-            const match = headerText.match(/[a-zA-Z0-9._%+-]+@gmail\.com/); // Gmail specific for now
-            if (match) senderEmail = match[0];
+            const headerText = msg.innerText.substring(0, 500);
+            const match = headerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (match) senderEmail = match[0].toLowerCase();
         }
-        
-        const recipientEmail = getCurrentUserEmail();
-        
+        // ── END SENDER DETECTION ─────────────────────────────────────────────
+
+        // ── VALIDITY GUARDS ───────────────────────────────────────────────────
+        // Skip if sender unknown, is ourselves, or is a system/service domain
+        if (!senderEmail || !senderEmail.includes('@')) {
+            console.log('[HVEL] ⏩ Skipping — could not detect sender email.');
+            return;
+        }
+
+        if (senderEmail.toLowerCase() === myEmail.toLowerCase()) {
+            console.log(`[HVEL] ⏩ Skipping — sender is self (${senderEmail}).`);
+            return;
+        }
+
         const IGNORED_DOMAINS = [
-            'vercel.com', 'google.com', 'microsoft.com', 'github.com', 
-            'aws.com', 'amazon.com', 'netflix.com'
+            'vercel.com', 'google.com', 'microsoft.com', 'github.com', 'github.io',
+            'aws.com', 'amazon.com', 'netflix.com', 'facebook.com', 'linkedin.com',
+            'twitter.com', 'x.com', 'noreply.com', 'mailer.com'
         ];
-        const senderDomain = senderEmail?.split('@')[1]?.toLowerCase();
-        const isIgnoredDomain = IGNORED_DOMAINS.includes(senderDomain);
+        const senderDomain = senderEmail.split('@')[1]?.toLowerCase();
+        if (IGNORED_DOMAINS.includes(senderDomain)) {
+            console.log(`[HVEL] ⏩ Skipping — ignored domain (${senderDomain}).`);
+            return;
+        }
+        // ── END VALIDITY GUARDS ───────────────────────────────────────────────
 
-        // Only proceed if we have a valid sender, they are NOT the current user, and NOT a whitelisted domain
-        if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
-            console.log(`[HVEL] 🔍 Analyzing message from: ${senderEmail}`);
-            console.log(`[HVEL] 🛡️ Badge found? ${!!badgeLink}`);
+        console.log(`[HVEL] 🔍 Analyzing inbox message from: ${senderEmail}`);
+        console.log(`[HVEL] 🛡️ HVEL badge found? ${!!badgeLink}`);
 
-            if (badgeLink) {
-                const url = badgeLink.href;
-                console.log(`[HVEL] 🔗 Found Badge URL: ${url}`);
-                const id = url.split('/v/').pop();
-                
-                // Validate the stamp
+        if (badgeLink) {
+            const id = badgeLink.href.split('/v/').pop();
+            chrome.runtime.sendMessage({
+                action: 'validateVerification',
+                id: id,
+                senderEmail: senderEmail,
+                recipientEmail: myEmail
+            }, (response) => {
+                if (response && response.status === 'verified') {
+                    showTrustStatus(msg, 'verified', `✅ Human Verified (${senderEmail})`);
+                } else if (response && response.status === 'tampered') {
+                    showTrustStatus(msg, 'tampered', response.message);
+                } else {
+                    showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
+                }
+            });
+        } else {
+            // No HVEL badge — send mandatory nudge email to this sender
+            const nudgeKey = `hvel_nudged_${senderEmail}`;
+            if (!sessionStorage.getItem(nudgeKey)) {
+                console.log(`[HVEL] 🚀 Sending mandatory nudge to: ${senderEmail} (my email: ${myEmail})`);
                 chrome.runtime.sendMessage({
-                    action: 'validateVerification',
-                    id: id,
-                    senderEmail: senderEmail,
-                    recipientEmail: recipientEmail
+                    action: 'reportUnverifiedReply',
+                    hvelUserEmail: myEmail,
+                    noExtensionEmail: senderEmail
                 }, (response) => {
-                    if (response && response.status === 'verified') {
-                        showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
-                    } else if (response && response.status === 'tampered') {
-                        showTrustStatus(msg, 'tampered', response.message);
+                    console.log(`[HVEL] 📬 Nudge response for ${senderEmail}:`, JSON.stringify(response));
+                    if (response && response.success) {
+                        sessionStorage.setItem(nudgeKey, 'true');
+                        console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
                     } else {
-                        showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
+                        console.warn(`[HVEL] ⚠️ Nudge failed for ${senderEmail}:`, response?.message || response?.error);
                     }
                 });
             } else {
-                // No HVEL found on a reply - Trigger Mandatory Nudge
-                const nudgeKey = `hvel_nudged_${senderEmail}`;
-                if (!sessionStorage.getItem(nudgeKey)) {
-                    console.log(`[HVEL] 🚀 Triggering Nudge API for: ${senderEmail}`);
-                    chrome.runtime.sendMessage({
-                        action: 'reportUnverifiedReply',
-                        hvelUserEmail: recipientEmail,
-                        noExtensionEmail: senderEmail
-                    }, (response) => {
-                        console.log(`[HVEL] 📬 Nudge API Response:`, response);
-                        if (response && response.success) {
-                            sessionStorage.setItem(nudgeKey, 'true');
-                        }
-                    });
-                } else {
-                    console.log(`[HVEL] ⏩ Nudge already sent to ${senderEmail} in this session.`);
-                }
-                showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
+                console.log(`[HVEL] ⏩ Nudge already sent to ${senderEmail} this session.`);
             }
+            showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} is not HVEL Verified — nudge email sent.`);
         }
     });
 }

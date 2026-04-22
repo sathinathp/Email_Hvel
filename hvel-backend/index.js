@@ -646,7 +646,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   // This prevents an infinite loop where the nudge email itself is detected
   // as an "unverified reply" by the extension and re-triggers this endpoint.
   const INTERNAL_EMAILS = [
-    process.env.EMAIL_USER?.toLowerCase() // main EMAIL_USER
+    process.env.EMAIL_USER?.toLowerCase()
   ].filter(Boolean);
 
   const IGNORED_DOMAINS = [
@@ -656,6 +656,12 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   ];
 
   const unverifiedDomain = unverifiedUser?.split('@')[1]?.toLowerCase();
+
+  // Block unknown-sender fallback — extension should never send this
+  if (!unverifiedUser || !unverifiedUser.includes('@') || unverifiedUser === 'unknown-sender@gmail.com') {
+    console.log(`[HVEL API] ⛔ Blocked — invalid or unknown recipient email: ${unverifiedUser}`);
+    return res.status(400).json({ success: false, message: 'Invalid recipient email' });
+  }
 
   if (INTERNAL_EMAILS.includes(verifiedUser?.toLowerCase()) ||
     INTERNAL_EMAILS.includes(unverifiedUser?.toLowerCase()) ||
