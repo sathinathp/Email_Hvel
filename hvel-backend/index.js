@@ -81,6 +81,12 @@ async function initDB() {
       challenge TEXT NOT NULL,
       expires_at TIMESTAMP NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS nudge_log (
+      id SERIAL PRIMARY KEY,
+      hvel_user VARCHAR(255) NOT NULL,
+      no_extension_user VARCHAR(255) NOT NULL,
+      nudge_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(createTableQuery);
@@ -143,13 +149,13 @@ const hrmsTransporter = nodemailer.createTransport({
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   mainTransporter.verify((error) => {
     if (error) console.error('[HVEL API] Main SMTP Error:', error);
-    else console.log('[HVEL API] Main SMTP ready');
+    else console.log(`[HVEL API] ✅ Main SMTP ready — sending as: ${process.env.EMAIL_USER}`);
   });
 }
 if (process.env.HRMS_EMAIL_PASS) {
   hrmsTransporter.verify((error) => {
     if (error) console.error('[HVEL API] HRMS SMTP Error:', error);
-    else console.log(`[HVEL API] HRMS SMTP ready (${process.env.EMAIL_USER})`);
+    else console.log(`[HVEL API] ✅ HRMS SMTP ready — nudge emails from: ${process.env.EMAIL_USER}`);
   });
 }
 
@@ -740,7 +746,21 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     };
 
     await hrmsTransporter.sendMail(nudgeMailOptions);
-    console.log(`[HVEL API] ✅ Nudge email sent FROM ${process.env.EMAIL_USER} TO ${unverifiedUser}`);
+
+    // Log to DB
+    await pool.query(
+      `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`,
+      [verifiedUser, unverifiedUser]
+    );
+
+    console.log('================================================================');
+    console.log(`[HVEL API] ✅ NUDGE EMAIL SENT`);
+    console.log(`           HVEL User (Extension):  ${verifiedUser}`);
+    console.log(`           Non-Extension User:      ${unverifiedUser}`);
+    console.log(`           HVEL Email Sent From:    ${process.env.EMAIL_USER}`);
+    console.log(`           Sent At:                 ${new Date().toISOString()}`);
+    console.log('================================================================');
+
     res.json({ success: true, message: `Nudge email sent to ${unverifiedUser} from ${process.env.EMAIL_USER}` });
 
   } catch (err) {
@@ -904,6 +924,23 @@ app.post('/api/check-reply-verification', (req, res) => {
       action: "send_warning_email",
       message: message
     });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Endpoint: nudge-log — View all non-extension users who received nudge emails
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/nudge-log', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, hvel_user, no_extension_user, nudge_sent_at 
+       FROM nudge_log ORDER BY nudge_sent_at DESC`
+    );
+    console.log(`[HVEL API] 📋 Nudge log requested — ${result.rows.length} records`);
+    res.json({ success: true, total: result.rows.length, records: result.rows });
+  } catch (err) {
+    console.error('[HVEL API] Error fetching nudge log:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
