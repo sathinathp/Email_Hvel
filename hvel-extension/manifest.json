@@ -5,8 +5,7 @@
   "description": "Add a visible trust signal to your emails. Verify as Human, AI Assisted, or Automated.",
   "permissions": [
     "activeTab",
-    "storage",
-    "webauthn"
+    "storage"
   ],
   "host_permissions": [
     "https://mail.google.com/*",
