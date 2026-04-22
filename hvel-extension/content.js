@@ -461,33 +461,35 @@ async function injectHvelUI() {
     });
 }
 
-// Scanning Incoming Emails for Trust Signals — INBOX ONLY
-// NUDGE LOGIC: Only nudge if this message is a reply in a thread where
-// the extension user previously sent a Human-Verified (HVEL badge) email.
+// Scanning Incoming Emails for Trust Signals
+// Two-pass approach:
+//   Pass 1 — find all threads where I sent an HVEL-verified email
+//   Pass 2 — nudge any reply in those threads that has no badge
 async function scanIncomingMessages() {
-    // ── SKIP NON-INBOX FOLDERS ────────────────────────────────────────────────
+    // Skip sent/drafts/spam/trash folders
     const url = window.location.href;
     const skipFolders = ['#sent', '/sent', '#drafts', '/drafts', '#spam', '/spam', '#trash', '/trash', '#outbox'];
     if (skipFolders.some(f => url.includes(f))) return;
-    // ─────────────────────────────────────────────────────────────────────────
 
     const myEmail = getCurrentUserEmail();
-    if (!myEmail) return; // Can't detect logged-in user — bail
+    if (!myEmail) {
+        console.warn('[HVEL] ⚠️ Cannot detect logged-in email — skipping scan.');
+        return;
+    }
 
-    // ── THREAD VIEW: scan open email threads ──────────────────────────────────
-    // When a thread is open, Gmail shows all messages in .adn/.ads containers.
-    // We look for threads that contain at least one HVEL badge sent BY us,
-    // then check if any reply from someone else is missing a badge.
-    const threadMessages = document.querySelectorAll('.adn, .ads');
+    const allMessages = document.querySelectorAll('.adn, .ads');
+    if (allMessages.length === 0) return;
 
-    threadMessages.forEach(async (msg) => {
-        if (msg.hasAttribute('data-hvel-scanned')) return;
-        msg.setAttribute('data-hvel-scanned', 'true');
+    console.log(`[HVEL] 🔍 Scanning ${allMessages.length} message(s) in thread. My email: ${myEmail}`);
 
-        // Detect sender of THIS message
+    // ── PASS 1: find all message senders + badge status ───────────────────────
+    const msgData = [];
+    allMessages.forEach((msg) => {
         let senderEmail = null;
+
         const gD = msg.querySelector('.gD');
         if (gD) senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
+
         if (!senderEmail || !senderEmail.includes('@')) {
             const emailEl = msg.querySelector('[email]');
             if (emailEl) senderEmail = emailEl.getAttribute('email');
@@ -499,39 +501,30 @@ async function scanIncomingMessages() {
                 if (val && val.includes('@')) senderEmail = val;
             }
         }
-        if (!senderEmail || !senderEmail.includes('@')) return;
-
-        const IGNORED_DOMAINS = [
-            'vercel.com', 'google.com', 'microsoft.com', 'github.com', 'github.io',
-            'aws.com', 'amazon.com', 'netflix.com', 'facebook.com', 'linkedin.com',
-            'twitter.com', 'x.com', 'noreply.com', 'mailer.com', 'accounts.google.com'
-        ];
-        const senderDomain = senderEmail.split('@')[1]?.toLowerCase();
-        if (IGNORED_DOMAINS.includes(senderDomain)) return;
 
         const badgeLink = msg.querySelector('a[href*="/v/"]');
-        const isFromMe = senderEmail.toLowerCase() === myEmail.toLowerCase();
+        const isFromMe = senderEmail && senderEmail.toLowerCase() === myEmail.toLowerCase();
 
-        if (isFromMe) {
-            // This is MY message in the thread — check if it has an HVEL badge
-            if (badgeLink) {
-                // Mark the thread container so we know I sent a verified email here
-                const thread = msg.closest('.ha, .nH, [role="main"]') || document.body;
-                thread.setAttribute('data-hvel-i-sent-verified', 'true');
-                console.log(`[HVEL] ✅ Found my verified email in thread (badge: ${badgeLink.href})`);
-            }
-            // Show verified badge on my own sent message
-            if (badgeLink) showTrustStatus(msg, 'verified', `✅ You sent a Human Verified email`);
-            return;
+        msgData.push({ msg, senderEmail, badgeLink, isFromMe });
+
+        // Show verified badge on my own sent messages
+        if (isFromMe && badgeLink && !msg.hasAttribute('data-hvel-scanned')) {
+            msg.setAttribute('data-hvel-scanned', 'true');
+            showTrustStatus(msg, 'verified', `✅ You sent a Human Verified email`);
+            console.log(`[HVEL] ✅ My verified message found — badge: ${badgeLink.href}`);
         }
+    });
 
-        // This message is FROM someone else (not me)
-        // Only nudge if this thread has a verified email sent by me
-        const thread = msg.closest('.ha, .nH, [role="main"]') || document.body;
-        const iVerifiedInThisThread = thread.getAttribute('data-hvel-i-sent-verified') === 'true';
+    // Did I send at least one verified email in this thread?
+    const iSentVerified = msgData.some(d => d.isFromMe && d.badgeLink);
+    console.log(`[HVEL] 🔎 I sent verified email in this thread: ${iSentVerified}`);
 
-        if (!iVerifiedInThisThread) {
-            // Regular incoming email — just show trust status, no nudge
+    if (!iSentVerified) {
+        // No verified email from me — just show trust status on incoming, no nudge
+        msgData.forEach(({ msg, senderEmail, badgeLink, isFromMe }) => {
+            if (isFromMe || msg.hasAttribute('data-hvel-scanned')) return;
+            if (!senderEmail || !senderEmail.includes('@')) return;
+            msg.setAttribute('data-hvel-scanned', 'true');
             if (badgeLink) {
                 const id = badgeLink.href.split('/v/').pop();
                 chrome.runtime.sendMessage({
@@ -547,35 +540,60 @@ async function scanIncomingMessages() {
                     }
                 });
             }
-            // No badge, no verified thread — just show unverified, no nudge
+        });
+        return;
+    }
+
+    // ── PASS 2: process replies — nudge those without a badge ─────────────────
+    const IGNORED_DOMAINS = [
+        'vercel.com', 'google.com', 'microsoft.com', 'github.com', 'github.io',
+        'aws.com', 'amazon.com', 'netflix.com', 'facebook.com', 'linkedin.com',
+        'twitter.com', 'x.com', 'noreply.com', 'mailer.com', 'accounts.google.com'
+    ];
+
+    msgData.forEach(({ msg, senderEmail, badgeLink, isFromMe }) => {
+        if (isFromMe) return; // skip my own messages
+        if (msg.hasAttribute('data-hvel-scanned')) return;
+        msg.setAttribute('data-hvel-scanned', 'true');
+
+        if (!senderEmail || !senderEmail.includes('@')) {
+            console.log('[HVEL] ⏩ Skipping — no sender email detected.');
             return;
         }
 
-        // ── NUDGE LOGIC ───────────────────────────────────────────────────────
-        // I sent a verified email in this thread, and this reply has no HVEL badge
+        const senderDomain = senderEmail.split('@')[1]?.toLowerCase();
+        if (IGNORED_DOMAINS.includes(senderDomain)) {
+            console.log(`[HVEL] ⏩ Skipping ignored domain: ${senderDomain}`);
+            return;
+        }
+
+        console.log(`[HVEL] 📨 Reply from: ${senderEmail} | has badge: ${!!badgeLink}`);
+
         if (!badgeLink) {
+            // Reply with no HVEL badge — send nudge
             const nudgeKey = `hvel_nudged_${senderEmail}`;
             if (!sessionStorage.getItem(nudgeKey)) {
-                console.log(`[HVEL] 📤 Reply without badge detected — nudging ${senderEmail} (my email: ${myEmail})`);
+                console.log(`[HVEL] 📤 Triggering nudge → ${senderEmail}`);
                 sessionStorage.setItem(nudgeKey, 'true');
                 chrome.runtime.sendMessage({
                     action: 'reportUnverifiedReply',
                     hvelUserEmail: myEmail,
                     noExtensionEmail: senderEmail
                 }, (response) => {
+                    console.log(`[HVEL] 📬 Nudge API response for ${senderEmail}:`, JSON.stringify(response));
                     if (response && response.success) {
                         console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
                     } else {
-                        console.warn(`[HVEL] ⚠️ Nudge failed for ${senderEmail}:`, response?.message || response?.error);
+                        console.warn(`[HVEL] ⚠️ Nudge not sent: ${response?.message || response?.error || 'no response'}`);
                         sessionStorage.removeItem(nudgeKey);
                     }
                 });
             } else {
                 console.log(`[HVEL] ⏩ Already nudged ${senderEmail} this session.`);
             }
-            showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification — nudge sent`);
+            showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification`);
         } else {
-            // They replied WITH a badge — validate it
+            // Reply has a badge — validate it
             const id = badgeLink.href.split('/v/').pop();
             chrome.runtime.sendMessage({
                 action: 'validateVerification',
@@ -590,7 +608,6 @@ async function scanIncomingMessages() {
                 }
             });
         }
-        // ── END NUDGE LOGIC ───────────────────────────────────────────────────
     });
 }
 
