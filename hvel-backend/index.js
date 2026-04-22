@@ -685,14 +685,16 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   }
 
   try {
-    // ── DB DEDUP: only send once per (hvel_user, no_extension_user) pair ─────
+    // ── DB DEDUP: only send once per (hvel_user, no_extension_user) per 24h ──
     const already = await pool.query(
-      `SELECT id FROM nudge_log WHERE hvel_user = $1 AND no_extension_user = $2`,
+      `SELECT id FROM nudge_log 
+       WHERE hvel_user = $1 AND no_extension_user = $2
+       AND nudge_sent_at > NOW() - INTERVAL '24 hours'`,
       [verifiedUser.toLowerCase(), unverifiedUser.toLowerCase()]
     );
     if (already.rows.length > 0) {
-      console.log(`[HVEL API] ⏩ Nudge already sent to ${unverifiedUser} from ${verifiedUser} — skipping.`);
-      return res.json({ success: false, message: 'Nudge already sent to this user' });
+      console.log(`[HVEL API] ⏩ Nudge already sent to ${unverifiedUser} within 24h — skipping.`);
+      return res.json({ success: false, message: 'Nudge already sent within 24 hours' });
     }
     // ─────────────────────────────────────────────────────────────────────────
 

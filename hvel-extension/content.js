@@ -570,27 +570,20 @@ async function scanIncomingMessages() {
         console.log(`[HVEL] 📨 Reply from: ${senderEmail} | has badge: ${!!badgeLink}`);
 
         if (!badgeLink) {
-            // Reply with no HVEL badge — send nudge
-            const nudgeKey = `hvel_nudged_${senderEmail}`;
-            if (!sessionStorage.getItem(nudgeKey)) {
-                console.log(`[HVEL] 📤 Triggering nudge → ${senderEmail}`);
-                sessionStorage.setItem(nudgeKey, 'true');
-                chrome.runtime.sendMessage({
-                    action: 'reportUnverifiedReply',
-                    hvelUserEmail: myEmail,
-                    noExtensionEmail: senderEmail
-                }, (response) => {
-                    console.log(`[HVEL] 📬 Nudge API response for ${senderEmail}:`, JSON.stringify(response));
-                    if (response && response.success) {
-                        console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
-                    } else {
-                        console.warn(`[HVEL] ⚠️ Nudge not sent: ${response?.message || response?.error || 'no response'}`);
-                        sessionStorage.removeItem(nudgeKey);
-                    }
-                });
-            } else {
-                console.log(`[HVEL] ⏩ Already nudged ${senderEmail} this session.`);
-            }
+            // Reply with no HVEL badge — send nudge (backend handles dedup)
+            console.log(`[HVEL] 📤 Triggering nudge → ${senderEmail}`);
+            chrome.runtime.sendMessage({
+                action: 'reportUnverifiedReply',
+                hvelUserEmail: myEmail,
+                noExtensionEmail: senderEmail
+            }, (response) => {
+                console.log(`[HVEL] 📬 Nudge API response for ${senderEmail}:`, JSON.stringify(response));
+                if (response && response.success) {
+                    console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
+                } else {
+                    console.warn(`[HVEL] ⚠️ Nudge not sent: ${response?.message || response?.error || 'no response'}`);
+                }
+            });
             showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification`);
         } else {
             // Reply has a badge — validate it
