@@ -41,14 +41,6 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   ssl: {
     rejectUnauthorized: false
-  },
-  // This is the strongest way to force IPv4 on Render
-  stream: (options) => {
-    return net.connect({
-      host: options.host,
-      port: options.port,
-      family: 4
-    });
   }
 });
 
