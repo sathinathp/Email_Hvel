@@ -685,16 +685,18 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   }
 
   try {
-    // ── DB DEDUP: only send once per (hvel_user, no_extension_user) per 24h ──
+    // ── RATE LIMIT: max 1 nudge per (hvel_user, no_extension_user) per 1 hour
+    // This prevents spam if the extension fires multiple times for the same reply
+    // but allows nudging again if they reply again later.
     const already = await pool.query(
       `SELECT id FROM nudge_log 
        WHERE hvel_user = $1 AND no_extension_user = $2
-       AND nudge_sent_at > NOW() - INTERVAL '24 hours'`,
+       AND nudge_sent_at > NOW() - INTERVAL '1 hour'`,
       [verifiedUser.toLowerCase(), unverifiedUser.toLowerCase()]
     );
     if (already.rows.length > 0) {
-      console.log(`[HVEL API] ⏩ Nudge already sent to ${unverifiedUser} within 24h — skipping.`);
-      return res.json({ success: false, message: 'Nudge already sent within 24 hours' });
+      console.log(`[HVEL API] ⏩ Rate limited — nudge already sent to ${unverifiedUser} within 1h.`);
+      return res.json({ success: false, message: 'Rate limited: nudge sent within last hour' });
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1002,6 +1004,40 @@ app.get('/api/nudge-log', async (req, res) => {
   } catch (err) {
     console.error('[HVEL API] Error fetching nudge log:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Endpoint: clear-nudge-log — Reset nudge log for testing
+// ─────────────────────────────────────────────────────────────────────────────
+app.delete('/api/clear-nudge-log', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM nudge_log`);
+    console.log('[HVEL API] 🗑️ Nudge log cleared');
+    res.json({ success: true, message: 'Nudge log cleared' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Endpoint: test-smtp — Send a test email to verify SMTP is working
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/test-smtp', async (req, res) => {
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ error: 'to email required' });
+  try {
+    await hrmsTransporter.sendMail({
+      from: `"HVEL Test" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: 'HVEL SMTP Test',
+      text: `SMTP is working. Sent at ${new Date().toISOString()}`
+    });
+    console.log(`[HVEL API] ✅ Test email sent to ${to}`);
+    res.json({ success: true, message: `Test email sent to ${to}` });
+  } catch (err) {
+    console.error('[HVEL API] ❌ SMTP test failed:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
