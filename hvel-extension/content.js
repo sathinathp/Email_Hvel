@@ -462,106 +462,61 @@ async function injectHvelUI() {
 }
 
 // Scanning Incoming Emails for Trust Signals
-// Simple logic:
-//   - Every 3 seconds, scan messages in the open thread
-//   - If I (extension user) sent a verified email to person X before
-//   - AND person X sent a reply in this thread without an HVEL badge
-//   - THEN send nudge email to person X (once per message)
+// Simple: every new email received → check for HVEL badge → if no badge → nudge sender
 async function scanIncomingMessages() {
-    // Skip sent/drafts/spam/trash
     const url = window.location.href;
     if (['#sent','#drafts','#spam','#trash','#outbox'].some(f => url.includes(f))) return;
 
     const myEmail = getCurrentUserEmail();
     if (!myEmail) return;
 
-    // Find all messages in the open thread
-    const allMsgs = document.querySelectorAll('.adn, .ads');
+    const allMsgs = findGmailMessages();
     if (allMsgs.length === 0) return;
 
-    allMsgs.forEach(async (msg) => {
-        // Skip already processed messages
-        if (msg.hasAttribute('data-hvel-nudged')) return;
+    const SKIP_DOMAINS = [
+        'google.com','microsoft.com','github.com','amazon.com',
+        'noreply.com','mailer.com','vercel.com','accounts.google.com',
+        'googlemail.com','youtube.com','linkedin.com','twitter.com','x.com'
+    ];
 
-        // Get sender of this message
-        let senderEmail = null;
-        const gD = msg.querySelector('.gD');
-        if (gD) senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
-        if (!senderEmail) {
-            const el = msg.querySelector('[email]');
-            if (el) senderEmail = el.getAttribute('email');
-        }
-        if (!senderEmail) {
-            const el = msg.querySelector('[data-hovercard-id]');
-            if (el) {
-                const v = el.getAttribute('data-hovercard-id');
-                if (v && v.includes('@')) senderEmail = v;
-            }
-        }
+    for (const msg of allMsgs) {
+        if (msg.hasAttribute('data-hvel-nudged')) continue;
 
-        if (!senderEmail || !senderEmail.includes('@')) return;
-        senderEmail = senderEmail.toLowerCase();
+        const senderEmail = extractSenderFromMsg(msg);
+        if (!senderEmail || !senderEmail.includes('@')) continue;
+        if (senderEmail === myEmail) continue;
 
-        // Skip my own messages and system domains
-        if (senderEmail === myEmail) return;
-        const skipDomains = ['google.com','gmail.com' /* only skip noreply */, 'microsoft.com','github.com','amazon.com','noreply.com','mailer.com'];
-        const domain = senderEmail.split('@')[1];
-        if (['vercel.com','google.com','microsoft.com','github.com','amazon.com','noreply.com','mailer.com','accounts.google.com'].includes(domain)) return;
+        const domain = senderEmail.split('@')[1] || '';
+        if (SKIP_DOMAINS.includes(domain)) continue;
 
-        // Check if this message has an HVEL badge
-        const hasBadge = !!msg.querySelector('a[href*="hvel-backend.onrender.com/v/"]');
-        if (hasBadge) {
-            // They replied WITH verification — show verified status
-            msg.setAttribute('data-hvel-nudged', 'true');
-            showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
-            return;
-        }
-
-        // No badge — check if I previously sent them a verified email
-        // Cache this check so we don't call API every 3 seconds
-        const cacheKey = `hvel_csv_${myEmail}_${senderEmail}`;
-        let iSentVerified = sessionStorage.getItem(cacheKey);
-
-        if (iSentVerified === null) {
-            try {
-                const r = await fetch('https://hvel-backend.onrender.com/api/check-sent-verified', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderEmail: myEmail, recipientEmail: senderEmail })
-                });
-                const d = await r.json();
-                iSentVerified = d.verified ? 'yes' : 'no';
-                sessionStorage.setItem(cacheKey, iSentVerified);
-                console.log(`[HVEL] check-sent-verified ${myEmail} → ${senderEmail}: ${iSentVerified}`);
-            } catch (e) {
-                console.error('[HVEL] check-sent-verified failed:', e.message);
-                return;
-            }
-        }
-
-        if (iSentVerified !== 'yes') return;
-
-        // I DID send them a verified email and they replied without badge
-        // Mark immediately so we don't process this message again
+        // Mark immediately to prevent duplicate processing
         msg.setAttribute('data-hvel-nudged', 'true');
 
-        console.log(`[HVEL] 📤 Sending nudge to ${senderEmail}`);
+        console.log(`[HVEL] 📨 New email from: ${senderEmail}`);
+
+        if (messageHasBadge(msg)) {
+            showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
+            console.log(`[HVEL] ✅ HVEL badge found — ${senderEmail}`);
+            continue;
+        }
+
+        // No badge — nudge this sender
+        console.log(`[HVEL] 📤 No badge — nudging ${senderEmail}`);
         chrome.runtime.sendMessage({
             action: 'reportUnverifiedReply',
             hvelUserEmail: myEmail,
             noExtensionEmail: senderEmail
         }, (response) => {
             if (response && response.success) {
-                console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
+                console.log(`[HVEL] ✅ Nudge sent to ${senderEmail}`);
             } else {
-                console.warn(`[HVEL] ⚠️ Nudge not sent:`, response?.message || response?.error);
-                // Unmark so it retries next scan
+                console.warn(`[HVEL] ⚠️ Nudge not sent to ${senderEmail}:`, response?.message || response?.error);
                 msg.removeAttribute('data-hvel-nudged');
             }
         });
 
-        showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification`);
-    });
+        showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} is not HVEL Verified`);
+    }
 }
 
 function showTrustStatus(msgElement, status, text) {
