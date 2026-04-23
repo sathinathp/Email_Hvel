@@ -609,8 +609,8 @@ app.post('/api/report-security-alert', async (req, res) => {
 
   try {
     // Send both emails
-    await transporter.sendMail(recipientMailOptions);
-    await transporter.sendMail(senderMailOptions);
+    await mainTransporter.sendMail(recipientMailOptions);
+    await mainTransporter.sendMail(senderMailOptions);
     res.json({ success: true });
   } catch (err) {
     console.error('[HVEL API] Error sending security alerts:', err);
