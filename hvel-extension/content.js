@@ -113,6 +113,17 @@ function extractSenderFromMsg(msg) {
     }
 
     return null;
+}           if (m) return m[0].toLowerCase();
+        }
+    }
+
+    // Strategy 5: any text node inside the message header area that looks like an email
+    const headerArea = msg.querySelector('.ha, .hP, [data-thread-id]') || msg;
+    const allText = headerArea.innerText || headerArea.textContent || '';
+    const emailInText = allText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailInText) return emailInText[0].toLowerCase();
+
+    return null;
 }
 
 // ─── FIX 3: Robust badge detection ────────────────────────────────────────────
