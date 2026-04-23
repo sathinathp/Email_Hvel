@@ -39,41 +39,30 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Extract actual user email from Gmail DOM — tries multiple selectors
+// Extract actual user email from Gmail DOM
 function getSenderEmail() {
-    // Attempt 1: Google Account button aria-label (most reliable)
+    // Attempt 1: Title check
+    const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (titleMatch) return titleMatch[0].toLowerCase();
+
+    // Attempt 2: Google Account button aria-label (very reliable)
     const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
     if (accountBtn) {
-        const label = accountBtn.getAttribute('aria-label') || '';
+        const label = accountBtn.getAttribute('aria-label') || "";
         const emailMatch = label.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (emailMatch) return emailMatch[0].toLowerCase();
     }
 
-    // Attempt 2: data-email attribute on account switcher
-    const accountEl = document.querySelector('[data-email]');
-    if (accountEl) {
-        const e = accountEl.getAttribute('data-email');
-        if (e && e.includes('@')) return e.toLowerCase();
-    }
+    // Attempt 3: Gmail identity container
+    const identity = document.querySelector('.gb_d.gb_Ba.gb_z'); // Older selector
+    if (identity && identity.innerText.includes('@')) return identity.innerText.trim().toLowerCase();
 
-    // Attempt 3: Gmail header profile image alt text
-    const profileImg = document.querySelector('img.gb_P[alt]');
-    if (profileImg) {
-        const alt = profileImg.getAttribute('alt') || '';
-        const m = alt.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (m) return m[0].toLowerCase();
-    }
-
-    // Attempt 4: Title bar (Gmail sets title to "Inbox (N) - email@domain - Gmail")
-    const titleMatch = document.title.match(/[\w._%+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
-    if (titleMatch) return titleMatch[0].toLowerCase();
-
-    return null;
+    return 'unknown-sender@gmail.com';
 }
 
 // Function to find the recipient of an incoming message (the current user)
 function getCurrentUserEmail() {
-    return getSenderEmail();
+    return getSenderEmail(); // In Gmail, your own email is the one you're logged into
 }
 
 function showOTPModal(sendBtn, onVerified) {
@@ -82,7 +71,7 @@ function showOTPModal(sendBtn, onVerified) {
 
     const overlay = document.createElement('div');
     overlay.className = 'hvel-modal-overlay hvel-otp-overlay';
-    
+
     const realEmail = getSenderEmail();
 
     overlay.innerHTML = `
@@ -216,7 +205,7 @@ function showOTPModal(sendBtn, onVerified) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(overlay);
 
     const viewBio = overlay.querySelector('#hvel-view-bio');
@@ -225,9 +214,9 @@ function showOTPModal(sendBtn, onVerified) {
     const secCode = overlay.querySelector('#hvel-sec-code');
     const tabScan = overlay.querySelector('#hvel-tab-scan');
     const tabCode = overlay.querySelector('#hvel-tab-code');
-    
-    const dot1    = overlay.querySelector('#hvel-dot-1');
-    const dot2    = overlay.querySelector('#hvel-dot-2');
+
+    const dot1 = overlay.querySelector('#hvel-dot-1');
+    const dot2 = overlay.querySelector('#hvel-dot-2');
     const otpInput = overlay.querySelector('#hvel-otp-in');
     const otpError = overlay.querySelector('#hvel-otp-err');
 
@@ -276,6 +265,7 @@ function showOTPModal(sendBtn, onVerified) {
         if (e.data.type === 'hvel_auth_success' && e.data.email === realEmail) {
             if (e.data.action === 'login' || e.data.action === 'register') {
                 showStep2();
+                // We keep the listener until OTP is done
             }
         }
     };
@@ -284,34 +274,38 @@ function showOTPModal(sendBtn, onVerified) {
     function loadTOTP(forceNew = false) {
         const qrImg = overlay.querySelector('#hvel-qr-img');
         const manualKeyArea = overlay.querySelector('#hvel-manual-key-area');
-        
+
+        // Show loading state
         qrImg.style.opacity = '0.3';
-        
-        chrome.runtime.sendMessage({ 
-            action: 'setupTOTP', 
-            senderEmail: realEmail, 
-            force: forceNew 
+
+        chrome.runtime.sendMessage({
+            action: 'setupTOTP',
+            senderEmail: realEmail,
+            force: forceNew
         }, (response) => {
             qrImg.style.opacity = '1';
-            
+
             if (response && response.success) {
+                console.log("[HVEL] TOTP loaded successfully");
                 qrImg.src = response.qrcode;
                 manualKeyArea.innerText = response.secret;
-                
+
+                // if they already have it verified, default to code entry
                 if (response.isVerified && !forceNew) {
                     switchToCode();
                 } else {
                     switchToScan();
                 }
             } else {
-                qrImg.src = '';
+                console.error("[HVEL] Failed to load TOTP:", response ? response.error : 'No response');
+                qrImg.src = ''; // Clear image
                 qrImg.alt = 'Failed to load QR code';
-                
+
                 const errDiv = document.createElement('div');
                 errDiv.style.color = '#ef4444';
                 errDiv.style.fontSize = '10px';
                 errDiv.style.marginTop = '10px';
-                errDiv.innerText = 'Failed to connect to security server.';
+                errDiv.innerText = 'Failed to connect to security server. Please try again.';
                 qrImg.parentNode.appendChild(errDiv);
             }
         });
@@ -324,7 +318,7 @@ function showOTPModal(sendBtn, onVerified) {
     };
 
     overlay.querySelector('#hvel-regenerate-btn').onclick = () => {
-        if(confirm('Are you sure? This will invalidate your old authenticator key.')) {
+        if (confirm('Are you sure? This will invalidate your old authenticator key.')) {
             loadTOTP(true);
             switchToScan();
         }
@@ -335,7 +329,7 @@ function showOTPModal(sendBtn, onVerified) {
     overlay.querySelector('#hvel-otp-btn').onclick = () => {
         const code = otpInput.value.trim();
         if (code.length !== 6) return;
-        
+
         chrome.runtime.sendMessage({ action: 'verifyTOTP', senderEmail: realEmail, code: code }, (response) => {
             if (response && response.success) {
                 markVerified(realEmail).then(() => {
@@ -359,24 +353,29 @@ function showOTPModal(sendBtn, onVerified) {
 
 
 async function injectHvelUI() {
+    // Look for the "Send" button.
     const sendButtons = Array.from(document.querySelectorAll('div[role="button"]')).filter(
         btn => btn.getAttribute('data-tooltip') && btn.getAttribute('data-tooltip').includes('Send')
     );
-    
+
     const verified = await isSessionValid();
 
     sendButtons.forEach(sendBtn => {
+        // Handle Blocking
         if (!verified) {
             if (!sendBtn.classList.contains('hvel-blocked')) {
                 sendBtn.classList.add('hvel-blocked');
                 sendBtn.style.opacity = '0.5';
                 sendBtn.style.pointerEvents = 'none';
                 sendBtn.style.filter = 'grayscale(1)';
-                
+
+                // Add a tooltip or message
                 sendBtn.setAttribute('data-hvel-original-tooltip', sendBtn.getAttribute('data-tooltip'));
                 sendBtn.setAttribute('data-tooltip', 'Verification Required to Send');
-                
+
+                // Show the modal when this compose window is detected/focused
                 showOTPModal(sendBtn, () => {
+                    // Unblock ALL send buttons when one is verified (session-wide)
                     document.querySelectorAll('.hvel-blocked').forEach(btn => {
                         btn.classList.remove('hvel-blocked');
                         btn.style.opacity = '1';
@@ -389,11 +388,16 @@ async function injectHvelUI() {
         }
 
         const row = sendBtn.closest('tr');
+
+        // If we found the row and haven't injected our button yet
         if (row && !row.querySelector('.hvel-verify-btn')) {
+
             const hvelContainer = document.createElement('td');
             hvelContainer.className = 'hvel-container';
             hvelContainer.style.verticalAlign = 'bottom';
             hvelContainer.style.paddingLeft = '10px';
+
+            // Create a dropdown container
             hvelContainer.innerHTML = `
                 <div class="hvel-dropdown-container">
                     <button class="hvel-verify-btn" type="button">
@@ -410,7 +414,7 @@ async function injectHvelUI() {
                     </div>
                 </div>
             `;
-            
+
             const mainBtn = hvelContainer.querySelector('.hvel-verify-btn');
             const menu = hvelContainer.querySelector('.hvel-dropdown-menu');
             const items = hvelContainer.querySelectorAll('.hvel-dropdown-item');
@@ -418,6 +422,7 @@ async function injectHvelUI() {
             mainBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                // Toggle this menu, hide others
                 document.querySelectorAll('.hvel-dropdown-menu.show').forEach(m => {
                     if (m !== menu) m.classList.remove('show');
                 });
@@ -430,10 +435,12 @@ async function injectHvelUI() {
                     e.stopPropagation();
                     const type = item.getAttribute('data-type');
                     menu.classList.remove('show');
+
                     handleVerifyClick(sendBtn, mainBtn, type);
                 });
             });
-            
+
+            // Insert our <td> right after the Send button's <td>
             const sendTd = sendBtn.closest('td');
             if (sendTd && sendTd.parentNode) {
                 sendTd.parentNode.insertBefore(hvelContainer, sendTd.nextSibling);
@@ -442,159 +449,138 @@ async function injectHvelUI() {
     });
 }
 
-// Scanning Incoming Emails for Trust Signals
+// NEW: Scanning Incoming Emails for Trust Signals
 async function scanIncomingMessages() {
-    const url = window.location.href;
-    if (['#sent','#drafts','#spam','#trash','#outbox'].some(f => url.includes(f))) return;
+    // Broaden the search: scan any element that looks like a message container
+    const messages = document.querySelectorAll('.adn, .ads, div[role="listitem"]');
 
-    const myEmail = getCurrentUserEmail();
-    if (!myEmail) return;
+    messages.forEach(async (msg) => {
+        if (msg.hasAttribute('data-hvel-scanned')) return;
+        msg.setAttribute('data-hvel-scanned', 'true');
 
-    const allMsgs = document.querySelectorAll('.adn, .ads');
-    if (allMsgs.length === 0) return;
+        const badgeLink = msg.querySelector('a[href*="/v/"]');
 
-    allMsgs.forEach(async (msg) => {
-        if (msg.hasAttribute('data-hvel-nudged')) return;
-
+        // Improved Sender Detection: Highly robust for Gmail
         let senderEmail = null;
+
+        // 1. Look for .gD (the actual name/email element)
         const gD = msg.querySelector('.gD');
-        if (gD) senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
-        if (!senderEmail) {
-            const el = msg.querySelector('[email]');
-            if (el) senderEmail = el.getAttribute('email');
-        }
-        if (!senderEmail) {
-            const el = msg.querySelector('[data-hovercard-id]');
-            if (el) {
-                const v = el.getAttribute('data-hovercard-id');
-                if (v && v.includes('@')) senderEmail = v;
-            }
+        if (gD) {
+            senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
         }
 
-        if (!senderEmail || !senderEmail.includes('@')) return;
-        senderEmail = senderEmail.toLowerCase();
-
-        if (senderEmail === myEmail) return;
-        const skipDomains = ['google.com','microsoft.com','github.com','amazon.com','noreply.com','mailer.com','accounts.google.com'];
-        const domain = senderEmail.split('@')[1];
-        if (skipDomains.includes(domain)) return;
-
-        // Check for HVEL badge in the message body
-        const hasBadge = !!msg.querySelector('a[href*="hvel-backend.onrender.com/v/"]');
-        if (hasBadge) {
-            msg.setAttribute('data-hvel-nudged', 'true');
-            showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
-            return;
+        // 2. Look for any element with an 'email' attribute in the header
+        if (!senderEmail || !senderEmail.includes('@')) {
+            const emailSpan = msg.querySelector('span[email]');
+            if (emailSpan) senderEmail = emailSpan.getAttribute('email');
         }
 
-        // --- NEW: Check backend if user is globally verified (no extension) ---
-        const checkRes = await new Promise(resolve => {
-            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, resolve);
-        });
-
-        if (checkRes && checkRes.verified) {
-            msg.setAttribute('data-hvel-nudged', 'true');
-            showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
-            console.log(`[HVEL] ✅ User globally verified — ${senderEmail}`);
-            return;
+        // 3. Fallback: Parse from the header text/names
+        if (!senderEmail || !senderEmail.includes('@')) {
+            const headerText = msg.innerText.substring(0, 500); // Check first 500 chars
+            const match = headerText.match(/[a-zA-Z0-9._%+-]+@gmail\.com/); // Gmail specific for now
+            if (match) senderEmail = match[0];
         }
 
-        // --- Gate: Check if I previously sent them a verified email ---
-        const cacheKey = `hvel_csv_${myEmail}_${senderEmail}`;
-        let iSentVerified = sessionStorage.getItem(cacheKey);
+        const recipientEmail = getCurrentUserEmail();
 
-        if (iSentVerified === null) {
-            try {
-                const r = await fetch('https://hvel-backend.onrender.com/api/check-sent-verified', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderEmail: myEmail, recipientEmail: senderEmail })
+        const IGNORED_DOMAINS = [
+            'vercel.com', 'google.com', 'microsoft.com', 'github.com',
+            'aws.com', 'amazon.com', 'netflix.com'
+        ];
+        const senderDomain = senderEmail?.split('@')[1]?.toLowerCase();
+        const isIgnoredDomain = IGNORED_DOMAINS.includes(senderDomain);
+
+        // Only proceed if we have a valid sender, they are NOT the current user, and NOT a whitelisted domain
+        if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
+            console.log(`[HVEL] Processing message from: ${senderEmail}`);
+
+            if (badgeLink) {
+                const url = badgeLink.href;
+                const id = url.split('/v/').pop();
+
+                // Validate the stamp
+                chrome.runtime.sendMessage({
+                    action: 'validateVerification',
+                    id: id,
+                    senderEmail: senderEmail,
+                    recipientEmail: recipientEmail
+                }, (response) => {
+                    if (response && response.status === 'verified') {
+                        showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
+                    } else if (response && response.status === 'tampered') {
+                        showTrustStatus(msg, 'tampered', response.message);
+                    } else {
+                        showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
+                    }
                 });
-                const d = await r.json();
-                iSentVerified = d.verified ? 'yes' : 'no';
-                sessionStorage.setItem(cacheKey, iSentVerified);
-            } catch (e) {
-                return;
+            } else {
+                // No HVEL found on a reply - Trigger Mandatory Nudge
+                const nudgeKey = `hvel_nudged_${senderEmail}`;
+                if (!sessionStorage.getItem(nudgeKey)) {
+                    console.log(`[HVEL] Mandatory nudge triggered for: ${senderEmail}`);
+                    chrome.runtime.sendMessage({
+                        action: 'reportUnverifiedReply',
+                        hvelUserEmail: recipientEmail,
+                        noExtensionEmail: senderEmail
+                    }, (response) => {
+                        if (response && response.success) {
+                            sessionStorage.setItem(nudgeKey, 'true');
+                        }
+                    });
+                }
+                showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
             }
         }
-
-        if (iSentVerified !== 'yes') return;
-
-        // Nudge and show red alert
-        msg.setAttribute('data-hvel-nudged', 'true');
-        chrome.runtime.sendMessage({
-            action: 'reportUnverifiedReply',
-            hvelUserEmail: myEmail,
-            noExtensionEmail: senderEmail
-        });
-
-        showTrustStatus(msg, 'unverified', `🔴 NOT Human Verified — ${senderEmail}`);
     });
 }
 
 function showTrustStatus(msgElement, status, text) {
     const existing = msgElement.querySelector('.hvel-trust-notice');
     if (existing) existing.remove();
-    const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
-    if (existingStamp) existingStamp.remove();
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
 
-    if (status === 'verified') {
-        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534'; const icon = '✅';
-        notice.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <span style="font-size:16px;">${icon}</span>
-                <span>${text}</span>
-            </div>`;
-    } else {
-        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b'; const icon = '🚫';
-        notice.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:800;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 4px 12px rgba(220, 38, 38, 0.15);
-                border: 2px solid #dc2626; animation: hvel-pulse-red 2s infinite;">
-                <span style="font-size:18px;">${icon}</span>
-                <div style="display:flex; flex-direction:column;">
-                    <span style="font-size:14px; text-transform:uppercase; letter-spacing:0.5px;">SECURITY ALERT: UNTRUSTED SENDER</span>
-                    <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
-                </div>
-            </div>
-            <style>
-                @keyframes hvel-pulse-red {
-                    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
-                }
-            </style>`;
+    let bgColor = '#f8fafc';
+    let textColor = '#64748b';
+    let borderColor = '#e2e8f0';
+    let icon = 'ℹ️';
+    let extraHtml = '';
 
-        // Add the "UNTRUSTED" Stamp Overlay
-        const stamp = document.createElement('div');
-        stamp.className = 'hvel-untrusted-stamp';
-        stamp.style.cssText = `
-            position: absolute; top: 60px; right: 50px; border: 5px solid #dc2626;
-            color: #dc2626; padding: 10px 20px; font-size: 32px; font-weight: 900;
-            text-transform: uppercase; transform: rotate(-20deg); opacity: 0.15;
-            border-radius: 12px; z-index: 5; pointer-events: none;
-            font-family: 'Impact', 'Arial Black', sans-serif; letter-spacing: 2px;
-            user-select: none;
-        `;
-        stamp.innerText = 'UNTRUSTED';
-        msgElement.style.position = 'relative';
-        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)'; 
-        msgElement.appendChild(stamp);
+    if (status === 'verified') {
+        bgColor = '#f0fdf4';
+        textColor = '#166534';
+        borderColor = '#bbf7d0';
+        icon = '✅';
+    } else if (status === 'tampered' || status === 'invalid') {
+        bgColor = '#fef2f2';
+        textColor = '#991b1b';
+        borderColor = '#fecaca';
+        icon = '⚠️';
+    } else if (status === 'unverified') {
+        extraHtml = `<a href="https://hvel.io/invite" target="_blank" style="margin-left:10px; color:#6366f1; text-decoration:underline;">Invite them to Verify</a>`;
     }
 
-    const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
-    insertTarget.prepend(notice);
+    notice.innerHTML = `
+        <div style="
+            display: flex; align-items: center; gap: 8px;
+            background: ${bgColor}; color: ${textColor}; border: 1px solid ${borderColor};
+            padding: 6px 15px; border-radius: 8px; margin-bottom: 10px;
+            font-size: 11px; font-weight: 500; font-family: sans-serif;
+        ">
+            <span>${icon}</span>
+            <span>${text}</span>
+            ${extraHtml}
+        </div>
+    `;
+
+    // Insert at the top of the message content
+    const msgBody = msgElement.querySelector('.a3s.aiL') || msgElement;
+    msgBody.prepend(notice);
 }
 
-// Helper functions for verification
+// Compute SHA-256 hash of a string
 async function computeHash(text) {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
@@ -603,26 +589,36 @@ async function computeHash(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Extract the raw text from the compose body
 function getEmailBody(sendBtn) {
     let composeBody = document.querySelector('div[aria-label="Message Body"]');
     const dialog = sendBtn.closest('div[role="dialog"]');
-    if (dialog) composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+    if (dialog) {
+        composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+    }
     return composeBody ? composeBody.innerText : "";
 }
 
+// Extract recipient emails from the "To" field
 function getRecipientEmail(sendBtn) {
     const dialog = sendBtn.closest('div[role="dialog"]');
     if (!dialog) return null;
-    const chips = dialog.querySelectorAll('[email]');
-    for (const chip of chips) {
-        const email = chip.getAttribute('email');
-        if (email && email.includes('@') && email.includes('.')) return email.toLowerCase();
+
+    // Look for elements that look like emails in the Recipient list
+    const recipientChips = dialog.querySelectorAll('div[role="listitem"] span[email], .vT');
+    if (recipientChips.length > 0) {
+        // Just grab the first one for the invitation
+        const email = recipientChips[0].getAttribute('email') || recipientChips[0].innerText.trim();
+        return email.includes('@') ? email : null;
     }
-    const hoverCards = dialog.querySelectorAll('[data-hovercard-id]');
-    for (const el of hoverCards) {
-        const val = el.getAttribute('data-hovercard-id');
-        if (val && val.includes('@')) return val.toLowerCase();
+
+    // Fallback: search for any email-like string in the Recipient area
+    const recipientArea = dialog.querySelector('textarea[name="to"], input[name="to"]');
+    if (recipientArea && recipientArea.value) {
+        const match = recipientArea.value.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        return match ? match[0] : null;
     }
+
     return null;
 }
 
@@ -631,37 +627,77 @@ async function handleVerifyClick(sendBtn, btnElement, type) {
     btnText.innerText = 'Verifying...';
     btnElement.disabled = true;
 
+    // Get the real email of the user typing this message
     const realEmail = getSenderEmail();
+
+    // Get email content and hash it for security
     const emailBody = getEmailBody(sendBtn);
     const contentHash = await computeHash(emailBody);
+
+    // Get recipient email for the automated invitation
     const recipientEmail = getRecipientEmail(sendBtn);
 
-    chrome.runtime.sendMessage({ 
-        action: 'verifyEmail', type, senderEmail: realEmail, recipientEmail, contentHash 
+    // Send message to background script to trigger real API call
+    chrome.runtime.sendMessage({
+        action: 'verifyEmail',
+        type: type,
+        senderEmail: realEmail,
+        recipientEmail: recipientEmail,
+        contentHash: contentHash
     }, (response) => {
         if (response && response.success) {
+
+            // Set badge styling based on type
+            let badgeTitle = 'Human Verified';
+            let badgeIcon = '🧑';
+            let badgeColor = '#10b981'; // green
+
+            if (type === 'ai') {
+                badgeTitle = 'AI Assisted';
+                badgeIcon = '🤖';
+                badgeColor = '#8b5cf6'; // purple
+            } else if (type === 'automated') {
+                badgeTitle = 'Automated';
+                badgeIcon = '⚡';
+                badgeColor = '#6b7280'; // gray
+            }
+
             btnText.innerText = 'Verified';
             btnElement.classList.add('hvel-verified');
-            btnElement.style.borderColor = '#10b981';
-            btnElement.style.color = '#10b981';
-            
+            btnElement.style.borderColor = badgeColor;
+            btnElement.style.color = badgeColor;
+
+            // Find the compose body related to this send button
             let composeBody = document.querySelector('div[aria-label="Message Body"]');
             const dialog = sendBtn.closest('div[role="dialog"]');
-            if (dialog) composeBody = dialog.querySelector('div[aria-label="Message Body"]');
-            
+            if (dialog) {
+                composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+            }
+
             if (composeBody) {
-                composeBody.innerHTML += `
+                const badgeHtml = `
                     <br/><br/>
-                    <div style="font-family:'Segoe UI',sans-serif; display:inline-block;" contenteditable="false">
-                        <div style="display:flex;align-items:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9999px;padding:4px 12px;gap:8px;">
-                            <div style="display:flex;align-items:center;justify-content:center;background:#10b981;color:white;border-radius:50%;width:18px;height:18px;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
+                        <div style="display: flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="display: flex; align-items: center; justify-content: center; background: #10b981; color: white; border-radius: 50%; width: 18px; height: 18px;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
                             </div>
-                            <span style="color:#065f46;font-size:13px;font-weight:600;">Human Verified</span>
-                            <div style="width:1px;height:12px;background:#d1fae5;"></div>
-                            <a href="${response.url}" target="_blank" style="color:#059669;font-size:11px;font-weight:500;text-decoration:none;">Trust Record ↗</a>
+                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">${badgeTitle}</span>
+                            <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
+                            <a href="${response.url}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
+                                <span>Trust Record</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
                         </div>
-                    </div>`;
+                    </div>
+                `;
+                composeBody.innerHTML += badgeHtml;
             }
         } else {
             btnText.innerText = 'Error';
@@ -670,12 +706,20 @@ async function handleVerifyClick(sendBtn, btnElement, type) {
     });
 }
 
+// Fallback interval to ensure we catch dynamically rendered windows
 function runHvelIntervals() {
     injectHvelUI();
     scanIncomingMessages();
 }
 
-setInterval(runHvelIntervals, 3000);
-const observer = new MutationObserver(() => { runHvelIntervals(); });
+setInterval(runHvelIntervals, 1500);
+
+// Use observer for quick reaction
+const observer = new MutationObserver((mutations) => {
+    runHvelIntervals();
+});
+
 observer.observe(document.body, { childList: true, subtree: true });
+
 runHvelIntervals();
+
