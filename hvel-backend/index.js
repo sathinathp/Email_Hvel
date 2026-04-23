@@ -492,6 +492,23 @@ app.post('/api/check-sent-verified', async (req, res) => {
   } catch (err) { res.status(500).json({ verified: false, error: 'Server error' }); }
 });
 
+app.post('/api/check-user-verified', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ verified: false, error: 'Email required' });
+  try {
+    const totpResult = await pool.query(`SELECT is_verified FROM totp_secrets WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
+    const passkeyResult = await pool.query(`SELECT id FROM passkeys WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
+    
+    const isVerified = (totpResult.rows.length > 0 && totpResult.rows[0].is_verified) || (passkeyResult.rows.length > 0);
+    
+    console.log(`[HVEL API] 👤 check-user-verified: ${email} = ${isVerified}`);
+    res.json({ verified: isVerified });
+  } catch (err) { 
+    console.error('Error checking user verification:', err);
+    res.status(500).json({ verified: false, error: 'Server error' }); 
+  }
+});
+
 app.get('/api/nudge-log', async (req, res) => {
   try {
     const result = await pool.query(`SELECT id, hvel_user, no_extension_user, nudge_sent_at FROM nudge_log ORDER BY nudge_sent_at DESC`);

@@ -139,4 +139,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
+
+  if (request.action === 'checkUserVerified') {
+    fetch('https://hvel-backend.onrender.com/api/check-user-verified', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: request.email })
+    })
+    .then(r => r.json())
+    .then(data => sendResponse(data))
+    .catch(err => sendResponse({ success: false, verified: false, error: err.message }));
+    return true;
+  }
 });

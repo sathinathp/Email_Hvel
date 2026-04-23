@@ -412,7 +412,18 @@ async function scanIncomingMessages() {
             continue;
         }
 
-        // No badge — show red banner and send nudge
+        // No badge — check backend if user is globally verified (e.g. they verified once via nudge)
+        const checkRes = await new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, resolve);
+        });
+
+        if (checkRes && checkRes.verified) {
+            showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
+            console.log(`[HVEL] ✅ User globally verified — ${senderEmail}`);
+            continue;
+        }
+
+        // No badge & not verified — show red banner and send nudge
         showTrustStatus(msg, 'unverified', `🔴 NOT Human Verified — ${senderEmail}`);
         console.log(`[HVEL] 📤 Nudging ${senderEmail}`);
         chrome.runtime.sendMessage({
