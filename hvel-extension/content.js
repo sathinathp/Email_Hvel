@@ -523,11 +523,6 @@ async function scanIncomingMessages() {
 
     // ── PASS 2: for each other sender, check backend if I sent them a verified email
     otherSenders.forEach(async (senderEmail) => {
-        // Use a per-message-count key so new replies always get checked
-        const msgCount = msgData.filter(d => d.senderEmail && d.senderEmail.toLowerCase() === senderEmail).length;
-        const nudgeKey = `hvel_nudged_${myEmail}_${senderEmail}_${msgCount}`;
-        if (sessionStorage.getItem(nudgeKey)) return;
-
         try {
             // Ask backend: did myEmail ever send a verified email to senderEmail?
             const resp = await fetch('https://hvel-backend.onrender.com/api/check-sent-verified', {
@@ -539,14 +534,14 @@ async function scanIncomingMessages() {
 
             console.log(`[HVEL] 🔎 check-sent-verified (${myEmail} → ${senderEmail}): ${data.verified}`);
 
-            if (!data.verified) return; // never sent them a verified email — skip
+            if (!data.verified) return;
 
             // I DID send them a verified email — check if their reply has a badge
             const theirMessages = msgData.filter(d =>
                 d.senderEmail && d.senderEmail.toLowerCase() === senderEmail && !d.isFromMe
             );
 
-            if (theirMessages.length === 0) return; // they haven't replied yet
+            if (theirMessages.length === 0) return;
 
             const theyRepliedWithoutBadge = theirMessages.some(d => !d.badgeLink);
             const theyRepliedWithBadge    = theirMessages.some(d => !!d.badgeLink);
@@ -554,9 +549,11 @@ async function scanIncomingMessages() {
             console.log(`[HVEL] 📨 ${senderEmail} — withoutBadge:${theyRepliedWithoutBadge} withBadge:${theyRepliedWithBadge}`);
 
             if (theyRepliedWithoutBadge) {
-                console.log(`[HVEL] 📤 Nudging ${senderEmail}...`);
-                // Mark now to prevent duplicate calls in same scan cycle
-                sessionStorage.setItem(nudgeKey, 'true');
+                // Find unscanned messages only — avoid re-nudging same message
+                const unscanned = theirMessages.filter(d => !d.badgeLink && !d.msg.hasAttribute('data-hvel-nudged'));
+                if (unscanned.length === 0) return; // all already nudged
+
+                console.log(`[HVEL] 📤 Nudging ${senderEmail} for ${unscanned.length} unverified message(s)...`);
 
                 chrome.runtime.sendMessage({
                     action: 'reportUnverifiedReply',
@@ -566,17 +563,16 @@ async function scanIncomingMessages() {
                     console.log(`[HVEL] 📬 Nudge response for ${senderEmail}:`, JSON.stringify(response));
                     if (response && response.success) {
                         console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
+                        // Mark these messages so we don't nudge them again
+                        unscanned.forEach(d => d.msg.setAttribute('data-hvel-nudged', 'true'));
                     } else {
                         console.warn(`[HVEL] ⚠️ Nudge not sent: ${response?.message || response?.error || 'no response'}`);
-                        sessionStorage.removeItem(nudgeKey); // allow retry on next scan
                     }
                 });
 
-                theirMessages.forEach(d => {
-                    if (!d.badgeLink && !d.msg.hasAttribute('data-hvel-scanned')) {
-                        d.msg.setAttribute('data-hvel-scanned', 'true');
-                        showTrustStatus(d.msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification`);
-                    }
+                unscanned.forEach(d => {
+                    d.msg.setAttribute('data-hvel-scanned', 'true');
+                    showTrustStatus(d.msg, 'unverified', `⚠️ ${senderEmail} replied without HVEL verification`);
                 });
             }
 
