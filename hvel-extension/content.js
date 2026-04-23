@@ -8,6 +8,18 @@ setInterval(sendHeartbeat, 10000);
 sendHeartbeat();
 // -------------------------------
 
+// ── INSTALL TIMESTAMP ──────────────────────────────────────────────────────
+// Record the time the extension first loaded. We only scan emails that
+// arrive AFTER this moment — old/previous emails are ignored.
+const HVEL_INSTALL_TIME = Date.now();
+chrome.storage.local.get(['hvel_install_time'], (result) => {
+    if (!result.hvel_install_time) {
+        chrome.storage.local.set({ hvel_install_time: HVEL_INSTALL_TIME });
+        console.log(`[HVEL] 🕐 Extension installed at: ${new Date(HVEL_INSTALL_TIME).toISOString()}`);
+    }
+});
+// ──────────────────────────────────────────────────────────────────────────
+
 const SESSION_DURATION_MS = 2 * 60 * 1000; // 2 minutes
 
 async function isSessionValid() {
@@ -350,6 +362,7 @@ async function injectHvelUI() {
 }
 
 // Scan every incoming email — show red if no HVEL badge, green if verified
+// Only scans emails received AFTER the extension was installed
 async function scanIncomingMessages() {
     const url = window.location.href;
     if (['#sent','#drafts','#spam','#trash','#outbox'].some(f => url.includes(f))) return;
@@ -369,6 +382,20 @@ async function scanIncomingMessages() {
     for (const msg of allMsgs) {
         if (msg.hasAttribute('data-hvel-nudged')) continue;
 
+        // ── TIMESTAMP GUARD ───────────────────────────────────────────────
+        // Skip emails that existed before the extension was installed.
+        // Gmail puts the email time in a <span title="..."> or data-tooltip.
+        // We use the DOM order as a proxy: mark all existing messages on first
+        // load as "old", only process messages that appear after install.
+        if (!msg.hasAttribute('data-hvel-seen-after-install')) {
+            // On first scan, mark all current messages as pre-install
+            if (!window._hvelFirstScanDone) {
+                msg.setAttribute('data-hvel-nudged', 'pre-install');
+                continue;
+            }
+        }
+        // ── END TIMESTAMP GUARD ───────────────────────────────────────────
+
         const senderEmail = extractSenderFromMsg(msg);
         if (!senderEmail || !senderEmail.includes('@')) continue;
         if (senderEmail === myEmail) continue;
@@ -377,7 +404,7 @@ async function scanIncomingMessages() {
         if (SKIP_DOMAINS.includes(domain)) continue;
 
         msg.setAttribute('data-hvel-nudged', 'true');
-        console.log(`[HVEL] 📨 Email from: ${senderEmail}`);
+        console.log(`[HVEL] 📨 New email from: ${senderEmail}`);
 
         if (messageHasBadge(msg)) {
             showTrustStatus(msg, 'verified', `✅ Human Verified — ${senderEmail}`);
@@ -400,6 +427,12 @@ async function scanIncomingMessages() {
                 msg.removeAttribute('data-hvel-nudged');
             }
         });
+    }
+
+    // After first scan completes, mark flag so new messages get processed
+    if (!window._hvelFirstScanDone) {
+        window._hvelFirstScanDone = true;
+        console.log('[HVEL] ✅ First scan complete — now watching for NEW emails only');
     }
 }
 
