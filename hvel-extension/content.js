@@ -77,6 +77,51 @@ function getCurrentUserEmail() {
     return getSenderEmail();
 }
 
+// Find all Gmail message containers in the current thread
+function findGmailMessages() {
+    const byMsgId = document.querySelectorAll('div[data-message-id]');
+    if (byMsgId.length > 0) return Array.from(byMsgId);
+    const byClass = document.querySelectorAll('.adn, .ads');
+    if (byClass.length > 0) return Array.from(byClass);
+    return [];
+}
+
+// Extract sender email from a Gmail message element
+function extractSenderFromMsg(msg) {
+    const gD = msg.querySelector('.gD');
+    if (gD) {
+        const e = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
+        if (e && e.includes('@')) return e.toLowerCase();
+    }
+    const emailEl = msg.querySelector('[email]');
+    if (emailEl) {
+        const e = emailEl.getAttribute('email');
+        if (e && e.includes('@')) return e.toLowerCase();
+    }
+    const hoverEl = msg.querySelector('[data-hovercard-id]');
+    if (hoverEl) {
+        const v = hoverEl.getAttribute('data-hovercard-id');
+        if (v && v.includes('@')) return v.toLowerCase();
+    }
+    const ownerEl = msg.querySelector('[data-hovercard-owner-id]');
+    if (ownerEl) {
+        const v = ownerEl.getAttribute('data-hovercard-owner-id');
+        if (v && v.includes('@')) return v.toLowerCase();
+    }
+    return null;
+}
+
+// Check if a message has an HVEL verification badge
+function messageHasBadge(msg) {
+    if (msg.querySelector('a[href*="hvel-backend.onrender.com/v/"]')) return true;
+    const bodyEl = msg.querySelector('.a3s, .a3s.aiL');
+    if (bodyEl) {
+        const text = bodyEl.innerText || bodyEl.textContent || '';
+        if (text.includes('hvel-backend.onrender.com/v/') || text.includes('Trust Record')) return true;
+    }
+    return false;
+}
+
 function showOTPModal(sendBtn, onVerified) {
     const existing = document.querySelector('.hvel-otp-overlay');
     if (existing) return;
