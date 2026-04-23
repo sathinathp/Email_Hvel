@@ -450,25 +450,71 @@ async function scanIncomingMessages() {
 function showTrustStatus(msgElement, status, text) {
     const existing = msgElement.querySelector('.hvel-trust-notice');
     if (existing) existing.remove();
+    const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
+    if (existingStamp) existingStamp.remove();
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
 
-    let bg, border, color, icon;
     if (status === 'verified') {
-        bg = '#f0fdf4'; border = '#16a34a'; color = '#166534'; icon = '✅';
+        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534'; const icon = '✅';
+        notice.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
+                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+                <span style="font-size:16px;">${icon}</span>
+                <span>${text}</span>
+            </div>`;
     } else {
-        bg = '#fef2f2'; border = '#dc2626'; color = '#991b1b'; icon = '🔴';
-    }
+        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b'; const icon = '🚫';
+        notice.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
+                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:800;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 4px 12px rgba(220, 38, 38, 0.15);
+                border: 2px solid #dc2626; animation: hvel-pulse-red 2s infinite;">
+                <span style="font-size:18px;">${icon}</span>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-size:14px; text-transform:uppercase; letter-spacing:0.5px;">SECURITY ALERT: UNTRUSTED SENDER</span>
+                    <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
+                </div>
+            </div>
+            <style>
+                @keyframes hvel-pulse-red {
+                    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+                }
+            </style>`;
 
-    notice.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-            border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-            font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
-            border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-            <span style="font-size:16px;">${icon}</span>
-            <span>${text}</span>
-        </div>`;
+        // Add the "UNTRUSTED" Stamp Overlay
+        const stamp = document.createElement('div');
+        stamp.className = 'hvel-untrusted-stamp';
+        stamp.style.cssText = `
+            position: absolute;
+            top: 60px;
+            right: 50px;
+            border: 5px solid #dc2626;
+            color: #dc2626;
+            padding: 10px 20px;
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            transform: rotate(-20deg);
+            opacity: 0.15;
+            border-radius: 12px;
+            z-index: 5;
+            pointer-events: none;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            letter-spacing: 2px;
+            user-select: none;
+        `;
+        stamp.innerText = 'UNTRUSTED';
+        msgElement.style.position = 'relative';
+        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)'; // Subtle red tint
+        msgElement.appendChild(stamp);
+    }
 
     const insertTarget =
         msgElement.querySelector('.a3s.aiL') ||
