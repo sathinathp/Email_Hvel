@@ -530,42 +530,67 @@ app.post('/api/verify', async (req, res) => {
     // does not (the extension passes recipientEmail in the request body).
     if (recipientEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       const inviteMailOptions = {
-        from: `HVEL Security <${process.env.EMAIL_USER}>`,
+        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
         to: recipientEmail,
-        subject: `🔒 Secure Message Received from ${senderEmail}`,
+        subject: `✅ Human Verified Email Received from ${senderEmail}`,
         html: `
-          <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-            <h2 style="color: #10b981;">✅ Human Verified Email Received</h2>
-            <p>Hello,</p>
-            <p>You have just received an email from <strong>${senderEmail}</strong> that has been
-               <strong>Human Verified</strong> via the HVEL Security Layer.</p>
-            <p>HVEL ensures the sender completed a 2FA identity check and that the message content
-               has not been tampered with by AI bots or malicious scripts.</p>
-            <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-              <p style="margin: 0; font-weight: bold;">Why did you receive this?</p>
-              <p style="margin: 5px 0 0 0; font-size: 14px;">
-                The sender is using HVEL to protect your inbox from AI spam and phishing.
-                You can verify this email's authenticity by clicking the button below.
+          <div style="font-family:'Segoe UI',Arial,sans-serif; color:#1f2937; max-width:580px; margin:0 auto; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#10b981,#059669); padding:28px 30px;">
+              <h2 style="margin:0; color:white; font-size:20px; font-weight:700;">✅ Human Verified Email Received</h2>
+              <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;">HVEL — Human Verified Email Layer</p>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:28px 30px;">
+              <p style="margin:0 0 16px; font-size:15px;">Hello,</p>
+              <p style="margin:0 0 16px; font-size:14px; line-height:1.6;">
+                You have just received an email from <strong>${senderEmail}</strong> that has been
+                <strong>Human Verified</strong> via the HVEL Security Layer.
+              </p>
+              <p style="margin:0 0 16px; font-size:14px; line-height:1.6;">
+                HVEL ensures the sender completed a 2FA identity check and that the message content
+                has not been tampered with by AI bots or malicious scripts.
+              </p>
+
+              <div style="background:#f0fdf4; border-left:4px solid #10b981; border-radius:8px; padding:14px 16px; margin:0 0 20px;">
+                <p style="margin:0; font-size:13px; font-weight:600; color:#065f46;">Why did you receive this?</p>
+                <p style="margin:6px 0 0; font-size:13px; color:#047857; line-height:1.5;">
+                  The sender is using HVEL to protect your inbox from AI spam and phishing.
+                  You can verify this email's authenticity using the Verification ID below.
+                </p>
+              </div>
+
+              <p style="margin:0 0 12px; font-size:14px; line-height:1.6;">
+                To verify your own emails and earn the <strong>✅ Human Verified</strong> trust badge,
+                download the free HVEL Chrome extension:
+              </p>
+
+              <div style="text-align:center; margin:20px 0;">
+                <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
+                   style="display:inline-block; background:#6366f1; color:white; padding:13px 32px;
+                          text-decoration:none; border-radius:8px; font-weight:700; font-size:14px;">
+                  Download HVEL Extension — Free
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background:#f9fafb; padding:16px 30px; border-top:1px solid #e5e7eb;">
+              <p style="margin:0; font-size:11px; color:#9ca3af; line-height:1.6;">
+                Verification ID: <strong>${verificationId}</strong><br/>
+                Learn more at <a href="https://hvel.io" style="color:#6366f1;">hvel.io</a>
               </p>
             </div>
-            <p>To verify your own emails and earn the "Human Verified" trust badge, download the
-               free HVEL Chrome extension:</p>
-            <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
-               style="display:inline-block;background:#6366f1;color:white;padding:12px 25px;
-                      text-decoration:none;border-radius:5px;font-weight:bold;">
-              Download HVEL Extension
-            </a>
-            <p style="font-size: 12px; color: #999; margin-top: 30px;">
-              Verification ID: ${verificationId}<br/>
-              Learn more at <a href="https://hvel.io">hvel.io</a>
-            </p>
+
           </div>
         `
       };
 
       mainTransporter.sendMail(inviteMailOptions, (err) => {
         if (err) console.error("Error sending invitation email:", err);
-        else console.log(`Invitation sent to ${recipientEmail} regarding ${senderEmail}`);
+        else console.log(`[HVEL API] ✅ Invite sent to ${recipientEmail} from ${senderEmail}`);
       });
     }
 
@@ -702,52 +727,45 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
 
           <!-- Header -->
           <div style="background:linear-gradient(135deg,#6366f1,#4f46e5); padding:28px 30px;">
-            <h2 style="margin:0; color:white; font-size:20px; font-weight:700;">⚠️ Your Reply Was Not Verified</h2>
-            <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;">
-              HVEL — Human Verified Email Layer
-            </p>
+            <h2 style="margin:0; color:white; font-size:20px; font-weight:700;">⚠️ You Sent an Email Without Verification</h2>
+            <p style="margin:6px 0 0; color:rgba(255,255,255,0.85); font-size:13px;">HVEL — Human Verified Email Layer</p>
           </div>
 
           <!-- Body -->
           <div style="padding:28px 30px;">
             <p style="margin:0 0 16px; font-size:15px;">Hello,</p>
-
             <p style="margin:0 0 16px; font-size:14px; line-height:1.6;">
-              You recently replied to <strong>${verifiedUser}</strong>.<br/>
-              That recipient uses <strong>HVEL</strong> — a security layer that ensures emails
+              You recently sent an email to <strong>${verifiedUser}</strong>.<br/>
+              That person uses <strong>HVEL</strong> — a security layer that ensures emails
               come from verified humans, not bots or AI.
             </p>
 
             <div style="background:#fef3c7; border-left:4px solid #f59e0b; border-radius:8px; padding:14px 16px; margin:0 0 20px;">
               <p style="margin:0; font-size:13px; font-weight:600; color:#92400e;">
-                ⚠️ Your reply did not carry an HVEL verification badge.
+                ⚠️ Your email did not carry an HVEL Human Verification badge.
               </p>
               <p style="margin:6px 0 0; font-size:12px; color:#78350f; line-height:1.5;">
-                Unverified emails may be filtered or flagged by HVEL users.
-                Install the free extension to verify yourself in seconds.
+                Unverified emails may be filtered or ignored by HVEL users.
+                Get verified in 3 simple steps below.
               </p>
             </div>
 
-            <!-- Steps -->
-            <p style="margin:0 0 12px; font-size:14px; font-weight:700; color:#111827;">
-              How to get verified — 3 simple steps:
-            </p>
+            <p style="margin:0 0 16px; font-size:14px; font-weight:700; color:#111827;">How to get verified — 3 simple steps:</p>
 
             <table style="width:100%; border-collapse:collapse;">
               <tr>
-                <td style="width:36px; vertical-align:top; padding:0 12px 16px 0;">
-                  <div style="width:32px; height:32px; background:#6366f1; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; text-align:center; line-height:32px;">1</div>
+                <td style="width:40px; vertical-align:top; padding:0 12px 16px 0;">
+                  <div style="width:32px; height:32px; background:#6366f1; color:white; border-radius:50%; font-weight:700; font-size:14px; text-align:center; line-height:32px;">1</div>
                 </td>
                 <td style="vertical-align:top; padding-bottom:16px;">
                   <p style="margin:0; font-size:14px; font-weight:600; color:#111827;">Download the HVEL Chrome Extension</p>
-                  <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
-                     style="color:#6366f1; font-size:13px; word-break:break-all;">
+                  <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1; font-size:13px;">
                     https://hvel-backend.onrender.com/hvel-extension.zip
                   </a>
                 </td>
               </tr>
               <tr>
-                <td style="width:36px; vertical-align:top; padding:0 12px 16px 0;">
+                <td style="width:40px; vertical-align:top; padding:0 12px 16px 0;">
                   <div style="width:32px; height:32px; background:#6366f1; color:white; border-radius:50%; font-weight:700; font-size:14px; text-align:center; line-height:32px;">2</div>
                 </td>
                 <td style="vertical-align:top; padding-bottom:16px;">
@@ -759,20 +777,19 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
                 </td>
               </tr>
               <tr>
-                <td style="width:36px; vertical-align:top; padding:0 12px 0 0;">
+                <td style="width:40px; vertical-align:top; padding:0 12px 0 0;">
                   <div style="width:32px; height:32px; background:#10b981; color:white; border-radius:50%; font-weight:700; font-size:14px; text-align:center; line-height:32px;">3</div>
                 </td>
                 <td style="vertical-align:top;">
                   <p style="margin:0; font-size:14px; font-weight:600; color:#111827;">Verify before sending in Gmail</p>
                   <p style="margin:4px 0 0; font-size:13px; color:#6b7280; line-height:1.5;">
-                    Open Gmail → Compose a reply → Click <strong>"Verify"</strong> in the toolbar
+                    Open Gmail → Compose → Click <strong>"Verify"</strong> in the toolbar
                     → Complete the quick 2FA check → Send with your ✅ Human Verified badge.
                   </p>
                 </td>
               </tr>
             </table>
 
-            <!-- CTA -->
             <div style="text-align:center; margin:28px 0 0;">
               <a href="https://hvel-backend.onrender.com/hvel-extension.zip"
                  style="display:inline-block; background:#6366f1; color:white; padding:13px 32px;
@@ -785,9 +802,9 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           <!-- Footer -->
           <div style="background:#f9fafb; padding:16px 30px; border-top:1px solid #e5e7eb;">
             <p style="margin:0; font-size:11px; color:#9ca3af; line-height:1.6;">
-              This email was sent automatically by HVEL on behalf of <strong>${verifiedUser}</strong>
-              because you replied to their Human Verified email without a verification badge.<br/>
-              You will only receive this notification once.
+              This email was sent automatically by HVEL because you sent an email to
+              <strong>${verifiedUser}</strong> without a Human Verification badge.<br/>
+              Learn more at <a href="https://hvel.io" style="color:#6366f1;">hvel.io</a>
             </p>
           </div>
 
