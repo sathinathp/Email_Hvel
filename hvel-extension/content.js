@@ -510,6 +510,13 @@ async function scanIncomingMessages() {
                         showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
                     } else if (response && response.status === 'tampered') {
                         showTrustStatus(msg, 'tampered', response.message);
+                        // Trigger security alert email to the recipient
+                        chrome.runtime.sendMessage({
+                            action: 'reportSecurityAlert',
+                            email: recipientEmail,
+                            attacker: senderEmail,
+                            reason: response.message
+                        });
                     } else {
                         showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
                     }
@@ -538,46 +545,65 @@ async function scanIncomingMessages() {
 function showTrustStatus(msgElement, status, text) {
     const existing = msgElement.querySelector('.hvel-trust-notice');
     if (existing) existing.remove();
+    const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
+    if (existingStamp) existingStamp.remove();
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
 
-    let bgColor = '#f8fafc';
-    let textColor = '#64748b';
-    let borderColor = '#e2e8f0';
-    let icon = 'ℹ️';
-    let extraHtml = '';
-
     if (status === 'verified') {
-        bgColor = '#f0fdf4';
-        textColor = '#166534';
-        borderColor = '#bbf7d0';
-        icon = '✅';
-    } else if (status === 'tampered' || status === 'invalid') {
-        bgColor = '#fef2f2';
-        textColor = '#991b1b';
-        borderColor = '#fecaca';
-        icon = '⚠️';
-    } else if (status === 'unverified') {
-        extraHtml = `<a href="https://hvel.io/invite" target="_blank" style="margin-left:10px; color:#6366f1; text-decoration:underline;">Invite them to Verify</a>`;
+        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534'; const icon = '✅';
+        notice.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
+                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+                <span style="font-size:16px;">${icon}</span>
+                <span>${text}</span>
+            </div>`;
+    } else {
+        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b'; const icon = '🚫';
+        const title = (status === 'tampered' || status === 'invalid') ? 'CRITICAL SECURITY ALERT: ID MISMATCH' : 'SECURITY ALERT: UNTRUSTED SENDER';
+        
+        notice.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
+                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:800;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 4px 12px rgba(220, 38, 38, 0.15);
+                border: 2px solid #dc2626; animation: hvel-pulse-red 2s infinite;">
+                <span style="font-size:18px;">${icon}</span>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-size:14px; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
+                    <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
+                </div>
+            </div>
+            <style>
+                @keyframes hvel-pulse-red {
+                    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+                }
+            </style>`;
+
+        // Add the dramatic Stamp Overlay
+        const stamp = document.createElement('div');
+        stamp.className = 'hvel-untrusted-stamp';
+        stamp.style.cssText = `
+            position: absolute; top: 60px; right: 50px; border: 5px solid #dc2626;
+            color: #dc2626; padding: 10px 20px; font-size: 32px; font-weight: 900;
+            text-transform: uppercase; transform: rotate(-20deg); opacity: 0.15;
+            border-radius: 12px; z-index: 5; pointer-events: none;
+            font-family: 'Impact', 'Arial Black', sans-serif; letter-spacing: 2px;
+            user-select: none;
+        `;
+        stamp.innerText = (status === 'tampered' || status === 'invalid') ? 'TAMPERED' : 'UNTRUSTED';
+        msgElement.style.position = 'relative';
+        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)'; // Subtle red tint
+        msgElement.appendChild(stamp);
     }
 
-    notice.innerHTML = `
-        <div style="
-            display: flex; align-items: center; gap: 8px;
-            background: ${bgColor}; color: ${textColor}; border: 1px solid ${borderColor};
-            padding: 6px 15px; border-radius: 8px; margin-bottom: 10px;
-            font-size: 11px; font-weight: 500; font-family: sans-serif;
-        ">
-            <span>${icon}</span>
-            <span>${text}</span>
-            ${extraHtml}
-        </div>
-    `;
-
-    // Insert at the top of the message content
-    const msgBody = msgElement.querySelector('.a3s.aiL') || msgElement;
-    msgBody.prepend(notice);
+    const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
+    insertTarget.prepend(notice);
 }
 
 // Compute SHA-256 hash of a string

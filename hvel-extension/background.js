@@ -151,4 +151,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .catch(err => sendResponse({ success: false, verified: false, error: err.message }));
     return true;
   }
+
+  if (request.action === 'reportSecurityAlert') {
+    fetch('https://hvel-backend.onrender.com/api/report-security-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        email: request.email,
+        attacker: request.attacker,
+        reason: request.reason
+      })
+    }).catch(() => {});
+    return false;
+  }
 });

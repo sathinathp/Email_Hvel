@@ -531,4 +531,91 @@ app.post('/api/test-smtp', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+app.post('/api/report-security-alert', async (req, res) => {
+  const { email, attacker, reason } = req.body;
+  if (!email || !attacker) return res.status(400).json({ error: 'Data missing' });
+
+  console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
+
+  // 1. Alert to the RECIPIENT (The HVEL User)
+  const recipientMailOptions = {
+    from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `⚠️ Security Alert: Identity Mismatch Detected`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #fecaca; border-radius: 12px; overflow: hidden;">
+        <div style="background: #ef4444; color: white; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Security Alert: ID Mismatch</h2>
+        </div>
+        <div style="padding: 20px; color: #1f2937;">
+          <p>Hello,</p>
+          <p>HVEL has detected a potential identity mismatch in your conversation with <strong>${attacker}</strong>.</p>
+          <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: bold; color: #991b1b;">Issue: ${reason}</p>
+          </div>
+          <p>This occurs when a sender uses a verification badge that doesn't belong to them or has been modified.</p>
+          <p>We have automatically sent <strong>${attacker}</strong> the instructions to get properly human-verified.</p>
+        </div>
+      </div>
+    `
+  };
+
+  // 2. Instructions to the SENDER (The suspicious user)
+  const senderMailOptions = {
+    from: `"HVEL Identity Service" <${process.env.EMAIL_USER}>`,
+    to: attacker,
+    subject: `⚠️ Verification Required: 3 Steps to Human Identity`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+        <div style="background: #6366f1; color: white; padding: 24px; text-align: center;">
+            <h2 style="margin: 0;">Verify Your Human Identity</h2>
+            <p style="margin: 8px 0 0; opacity: 0.9;">Follow these 3 steps to secure your emails</p>
+        </div>
+        <div style="padding: 30px; color: #1f2937;">
+            <p>Hello,</p>
+            <p>Your recent email to <strong>${email}</strong> could not be verified as human. Please complete these 3 steps to get your HVEL Human Stamp:</p>
+            
+            <table style="width:100%; margin-top:20px; border-collapse:collapse;">
+                <tr>
+                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
+                    <td style="padding-bottom:20px;">
+                        <strong style="display:block; margin-bottom:4px;">Download & Install Extension</strong>
+                        <span style="font-size:14px; color:#6b7280;">Download HVEL from <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1;">this link</a> and load it into your Chrome extensions.</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
+                    <td style="padding-bottom:20px;">
+                        <strong style="display:block; margin-bottom:4px;">Register Physical Presence</strong>
+                        <span style="font-size:14px; color:#6b7280;">Open Gmail, click the HVEL icon, and follow the biometric (Passkey) and Authenticator (TOTP) setup.</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#10b981; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">3</div></td>
+                    <td>
+                        <strong style="display:block; margin-bottom:4px;">Verify Every Email</strong>
+                        <span style="font-size:14px; color:#6b7280;">Before clicking "Send", click the <strong>"Verify"</strong> button in your Gmail compose window to attach your Human Stamp.</span>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="margin-top:30px; text-align:center;">
+                <a href="https://hvel.io" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Learn More About HVEL</a>
+            </div>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    // Send both emails
+    await transporter.sendMail(recipientMailOptions);
+    await transporter.sendMail(senderMailOptions);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[HVEL API] Error sending security alerts:', err);
+    res.status(500).json({ error: 'Failed to send alerts' });
+  }
+});
+
 app.listen(port, () => console.log(`HVEL Backend listening on port ${port}`));
