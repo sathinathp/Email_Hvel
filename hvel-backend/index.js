@@ -991,6 +991,32 @@ app.post('/api/check-reply-verification', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Endpoint: check-sent-verified
+// Returns whether senderEmail has ever sent a verified email to recipientEmail
+// Used by the extension to decide whether to nudge a reply
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/check-sent-verified', async (req, res) => {
+  const { senderEmail, recipientEmail } = req.body;
+  if (!senderEmail || !recipientEmail) {
+    return res.status(400).json({ verified: false, error: 'Both emails required' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT id FROM verifications 
+       WHERE LOWER(sender_email) = LOWER($1) AND LOWER(recipient_email) = LOWER($2)
+       LIMIT 1`,
+      [senderEmail, recipientEmail]
+    );
+    const verified = result.rows.length > 0;
+    console.log(`[HVEL API] 🔎 check-sent-verified: ${senderEmail} → ${recipientEmail} = ${verified}`);
+    res.json({ verified });
+  } catch (err) {
+    console.error('[HVEL API] check-sent-verified error:', err.message);
+    res.status(500).json({ verified: false, error: 'Server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Endpoint: nudge-log — View all non-extension users who received nudge emails
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/nudge-log', async (req, res) => {
