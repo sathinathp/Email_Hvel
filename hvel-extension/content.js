@@ -523,9 +523,10 @@ async function scanIncomingMessages() {
 
     // ── PASS 2: for each other sender, check backend if I sent them a verified email
     otherSenders.forEach(async (senderEmail) => {
-        const nudgeKey = `hvel_checked_${myEmail}_${senderEmail}`;
-        if (sessionStorage.getItem(nudgeKey)) return; // already processed this pair this session
-        sessionStorage.setItem(nudgeKey, 'true');
+        // Use a per-message-count key so new replies always get checked
+        const msgCount = msgData.filter(d => d.senderEmail && d.senderEmail.toLowerCase() === senderEmail).length;
+        const nudgeKey = `hvel_nudged_${myEmail}_${senderEmail}_${msgCount}`;
+        if (sessionStorage.getItem(nudgeKey)) return;
 
         try {
             // Ask backend: did myEmail ever send a verified email to senderEmail?
@@ -536,37 +537,38 @@ async function scanIncomingMessages() {
             });
             const data = await resp.json();
 
-            console.log(`[HVEL] 🔎 Verified sent check (${myEmail} → ${senderEmail}): ${data.verified}`);
+            console.log(`[HVEL] 🔎 check-sent-verified (${myEmail} → ${senderEmail}): ${data.verified}`);
 
-            if (!data.verified) {
-                // I never sent them a verified email — no nudge
-                return;
-            }
+            if (!data.verified) return; // never sent them a verified email — skip
 
-            // I DID send them a verified email — check if their reply in this thread has a badge
+            // I DID send them a verified email — check if their reply has a badge
             const theirMessages = msgData.filter(d =>
                 d.senderEmail && d.senderEmail.toLowerCase() === senderEmail && !d.isFromMe
             );
 
-            const theyRepliedWithoutBadge = theirMessages.some(d => !d.badgeLink);
-            const theyRepliedWithBadge = theirMessages.some(d => !!d.badgeLink);
+            if (theirMessages.length === 0) return; // they haven't replied yet
 
-            console.log(`[HVEL] 📨 ${senderEmail} replied: withoutBadge=${theyRepliedWithoutBadge}, withBadge=${theyRepliedWithBadge}`);
+            const theyRepliedWithoutBadge = theirMessages.some(d => !d.badgeLink);
+            const theyRepliedWithBadge    = theirMessages.some(d => !!d.badgeLink);
+
+            console.log(`[HVEL] 📨 ${senderEmail} — withoutBadge:${theyRepliedWithoutBadge} withBadge:${theyRepliedWithBadge}`);
 
             if (theyRepliedWithoutBadge) {
-                // Send nudge
-                console.log(`[HVEL] 📤 Sending nudge to ${senderEmail}`);
+                console.log(`[HVEL] 📤 Nudging ${senderEmail}...`);
+                // Mark now to prevent duplicate calls in same scan cycle
+                sessionStorage.setItem(nudgeKey, 'true');
+
                 chrome.runtime.sendMessage({
                     action: 'reportUnverifiedReply',
                     hvelUserEmail: myEmail,
                     noExtensionEmail: senderEmail
                 }, (response) => {
-                    console.log(`[HVEL] 📬 Nudge response:`, JSON.stringify(response));
+                    console.log(`[HVEL] 📬 Nudge response for ${senderEmail}:`, JSON.stringify(response));
                     if (response && response.success) {
-                        console.log(`[HVEL] ✅ Nudge sent to ${senderEmail}`);
+                        console.log(`[HVEL] ✅ Nudge email sent to ${senderEmail}`);
                     } else {
-                        console.warn(`[HVEL] ⚠️ Nudge skipped: ${response?.message || 'no response'}`);
-                        sessionStorage.removeItem(nudgeKey); // allow retry
+                        console.warn(`[HVEL] ⚠️ Nudge not sent: ${response?.message || response?.error || 'no response'}`);
+                        sessionStorage.removeItem(nudgeKey); // allow retry on next scan
                     }
                 });
 
@@ -598,8 +600,7 @@ async function scanIncomingMessages() {
             }
 
         } catch (err) {
-            console.error(`[HVEL] ❌ check-sent-verified error:`, err.message);
-            sessionStorage.removeItem(nudgeKey);
+            console.error(`[HVEL] ❌ Error:`, err.message);
         }
     });
 }

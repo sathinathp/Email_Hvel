@@ -685,18 +685,17 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   }
 
   try {
-    // ── RATE LIMIT: max 1 nudge per (hvel_user, no_extension_user) per 1 hour
-    // This prevents spam if the extension fires multiple times for the same reply
-    // but allows nudging again if they reply again later.
+    // ── RATE LIMIT: max 1 nudge per (hvel_user, no_extension_user) per 5 minutes
+    // Prevents spam from the extension's 1.5s scan loop, but allows re-nudge on new replies
     const already = await pool.query(
       `SELECT id FROM nudge_log 
        WHERE hvel_user = $1 AND no_extension_user = $2
-       AND nudge_sent_at > NOW() - INTERVAL '1 hour'`,
+       AND nudge_sent_at > NOW() - INTERVAL '5 minutes'`,
       [verifiedUser.toLowerCase(), unverifiedUser.toLowerCase()]
     );
     if (already.rows.length > 0) {
-      console.log(`[HVEL API] ⏩ Rate limited — nudge already sent to ${unverifiedUser} within 1h.`);
-      return res.json({ success: false, message: 'Rate limited: nudge sent within last hour' });
+      console.log(`[HVEL API] ⏩ Rate limited — nudge sent to ${unverifiedUser} within 5 mins.`);
+      return res.json({ success: false, message: 'Rate limited: nudge sent within last 5 minutes' });
     }
     // ─────────────────────────────────────────────────────────────────────────
 
