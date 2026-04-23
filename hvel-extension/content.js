@@ -515,53 +515,50 @@ async function scanIncomingMessages() {
             }
         });
 
-        showTrustStatus(msg, 'unverified', `⚠️ ${senderEmail} is not HVEL Verified`);
+        showTrustStatus(msg, 'unverified', `🔴 NOT Human Verified — ${senderEmail} sent this without HVEL verification`);
     }
 }
 
 function showTrustStatus(msgElement, status, text) {
+    // Remove existing notice
     const existing = msgElement.querySelector('.hvel-trust-notice');
     if (existing) existing.remove();
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
-    
-    let bgColor = '#f8fafc';
-    let textColor = '#64748b';
-    let borderColor = '#e2e8f0';
-    let icon = 'ℹ️';
-    let extraHtml = '';
+
+    let bg, border, color, icon;
 
     if (status === 'verified') {
-        bgColor = '#f0fdf4';
-        textColor = '#166534';
-        borderColor = '#bbf7d0';
-        icon = '✅';
-    } else if (status === 'tampered' || status === 'invalid') {
-        bgColor = '#fef2f2';
-        textColor = '#991b1b';
-        borderColor = '#fecaca';
-        icon = '⚠️';
+        bg = '#f0fdf4'; border = '#16a34a'; color = '#166534'; icon = '✅';
     } else if (status === 'unverified') {
-        extraHtml = `<a href="https://hvel.io/invite" target="_blank" style="margin-left:10px; color:#6366f1; text-decoration:underline;">Invite them to Verify</a>`;
+        bg = '#fef2f2'; border = '#dc2626'; color = '#991b1b'; icon = '🔴';
+    } else {
+        bg = '#fef2f2'; border = '#dc2626'; color = '#991b1b'; icon = '⚠️';
     }
 
     notice.innerHTML = `
         <div style="
-            display: flex; align-items: center; gap: 8px;
-            background: ${bgColor}; color: ${textColor}; border: 1px solid ${borderColor};
-            padding: 6px 15px; border-radius: 8px; margin-bottom: 10px;
-            font-size: 11px; font-weight: 500; font-family: sans-serif;
+            display:flex; align-items:center; gap:10px;
+            background:${bg}; color:${color};
+            border-left:4px solid ${border};
+            padding:10px 16px; margin:8px 0 8px 0;
+            font-size:13px; font-weight:600; font-family:'Segoe UI',sans-serif;
+            border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.08);
         ">
-            <span>${icon}</span>
+            <span style="font-size:16px;">${icon}</span>
             <span>${text}</span>
-            ${extraHtml}
         </div>
     `;
 
-    // Insert at the top of the message content
-    const msgBody = msgElement.querySelector('.a3s.aiL') || msgElement;
-    msgBody.prepend(notice);
+    // Try inserting inside message body first, then fall back to top of message element
+    const insertTarget =
+        msgElement.querySelector('.a3s.aiL') ||
+        msgElement.querySelector('.a3s') ||
+        msgElement.querySelector('.ii.gt') ||
+        msgElement;
+
+    insertTarget.prepend(notice);
 }
 
 // Compute SHA-256 hash of a string
