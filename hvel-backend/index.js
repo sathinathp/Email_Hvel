@@ -109,12 +109,29 @@ app.get('/health', (req, res) => res.json({ status: 'ok', message: 'HVEL Backend
 app.post('/api/heartbeat', (req, res) => res.json({ success: true }));
 
 const mainTransporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
 });
+
 const hrmsTransporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS }
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
 });
 
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
