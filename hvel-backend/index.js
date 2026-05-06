@@ -104,6 +104,12 @@ async function initDB() {
       full_name VARCHAR(255),
       last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS security_alert_log (
+      id SERIAL PRIMARY KEY,
+      recipient_email VARCHAR(255) NOT NULL,
+      attacker_email VARCHAR(255) NOT NULL,
+      alert_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(createTableQuery);
@@ -440,7 +446,17 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
       console.log(`[HVEL API] ⛔ No prior verified email from ${hvelUserEmail} to ${noExtUserEmail}`);
       return res.status(200).json({ success: false, message: 'Ignored: no prior verified email' });
     }
-  } catch (err) { return res.status(500).json({ error: 'Server error during gate check' }); }
+
+    // NEW: Permanent "Once Ever" Gate
+    const alreadyNudged = await pool.query(
+      `SELECT id FROM nudge_log WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2 LIMIT 1`,
+      [hvelUserEmail, noExtUserEmail]
+    );
+    if (alreadyNudged.rows.length > 0) {
+      console.log(`[HVEL API] ⛔ Already nudged ${noExtUserEmail} before. Skipping.`);
+      return res.status(200).json({ success: false, message: 'Already notified once.' });
+    }
+  } catch (err) { return res.status(500).json({ error: 'Server error during gate checks' }); }
 
   if (!process.env.HRMS_EMAIL_PASS) return res.status(503).json({ error: 'HRMS email not configured' });
 
@@ -607,6 +623,18 @@ app.post('/api/report-security-alert', async (req, res) => {
   const { email, attacker, reason } = req.body;
   if (!email || !attacker) return res.status(400).json({ error: 'Data missing' });
 
+  try {
+    // NEW: Permanent Cooldown Check
+    const alreadyAlerted = await pool.query(
+      `SELECT id FROM security_alert_log WHERE LOWER(recipient_email) = $1 AND LOWER(attacker_email) = $2 LIMIT 1`,
+      [email.toLowerCase(), attacker.toLowerCase()]
+    );
+    if (alreadyAlerted.rows.length > 0) {
+      console.log(`[HVEL API] ⛔ Security alert already sent to ${email} regarding ${attacker}. Skipping.`);
+      return res.json({ success: true, message: 'Alert already sent once.' });
+    }
+  } catch (err) { return res.status(500).json({ error: 'Server error' }); }
+
   console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
 
   // 1. Alert to the RECIPIENT (The HVEL User)
@@ -649,12 +677,6 @@ app.post('/api/report-security-alert', async (req, res) => {
             
             <table style="width:100%; margin-top:20px; border-collapse:collapse;">
                 <tr>
-                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
-                    <td style="padding-bottom:20px;">
-                        <strong style="display:block; margin-bottom:4px;">Download & Install Extension</strong>
-                        <span style="font-size:14px; color:#6b7280;">Download HVEL from <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1;">this link</a> and load it into your Chrome extensions.</span>
-                    </td>
-                </tr>
                 <tr>
                     <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
                     <td style="padding-bottom:20px;">

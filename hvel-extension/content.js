@@ -428,31 +428,40 @@ async function scanIncomingMessages() {
                         showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
                     } else if (response && response.status === 'tampered') {
                         showTrustStatus(msg, 'tampered', response.message);
-                        // Trigger security alert email to the recipient
-                        chrome.runtime.sendMessage({
-                            action: 'reportSecurityAlert',
-                            email: recipientEmail,
-                            attacker: senderEmail,
-                            reason: response.message
-                        });
+                        
+                        // NEW: Permanent "Once Ever" Flag for Alerts
+                        const alertKey = `hvel_alerted_${senderEmail}`;
+                        if (!localStorage.getItem(alertKey)) {
+                            chrome.runtime.sendMessage({
+                                action: 'reportSecurityAlert',
+                                email: recipientEmail,
+                                attacker: senderEmail,
+                                reason: response.message
+                            }, (res) => {
+                                if (res && res.success) localStorage.setItem(alertKey, 'true');
+                            });
+                        }
                     } else {
                         showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
                     }
                 });
             } else {
                 // No HVEL found on a reply - Trigger Mandatory Nudge
-                const nudgeKey = `hvel_nudged_${senderEmail}`;
-                if (!sessionStorage.getItem(nudgeKey)) {
-                    console.log(`[HVEL] Mandatory nudge triggered for: ${senderEmail}`);
-                    chrome.runtime.sendMessage({
-                        action: 'reportUnverifiedReply',
-                        hvelUserEmail: recipientEmail,
-                        noExtensionEmail: senderEmail
-                    }, (response) => {
-                        if (response && response.success) {
-                            sessionStorage.setItem(nudgeKey, 'true');
-                        }
-                    });
+                // ONLY trigger if the message is actually VISIBLE (Expanded)
+                if (msg.offsetParent !== null) {
+                    const nudgeKey = `hvel_nudged_${senderEmail}`;
+                    if (!localStorage.getItem(nudgeKey)) {
+                        console.log(`[HVEL] Mandatory nudge triggered for: ${senderEmail}`);
+                        chrome.runtime.sendMessage({
+                            action: 'reportUnverifiedReply',
+                            hvelUserEmail: recipientEmail,
+                            noExtensionEmail: senderEmail
+                        }, (response) => {
+                            if (response && response.success) {
+                                localStorage.setItem(nudgeKey, 'true');
+                            }
+                        });
+                    }
                 }
                 showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
             }
