@@ -91,13 +91,15 @@ async function initDB() {
       id SERIAL PRIMARY KEY,
       hvel_user VARCHAR(255) NOT NULL,
       no_extension_user VARCHAR(255) NOT NULL,
-      nudge_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      nudge_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(hvel_user, no_extension_user)
     );
     CREATE TABLE IF NOT EXISTS invite_log (
       id SERIAL PRIMARY KEY,
       sender_email VARCHAR(255) NOT NULL,
       recipient_email VARCHAR(255) NOT NULL,
-      invite_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      invite_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(sender_email, recipient_email)
     );
     CREATE TABLE IF NOT EXISTS profiles (
       email VARCHAR(255) PRIMARY KEY,
@@ -108,7 +110,8 @@ async function initDB() {
       id SERIAL PRIMARY KEY,
       recipient_email VARCHAR(255) NOT NULL,
       attacker_email VARCHAR(255) NOT NULL,
-      alert_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      alert_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(recipient_email, attacker_email)
     );
   `;
   try {
@@ -454,49 +457,95 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     );
     if (alreadyNudged.rows.length > 0) {
       console.log(`[HVEL API] ⛔ Already nudged ${noExtUserEmail} before. Skipping.`);
-      return res.status(200).json({ success: false, message: 'Already notified once.' });
+      return res.status(200).json({ success: true, message: 'Already notified once.' });
     }
   } catch (err) { return res.status(500).json({ error: 'Server error during gate checks' }); }
 
-  if (!process.env.HRMS_EMAIL_PASS) return res.status(503).json({ error: 'HRMS email not configured' });
-
   try {
+    const details = req.body.details || {};
+    const timestamp = details.timestamp || new Date().toLocaleString();
+    
+    // NEW: Atomic Block - Insert BEFORE sending email
+    try {
+      await pool.query(
+        `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`,
+        [hvelUserEmail, noExtUserEmail]
+      );
+    } catch (dbErr) {
+      if (dbErr.code === '23505') { // Unique violation
+        console.log(`[HVEL API] ⛔ Race condition blocked: Nudge already logged for ${noExtUserEmail}`);
+        return res.json({ success: true, message: 'Already notified once.' });
+      }
+      throw dbErr;
+    }
+
+    // Get sender profile for personalization
+    const profileRes = await pool.query('SELECT full_name FROM profiles WHERE email = $1', [hvelUserEmail]);
+    const senderName = profileRes.rows[0]?.full_name || hvelUserEmail;
+
     const nudgeHtml = `
-      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:580px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:28px 30px;">
-          <h2 style="margin:0;color:white;font-size:20px;font-weight:700;">⚠️ You Sent an Email Without Verification</h2>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">HVEL — Human Verified Email Layer</p>
-        </div>
-        <div style="padding:28px 30px;">
-          <p style="margin:0 0 16px;font-size:15px;">Hello,</p>
-          <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">You recently sent an email to <strong>${hvelUserEmail}</strong>.<br/>That person uses <strong>HVEL</strong> — a security layer that ensures emails come from verified humans, not bots or AI.</p>
-          <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
-            <p style="margin:0;font-size:13px;font-weight:600;color:#92400e;">⚠️ Your email did not carry an HVEL Human Verification badge.</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#78350f;line-height:1.5;">Unverified emails may be filtered or ignored. Get verified in 3 steps below.</p>
+      <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;max-width:600px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+        <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:40px 30px;text-align:center;color:white;">
+          <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:12px;border-radius:12px;margin-bottom:16px;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
           </div>
-          <p style="margin:0 0 16px;font-size:14px;font-weight:700;color:#111827;">How to get verified — 3 simple steps:</p>
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="width:40px;vertical-align:top;padding:0 12px 16px 0;"><div style="width:32px;height:32px;background:#6366f1;color:white;border-radius:50%;font-weight:700;font-size:14px;text-align:center;line-height:32px;">1</div></td>
-              <td style="vertical-align:top;padding-bottom:16px;"><p style="margin:0;font-size:14px;font-weight:600;color:#111827;">Download the HVEL Chrome Extension</p><a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#6366f1;font-size:13px;">https://hvel-backend.onrender.com/hvel-extension.zip</a></td>
-            </tr>
-            <tr>
-              <td style="width:40px;vertical-align:top;padding:0 12px 16px 0;"><div style="width:32px;height:32px;background:#6366f1;color:white;border-radius:50%;font-weight:700;font-size:14px;text-align:center;line-height:32px;">2</div></td>
-              <td style="vertical-align:top;padding-bottom:16px;"><p style="margin:0;font-size:14px;font-weight:600;color:#111827;">Install in Chrome</p><p style="margin:4px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Open <strong>chrome://extensions</strong> → Enable <strong>Developer mode</strong> → Click <strong>Load unpacked</strong> → Select the extracted folder.</p></td>
-            </tr>
-            <tr>
-              <td style="width:40px;vertical-align:top;padding:0 12px 0 0;"><div style="width:32px;height:32px;background:#10b981;color:white;border-radius:50%;font-weight:700;font-size:14px;text-align:center;line-height:32px;">3</div></td>
-              <td style="vertical-align:top;"><p style="margin:0;font-size:14px;font-weight:600;color:#111827;">Verify before sending in Gmail</p><p style="margin:4px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Open Gmail → Compose → Click <strong>"Verify"</strong> → Complete 2FA → Send with ✅ badge.</p></td>
-            </tr>
-          </table>
-          <div style="text-align:center;margin:28px 0 0;">
-            <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
+          <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.025em;">HVEL Identity Report</h2>
+          <p style="margin:8px 0 0;font-size:14px;opacity:0.9;font-weight:500;">Securing Your Communication with ${senderName}</p>
+        </div>
+        
+        <div style="padding:32px;">
+          <div style="margin-bottom:24px;">
+            <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Incident Details</p>
+            <div style="background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:16px;">
+              <table style="width:100%;font-size:14px;">
+                <tr><td style="color:#64748b;padding-bottom:4px;width:100px;">Recipient:</td><td style="font-weight:600;">${senderName}</td></tr>
+                <tr><td style="color:#64748b;padding-bottom:4px;">Time Detected:</td><td style="font-weight:600;">${timestamp}</td></tr>
+                <tr><td style="color:#64748b;">Status:</td><td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700;">UNVERIFIED</span></td></tr>
+              </table>
+            </div>
+          </div>
+
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">
+            Hello,<br/><br/>
+            This is an automated notification from <strong>HVEL (Human Verified Email Layer)</strong>. 
+            An email sent from your address to <strong>${senderName}</strong> was flagged because it lacked a valid human verification stamp.
+          </p>
+
+          <div style="background:#fff7ed;border-left:4px solid #f97316;padding:16px;border-radius:4px 12px 12px 4px;margin-bottom:24px;">
+            <p style="margin:0;font-size:14px;color:#9a3412;line-height:1.5;">
+              <strong>Why this matters:</strong> To protect against AI-generated spam and phishing, ${senderName} uses HVEL to ensure they only interact with verified humans. Unverified emails may be deprioritized or moved to junk.
+            </p>
+          </div>
+
+          <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">How to Restore Trust:</h3>
+          <div style="display:grid;gap:12px;">
+            <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
+              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download HVEL Extension</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
+            </div>
+            <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
+              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Activate Your Identity</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Load the extension in Chrome and complete the 2FA setup.</p>
+            </div>
+            <div style="background:#ecfdf5;padding:16px;border:1px solid #d1fae5;border-radius:12px;">
+              <p style="margin:0;font-size:14px;font-weight:600;color:#059669;">3. Verify in Gmail</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">Look for the <strong>"Verify"</strong> button in your Gmail compose window before sending.</p>
+            </div>
+          </div>
+
+          <div style="text-align:center;margin-top:32px;">
+            <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
           </div>
         </div>
-        <div style="background:#f9fafb;padding:16px 30px;border-top:1px solid #e5e7eb;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.6;">Sent automatically by HVEL because you emailed <strong>${hvelUserEmail}</strong> without a verification badge.<br/>Learn more at <a href="https://hvel.io" style="color:#6366f1;">hvel.io</a></p>
+
+        <div style="background:#f8fafc;padding:24px;border-top:1px solid #e2e8f0;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+            This security report was generated for communication with ${hvelUserEmail}.<br/>
+            HVEL Identity Protocol v2.4 | <a href="https://hvel.io" style="color:#4f46e5;text-decoration:none;">Learn More</a>
+          </p>
         </div>
-      </div>`;
+      </div>
+    `;
 
     console.log(`[SMTP] 📤 Sending nudge email to ${noExtUserEmail}...`);
     const info = await hrmsTransporter.sendMail({
@@ -508,7 +557,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     });
     console.log(`[SMTP] ✅ Nudge email sent: ${info.messageId}`);
 
-    await pool.query(`INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`, [hvelUserEmail, noExtUserEmail]);
+
 
     console.log('================================================================');
     console.log(`[HVEL API] ✅ NUDGE EMAIL SENT`);
@@ -624,16 +673,20 @@ app.post('/api/report-security-alert', async (req, res) => {
   if (!email || !attacker) return res.status(400).json({ error: 'Data missing' });
 
   try {
-    // NEW: Permanent Cooldown Check
-    const alreadyAlerted = await pool.query(
-      `SELECT id FROM security_alert_log WHERE LOWER(recipient_email) = $1 AND LOWER(attacker_email) = $2 LIMIT 1`,
-      [email.toLowerCase(), attacker.toLowerCase()]
-    );
-    if (alreadyAlerted.rows.length > 0) {
-      console.log(`[HVEL API] ⛔ Security alert already sent to ${email} regarding ${attacker}. Skipping.`);
-      return res.json({ success: true, message: 'Alert already sent once.' });
+    // NEW: Atomic Block - Insert BEFORE sending alerts
+    try {
+      await pool.query(
+        `INSERT INTO security_alert_log (recipient_email, attacker_email) VALUES ($1, $2)`,
+        [email.toLowerCase(), attacker.toLowerCase()]
+      );
+    } catch (dbErr) {
+      if (dbErr.code === '23505') { // Unique violation
+        console.log(`[HVEL API] ⛔ Race condition blocked: Security alert already logged for ${attacker}`);
+        return res.json({ success: true, message: 'Already notified once.' });
+      }
+      throw dbErr;
     }
-  } catch (err) { return res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { return res.status(500).json({ error: 'Server error during security lock' }); }
 
   console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
 
@@ -677,11 +730,17 @@ app.post('/api/report-security-alert', async (req, res) => {
             
             <table style="width:100%; margin-top:20px; border-collapse:collapse;">
                 <tr>
-                <tr>
-                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
+                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
                     <td style="padding-bottom:20px;">
-                        <strong style="display:block; margin-bottom:4px;">Register Physical Presence</strong>
-                        <span style="font-size:14px; color:#6b7280;">Open Gmail, click the HVEL icon, and follow the biometric (Passkey) and Authenticator (TOTP) setup.</span>
+                        <strong style="display:block; margin-bottom:4px;">Install HVEL Extension</strong>
+                        <span style="font-size:14px; color:#6b7280;">Download and load the HVEL extension in your Chrome browser.</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
+                    <td style="padding-bottom:20px;">
+                        <strong style="display:block; margin-bottom:4px;">Setup Identity (TOTP)</strong>
+                        <span style="font-size:14px; color:#6b7280;">Open Gmail, click the HVEL icon, and link your Google Authenticator app.</span>
                     </td>
                 </tr>
                 <tr>
@@ -694,7 +753,7 @@ app.post('/api/report-security-alert', async (req, res) => {
             </table>
 
             <div style="margin-top:30px; text-align:center;">
-                <a href="https://hvel.io" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Learn More About HVEL</a>
+                <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
             </div>
         </div>
       </div>
