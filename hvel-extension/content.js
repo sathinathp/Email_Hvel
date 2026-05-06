@@ -1,5 +1,8 @@
 console.log("HVEL Content Script loaded into Gmail.");
 
+// Track in-flight requests to prevent spamming the server
+const pendingRequests = new Set();
+
 // --- HEARTBEAT & PROFILE SYNC ---
 function sendHeartbeat() {
     chrome.runtime.sendMessage({ action: 'heartbeat', url: window.location.href });
@@ -430,38 +433,59 @@ async function scanIncomingMessages() {
                         showTrustStatus(msg, 'tampered', response.message);
                         
                         // NEW: Permanent "Once Ever" Flag for Alerts
-                        const alertKey = `hvel_alerted_${senderEmail}`;
-                        if (!localStorage.getItem(alertKey)) {
-                            chrome.runtime.sendMessage({
-                                action: 'reportSecurityAlert',
-                                email: recipientEmail,
-                                attacker: senderEmail,
-                                reason: response.message
-                            }, (res) => {
-                                if (res && res.success) localStorage.setItem(alertKey, 'true');
-                            });
-                        }
+                        const normSender = senderEmail.toLowerCase().trim();
+                        const alertKey = `hvel_alerted_${normSender}`;
+                        
+                        chrome.storage.local.get([alertKey], (result) => {
+                            if (!result[alertKey] && !pendingRequests.has(alertKey)) {
+                                const dateSpan = msg.querySelector('span[title]');
+                                const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
+
+                                // Lock immediately
+                                pendingRequests.add(alertKey);
+                                chrome.storage.local.set({ [alertKey]: 'true' });
+
+                                chrome.runtime.sendMessage({
+                                    action: 'reportSecurityAlert',
+                                    email: recipientEmail,
+                                    attacker: normSender,
+                                    reason: response.message,
+                                    details: { timestamp: msgTime }
+                                });
+                            }
+                        });
                     } else {
                         showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
                     }
                 });
-            } else {
                 // No HVEL found on a reply - Trigger Mandatory Nudge
                 // ONLY trigger if the message is actually VISIBLE (Expanded)
                 if (msg.offsetParent !== null) {
-                    const nudgeKey = `hvel_nudged_${senderEmail}`;
-                    if (!localStorage.getItem(nudgeKey)) {
-                        console.log(`[HVEL] Mandatory nudge triggered for: ${senderEmail}`);
-                        chrome.runtime.sendMessage({
-                            action: 'reportUnverifiedReply',
-                            hvelUserEmail: recipientEmail,
-                            noExtensionEmail: senderEmail
-                        }, (response) => {
-                            if (response && response.success) {
-                                localStorage.setItem(nudgeKey, 'true');
-                            }
-                        });
-                    }
+                    const normSender = senderEmail.toLowerCase().trim();
+                    const nudgeKey = `hvel_nudged_${normSender}`;
+                    
+                    chrome.storage.local.get([nudgeKey], (result) => {
+                        if (!result[nudgeKey] && !pendingRequests.has(nudgeKey)) {
+                            // Capture timestamp from Gmail if possible
+                            const dateSpan = msg.querySelector('span[title]');
+                            const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
+
+                            // LOCK IMMEDIATELY
+                            chrome.storage.local.set({ [nudgeKey]: 'true' });
+                            pendingRequests.add(nudgeKey);
+
+                            console.log(`[HVEL] Mandatory nudge triggered for: ${normSender}`);
+                            chrome.runtime.sendMessage({
+                                action: 'reportUnverifiedReply',
+                                hvelUserEmail: recipientEmail,
+                                noExtensionEmail: normSender,
+                                details: {
+                                    timestamp: msgTime,
+                                    url: window.location.href
+                                }
+                            });
+                        }
+                    });
                 }
                 showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
             }
