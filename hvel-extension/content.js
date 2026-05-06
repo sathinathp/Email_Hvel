@@ -8,7 +8,7 @@ setInterval(sendHeartbeat, 10000); // Pulse every 10 seconds
 sendHeartbeat(); // First pulse immediately
 // -------------------------------
 
-const SESSION_DURATION_MS = 2 * 60 * 1000; // 2 minutes (for testing)
+const SESSION_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
 async function isSessionValid() {
     return new Promise((resolve) => {
