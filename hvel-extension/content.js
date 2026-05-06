@@ -1,11 +1,25 @@
 console.log("HVEL Content Script loaded into Gmail.");
 
-// --- HEARTBEAT FOR DEBUGGING ---
+// --- HEARTBEAT & PROFILE SYNC ---
 function sendHeartbeat() {
     chrome.runtime.sendMessage({ action: 'heartbeat', url: window.location.href });
 }
-setInterval(sendHeartbeat, 10000); // Pulse every 10 seconds
-sendHeartbeat(); // First pulse immediately
+
+function updateProfile() {
+    const profile = getSenderProfile();
+    if (profile.email) {
+        chrome.runtime.sendMessage({
+            action: 'updateProfile',
+            email: profile.email,
+            name: profile.name
+        });
+    }
+}
+
+setInterval(sendHeartbeat, 30000); // 30s heartbeat
+setInterval(updateProfile, 5 * 60 * 1000); // Sync name/last active every 5m
+sendHeartbeat();
+updateProfile();
 // -------------------------------
 
 const SESSION_DURATION_MS = 60 * 60 * 1000; // 1 hour
@@ -39,25 +53,29 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Extract actual user email from Gmail DOM
-function getSenderEmail() {
-    // Attempt 1: Title check
-    const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (titleMatch) return titleMatch[0].toLowerCase();
-
-    // Attempt 2: Google Account button aria-label (very reliable)
+// Extract actual user email and name from Gmail DOM
+function getSenderProfile() {
     const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
     if (accountBtn) {
         const label = accountBtn.getAttribute('aria-label') || "";
-        const emailMatch = label.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (emailMatch) return emailMatch[0].toLowerCase();
+        // Format: "Google Account: Name (email@gmail.com)"
+        const nameMatch = label.match(/Google Account:\s*(.*?)\s*\(/);
+        const emailMatch = label.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+        
+        return {
+            email: emailMatch ? emailMatch[0].toLowerCase() : null,
+            name: nameMatch ? nameMatch[1] : null
+        };
     }
+    return { email: null, name: null };
+}
 
-    // Attempt 3: Gmail identity container
-    const identity = document.querySelector('.gb_d.gb_Ba.gb_z'); // Older selector
-    if (identity && identity.innerText.includes('@')) return identity.innerText.trim().toLowerCase();
+function getSenderEmail() {
+    const profile = getSenderProfile();
+    if (profile.email) return profile.email;
 
-    return 'unknown-sender@gmail.com';
+    const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    return titleMatch ? titleMatch[0].toLowerCase() : 'unknown-sender@gmail.com';
 }
 
 // Function to find the recipient of an incoming message (the current user)
@@ -620,6 +638,10 @@ async function handleVerifyClick(sendBtn, btnElement, type) {
                                     <line x1="10" y1="14" x2="21" y2="3"></line>
                                 </svg>
                             </a>
+                        </div>
+                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
+                            <span>Hash: ${contentHash.substring(0, 16)}...</span>
+                            <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
                         </div>
                     </div>
                 `;

@@ -99,6 +99,11 @@ async function initDB() {
       recipient_email VARCHAR(255) NOT NULL,
       invite_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS profiles (
+      email VARCHAR(255) PRIMARY KEY,
+      full_name VARCHAR(255),
+      last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(createTableQuery);
@@ -561,6 +566,41 @@ app.post('/api/test-smtp', async (req, res) => {
     console.log(`[HVEL API] ✅ Test email sent to ${to}`);
     res.json({ success: true, message: `Test email sent to ${to}` });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+app.post('/api/profile/update', async (req, res) => {
+  const { email, name } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  try {
+    await pool.query(
+      `INSERT INTO profiles (email, full_name, last_active) 
+       VALUES ($1, $2, NOW()) 
+       ON CONFLICT (email) DO UPDATE SET full_name = COALESCE($2, profiles.full_name), last_active = NOW()`,
+      [email.toLowerCase(), name]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/verify-hash', async (req, res) => {
+  const { hash } = req.body;
+  if (!hash) return res.status(400).json({ error: 'Hash required' });
+  try {
+    const result = await pool.query(`
+      SELECT v.sender_email, v.timestamp, v.type, p.full_name, p.last_active
+      FROM verifications v
+      LEFT JOIN profiles p ON v.sender_email = p.email
+      WHERE v.content_hash = $1
+      ORDER BY v.timestamp DESC
+      LIMIT 1
+    `, [hash]);
+
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'No verification found for this hash.' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.post('/api/report-security-alert', async (req, res) => {

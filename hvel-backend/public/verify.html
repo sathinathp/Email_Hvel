@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVEL | Identity Verification Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            background: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .verify-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px -12px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,1);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            margin-left: 4px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 16px;
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+            resize: none;
+            background: #f8fafc;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+        }
+
+        .btn-verify {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 10px 20px -5px rgba(99,102,241,0.4);
+        }
+
+        .btn-verify:hover {
+            transform: translateY(-1px);
+            background: var(--primary-hover);
+        }
+
+        .btn-verify:active {
+            transform: translateY(0);
+        }
+
+        .btn-verify:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 30px;
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            text-align: left;
+            border: 2px solid #e2e8f0;
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0fdf4;
+            color: #166534;
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .result-row {
+            margin-bottom: 12px;
+        }
+
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .error-msg {
+            color: var(--error);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 15px;
+            background: #fef2f2;
+            border-radius: 12px;
+            border: 1px solid #fecaca;
+        }
+
+        footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            HVEL
+        </div>
+        <h1>Identity Verification</h1>
+        <p class="subtitle">Enter a content hash to verify the sender's identity</p>
+
+        <div class="verify-card">
+            <div class="input-group">
+                <label for="hash-input">Content Hash</label>
+                <textarea id="hash-input" placeholder="Paste the SHA-256 hash from the email here..."></textarea>
+            </div>
+            <button id="verify-btn" class="btn-verify">Verify Identity</button>
+        </div>
+
+        <div id="result">
+            <!-- Result content injected here -->
+        </div>
+
+        <footer>
+            &copy; 2026 HVEL Security Protocol. All identities are verified via 2FA & WebAuthn.
+        </footer>
+    </div>
+
+    <script>
+        const hashInput = document.getElementById('hash-input');
+        const verifyBtn = document.getElementById('verify-btn');
+        const resultDiv = document.getElementById('result');
+
+        verifyBtn.addEventListener('click', async () => {
+            const hash = hashInput.value.trim();
+            if (!hash) return;
+
+            verifyBtn.disabled = true;
+            verifyBtn.innerText = 'Searching Database...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/verify-hash', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hash })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const profile = data.data;
+                    const date = new Date(profile.timestamp).toLocaleString();
+                    const lastActive = profile.last_active ? new Date(profile.last_active).toLocaleTimeString() : 'Unknown';
+
+                    resultDiv.innerHTML = `
+                        <div class="result-card" style="border-color: #10b981;">
+                            <div class="verified-badge">
+                                <span>✅</span> VERIFIED HUMAN
+                            </div>
+                            
+                            <div class="result-row">
+                                <div class="result-label">Sender Name</div>
+                                <div class="result-value">${profile.full_name || 'HVEL Verified User'}</div>
+                            </div>
+
+                            <div class="result-row">
+                                <div class="result-label">Verified Email</div>
+                                <div class="result-value">${profile.sender_email}</div>
+                            </div>
+
+                            <div class="result-row">
+                                <div class="result-label">Email Sent At</div>
+                                <div class="result-value">${date}</div>
+                            </div>
+
+                            <div class="result-row" style="margin-bottom:0;">
+                                <div class="result-label">Sender Status</div>
+                                <div class="result-value">
+                                    <span class="status-dot"></span>
+                                    Active today at ${lastActive}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error-msg">
+                            ⚠️ ${data.message}
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="error-msg">
+                        ⚠️ Network error. Please try again.
+                    </div>
+                `;
+            } finally {
+                verifyBtn.disabled = false;
+                verifyBtn.innerText = 'Verify Identity';
+                resultDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

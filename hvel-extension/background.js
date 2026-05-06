@@ -11,6 +11,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
+  if (request.action === 'updateProfile') {
+    fetch(`${API_BASE_URL}/api/profile/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        email: request.email, 
+        name: request.name 
+      })
+    }).catch(() => {});
+    return false;
+  }
+
   if (request.action === 'verifyEmail') {
     console.log("Received verification request for type:", request.type);
     
