@@ -9,7 +9,8 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
-    "https://hvel-backend.onrender.com/*"
+    "https://unmagnetized-unprudential-beth.ngrok-free.dev/*",
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background.js"

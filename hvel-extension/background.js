@@ -1,9 +1,9 @@
-console.log("HVEL Background Service Worker initialized.");
+const API_BASE_URL = 'https://unmagnetized-unprudential-beth.ngrok-free.dev'; // Ngrok
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'heartbeat') {
-    fetch('https://hvel-backend.onrender.com/api/heartbeat', {
+    fetch(`${API_BASE_URL}/api/heartbeat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: request.url })
@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Received verification request for type:", request.type);
     
     // Make actual API call to the backend
-    fetch('https://hvel-backend.onrender.com/api/verify', {
+    fetch(`${API_BASE_URL}/api/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'requestOTP') {
-    fetch('https://hvel-backend.onrender.com/api/request-otp', {
+    fetch(`${API_BASE_URL}/api/request-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail })
@@ -56,7 +56,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyOTP') {
-    fetch('https://hvel-backend.onrender.com/api/verify-otp', {
+    fetch(`${API_BASE_URL}/api/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail, code: request.code })
@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'setupTOTP') {
     console.log(`[HVEL EXT] Setting up TOTP for ${request.senderEmail} (Force: ${request.force})`);
-    fetch('https://hvel-backend.onrender.com/api/totp-setup', {
+    fetch(`${API_BASE_URL}/api/totp-setup`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyTOTP') {
-    fetch('https://hvel-backend.onrender.com/api/totp-verify', {
+    fetch(`${API_BASE_URL}/api/totp-verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.senderEmail, code: request.code })
@@ -108,7 +108,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'validateVerification') {
-    fetch('https://hvel-backend.onrender.com/api/validate', {
+    fetch(`${API_BASE_URL}/api/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -125,7 +125,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'reportUnverifiedReply') {
     console.log(`[HVEL EXT] Reporting unverified reply from: ${request.noExtensionEmail}`);
-    fetch('https://hvel-backend.onrender.com/api/notify-unverified-reply', {
+    fetch(`${API_BASE_URL}/api/notify-unverified-reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -141,7 +141,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'checkUserVerified') {
-    fetch('https://hvel-backend.onrender.com/api/check-user-verified', {
+    fetch(`${API_BASE_URL}/api/check-user-verified`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email })
@@ -153,7 +153,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'reportSecurityAlert') {
-    fetch('https://hvel-backend.onrender.com/api/report-security-alert', {
+    fetch(`${API_BASE_URL}/api/report-security-alert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

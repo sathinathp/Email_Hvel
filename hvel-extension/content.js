@@ -100,37 +100,8 @@ function showOTPModal(sendBtn, onVerified) {
             <!-- Body -->
             <div style="padding: 20px;">
                 
-                <!-- Step Indicator -->
-                <div style="display:flex; justify-content:center; gap:8px; margin-bottom:15px;">
-                    <div id="hvel-dot-1" style="width:30px; height:5px; border-radius:3px; background:#6366f1; transition:0.3s;"></div>
-                    <div id="hvel-dot-2" style="width:30px; height:5px; border-radius:3px; background:#e2e8f0; transition:0.3s;"></div>
-                </div>
-
-                <!-- STEP 1 View: Biometrics -->
-                <div id="hvel-view-bio">
-                    <div id="hvel-step-txt" style="font-size:10px; font-weight:800; color:#6366f1; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">
-                        Step 1: Physical Identity Proof
-                    </div>
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:15px; padding:15px; margin-bottom:18px;">
-                        <div style="font-size:36px; margin-bottom:8px;">👤</div>
-                        <p style="font-size:13px; font-weight:700; color:#1e293b; margin:0 0 5px 0;">Verify your presence</p>
-                        <p style="font-size:11px; color:#64748b; line-height:1.4; margin:0;">Confirm you are the authorized sender using your device biometrics.</p>
-                    </div>
-
-                    <button id="hvel-bio-btn" style="
-                        width:100%; background:linear-gradient(135deg,#6366f1,#4f46e5); color:white;
-                        border:none; padding:13px; border-radius:12px; font-size:13px; font-weight:700;
-                        cursor:pointer; box-shadow:0 8px 16px -4px rgba(99,102,241,0.4); transition:0.2s;
-                    " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
-                        🛡️ Start Biometric Check
-                    </button>
-                    <p id="hvel-no-passkey" style="font-size:11px; color:#6366f1; margin-top:12px; cursor:pointer; text-decoration:none; font-weight:600;">
-                        No passkey? <span style="text-decoration:underline;">Setup now</span>
-                    </p>
-                </div>
-
-                <!-- STEP 2 View: Combined Setup/Verify -->
-                <div id="hvel-view-step2" style="display:none;">
+                <!-- Verification View -->
+                <div id="hvel-view-step2">
                     
                     <!-- Tabs -->
                     <div style="display:flex; background:#f1f5f9; padding:3px; border-radius:10px; margin-bottom:15px;">
@@ -147,19 +118,12 @@ function showOTPModal(sendBtn, onVerified) {
                         <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px; margin-bottom:15px; display:flex; align-items:center; gap:8px; text-align:left;">
                             <span style="font-size:16px;">📱</span>
                             <span style="font-size:10px; color:#0369a1; line-height:1.3; font-weight:500;">
-                                <strong>Google Authenticator</strong> → tap <strong>+</strong> → <strong>Scan QR code</strong>
+                                <strong>Authenticator</strong> → tap <strong>+</strong> → <strong>Scan QR code</strong>
                             </span>
                         </div>
 
                         <div style="background:white; border:1.5px solid #f1f5f9; border-radius:16px; padding:12px; display:inline-block; margin-bottom:12px;">
                             <img id="hvel-qr-img" style="width:150px; height:150px; display:block;">
-                        </div>
-
-                        <div id="hvel-manual-key-btn" style="font-size:10px; color:#6366f1; margin-bottom:15px; cursor:pointer; font-weight:600;">
-                            🔑 Can't scan? Show manual key
-                        </div>
-                        
-                        <div id="hvel-manual-key-area" style="display:none; background:#f8fafc; padding:8px; border-radius:8px; margin-bottom:15px; word-break:break-all; font-family:monospace; font-size:11px; border:1px dashed #cbd5e1;">
                         </div>
 
                         <button id="hvel-scan-done-btn" style="
@@ -189,17 +153,6 @@ function showOTPModal(sendBtn, onVerified) {
                             cursor:pointer; box-shadow:0 8px 16px -4px rgba(16,185,129,0.3);
                         ">🔓 Complete Verification</button>
                     </div>
-
-                    <!-- Actions -->
-                    <div style="margin-top:15px; border-top:1px solid #f1f5f9; padding-top:12px;">
-                        <button id="hvel-regenerate-btn" style="
-                            background:transparent; border:1px solid #e2e8f0; color:#64748b;
-                            padding:6px 12px; border-radius:8px; font-size:10px; font-weight:600;
-                            cursor:pointer; transition:0.2s; display:flex; align-items:center; gap:5px; margin:0 auto;
-                        " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                            🔄 Generate new secret
-                        </button>
-                    </div>
                 </div>
 
             </div>
@@ -208,15 +161,10 @@ function showOTPModal(sendBtn, onVerified) {
 
     document.body.appendChild(overlay);
 
-    const viewBio = overlay.querySelector('#hvel-view-bio');
-    const viewStep2 = overlay.querySelector('#hvel-view-step2');
     const secScan = overlay.querySelector('#hvel-sec-scan');
     const secCode = overlay.querySelector('#hvel-sec-code');
     const tabScan = overlay.querySelector('#hvel-tab-scan');
     const tabCode = overlay.querySelector('#hvel-tab-code');
-
-    const dot1 = overlay.querySelector('#hvel-dot-1');
-    const dot2 = overlay.querySelector('#hvel-dot-2');
     const otpInput = overlay.querySelector('#hvel-otp-in');
     const otpError = overlay.querySelector('#hvel-otp-err');
 
@@ -245,37 +193,12 @@ function showOTPModal(sendBtn, onVerified) {
 
     tabScan.onclick = switchToScan;
     tabCode.onclick = switchToCode;
-
-    function showStep2() {
-        viewBio.style.display = 'none';
-        viewStep2.style.display = 'block';
-        dot1.style.background = '#10b981'; // Green for success
-        dot2.style.background = '#6366f1'; // Active blue
-    }
-
-    overlay.querySelector('#hvel-bio-btn').onclick = () => {
-        window.open(`https://hvel-backend.onrender.com/auth?action=verify&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
-    };
-
-    overlay.querySelector('#hvel-no-passkey').onclick = () => {
-        window.open(`https://hvel-backend.onrender.com/auth?action=register&email=${encodeURIComponent(realEmail)}`, 'HVELAuth', 'width=450,height=610,left=500,top=100');
-    };
-
-    const handleMessage = (e) => {
-        if (e.data.type === 'hvel_auth_success' && e.data.email === realEmail) {
-            if (e.data.action === 'login' || e.data.action === 'register') {
-                showStep2();
-                // We keep the listener until OTP is done
-            }
-        }
-    };
-    window.addEventListener('message', handleMessage);
+    overlay.querySelector('#hvel-scan-done-btn').onclick = switchToCode;
 
     function loadTOTP(forceNew = false) {
         const qrImg = overlay.querySelector('#hvel-qr-img');
-        const manualKeyArea = overlay.querySelector('#hvel-manual-key-area');
+        if (!qrImg) return;
 
-        // Show loading state
         qrImg.style.opacity = '0.3';
 
         chrome.runtime.sendMessage({
@@ -288,8 +211,7 @@ function showOTPModal(sendBtn, onVerified) {
             if (response && response.success) {
                 console.log("[HVEL] TOTP loaded successfully");
                 qrImg.src = response.qrcode;
-                manualKeyArea.innerText = response.secret;
-
+                
                 // if they already have it verified, default to code entry
                 if (response.isVerified && !forceNew) {
                     switchToCode();
@@ -298,33 +220,12 @@ function showOTPModal(sendBtn, onVerified) {
                 }
             } else {
                 console.error("[HVEL] Failed to load TOTP:", response ? response.error : 'No response');
-                qrImg.src = ''; // Clear image
+                qrImg.src = ''; 
                 qrImg.alt = 'Failed to load QR code';
-
-                const errDiv = document.createElement('div');
-                errDiv.style.color = '#ef4444';
-                errDiv.style.fontSize = '10px';
-                errDiv.style.marginTop = '10px';
-                errDiv.innerText = 'Failed to connect to security server. Please try again.';
-                qrImg.parentNode.appendChild(errDiv);
             }
         });
     }
     loadTOTP();
-
-    overlay.querySelector('#hvel-manual-key-btn').onclick = () => {
-        const area = overlay.querySelector('#hvel-manual-key-area');
-        area.style.display = area.style.display === 'none' ? 'block' : 'none';
-    };
-
-    overlay.querySelector('#hvel-regenerate-btn').onclick = () => {
-        if (confirm('Are you sure? This will invalidate your old authenticator key.')) {
-            loadTOTP(true);
-            switchToScan();
-        }
-    };
-
-    overlay.querySelector('#hvel-scan-done-btn').onclick = switchToCode;
 
     overlay.querySelector('#hvel-otp-btn').onclick = () => {
         const code = otpInput.value.trim();
@@ -334,7 +235,6 @@ function showOTPModal(sendBtn, onVerified) {
             if (response && response.success) {
                 markVerified(realEmail).then(() => {
                     overlay.remove();
-                    window.removeEventListener('message', handleMessage);
                     if (onVerified) onVerified();
                 });
             } else {

@@ -26,6 +26,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Global Activity Logger
+app.use((req, res, next) => {
+  if (req.path !== '/health') {
+    console.log(`[ACTIVITY] 📥 ${req.method} ${req.path} | Time: ${new Date().toLocaleTimeString()}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`           Payload:`, JSON.stringify(req.body));
+    }
+  }
+  next();
+});
+
 app.get('/auth', (req, res) => {
   res.sendFile(__dirname + '/public/auth.html');
 });
@@ -37,9 +48,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: parseInt(process.env.DB_PORT || '5432'),
-  ssl: process.env.DB_HOST.includes('localhost') || process.env.DB_HOST.includes('127.0.0.1') 
-       ? false 
-       : { rejectUnauthorized: false }
+  ssl: false
 });
 
 async function initDB() {
@@ -170,8 +179,9 @@ app.post('/api/request-otp', async (req, res) => {
   try {
     await pool.query(`INSERT INTO otps (email, code, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3`, [email, code, expires_at]);
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await mainTransporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject: 'HVEL Verification Code', text: `Your HVEL verification code is: ${code}. Expires in 10 minutes.` });
-      console.log(`OTP sent to ${email}`);
+      console.log(`[SMTP] 📤 Sending OTP to ${email}...`);
+      const info = await mainTransporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject: 'HVEL Verification Code', text: `Your HVEL verification code is: ${code}. Expires in 10 minutes.` });
+      console.log(`[SMTP] ✅ OTP sent to ${email}: ${info.messageId}`);
     }
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (err) { console.error('Error requesting OTP:', err); res.status(500).json({ error: 'Server error' }); }
@@ -316,6 +326,7 @@ app.post('/api/passkey/login-verify', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/verify', async (req, res) => {
   const { senderEmail, recipientEmail, type, contentHash } = req.body;
+  console.log(`[HVEL API] 🛡️ Verification Start — Sender: ${senderEmail} | Recipient: ${recipientEmail || 'N/A'}`);
   if (!senderEmail || !type) return res.status(400).json({ error: 'senderEmail and type are required' });
 
   const verificationId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -466,13 +477,15 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
         </div>
       </div>`;
 
-    await hrmsTransporter.sendMail({
+    console.log(`[SMTP] 📤 Sending nudge email to ${noExtUserEmail}...`);
+    const info = await hrmsTransporter.sendMail({
       from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
       to: noExtUserEmail,
       subject: `⚠️ Your reply to ${hvelUserEmail} was not Human Verified`,
       headers: { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'high', 'X-Entity-Ref-ID': Date.now().toString() },
       html: nudgeHtml
     });
+    console.log(`[SMTP] ✅ Nudge email sent: ${info.messageId}`);
 
     await pool.query(`INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`, [hvelUserEmail, noExtUserEmail]);
 
@@ -625,16 +638,33 @@ app.post('/api/report-security-alert', async (req, res) => {
       </div>
     `
   };
-
   try {
+    console.log(`[SMTP] 📤 Sending security alerts for ${email}...`);
     // Send both emails
-    await mainTransporter.sendMail(recipientMailOptions);
-    await mainTransporter.sendMail(senderMailOptions);
+    const info1 = await mainTransporter.sendMail(recipientMailOptions);
+    console.log(`[SMTP] ✅ Alert sent to recipient: ${info1.messageId}`);
+    
+    const info2 = await mainTransporter.sendMail(senderMailOptions);
+    console.log(`[SMTP] ✅ Alert sent to attacker: ${info2.messageId}`);
+    
     res.json({ success: true });
   } catch (err) {
-    console.error('[HVEL API] Error sending security alerts:', err);
-    res.status(500).json({ error: 'Failed to send alerts' });
+    console.error('[HVEL API] ❌ Error sending security alerts:', err);
+    res.status(500).json({ error: 'Failed to send alerts', details: err.message });
   }
 });
 
-app.listen(port, () => console.log(`HVEL Backend listening on port ${port}`));
+const server = app.listen(port, () => {
+  console.log(`HVEL Backend listening on port ${port}`);
+  // Keep-alive heartbeat every 60 seconds
+  setInterval(() => {
+    console.log(`[SYSTEM] 🛡️ Backend Heartbeat — Time: ${new Date().toLocaleTimeString()} | Status: Active`);
+  }, 60000);
+});
+
+server.on('error', (err) => {
+  console.error('[SERVER CRITICAL ERROR]', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use. Please kill the other process or change the PORT in .env`);
+  }
+});
