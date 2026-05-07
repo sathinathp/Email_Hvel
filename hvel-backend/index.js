@@ -452,12 +452,15 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
 
     // NEW: Permanent "Once Ever" Gate
     const alreadyNudged = await pool.query(
-      `SELECT id FROM nudge_log WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2 LIMIT 1`,
+      `SELECT id FROM nudge_log 
+       WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2 
+       AND nudge_sent_at > NOW() - INTERVAL '24 hours' 
+       LIMIT 1`,
       [hvelUserEmail, noExtUserEmail]
     );
     if (alreadyNudged.rows.length > 0) {
-      console.log(`[HVEL API] ⛔ Already nudged ${noExtUserEmail} before. Skipping.`);
-      return res.status(200).json({ success: true, message: 'Already notified once.' });
+      console.log(`[HVEL API] ⛔ Nudged recently. Skipping.`);
+      return res.status(200).json({ success: true, message: 'Already notified recently.' });
     }
   } catch (err) { return res.status(500).json({ error: 'Server error during gate checks' }); }
 
@@ -465,10 +468,13 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     const details = req.body.details || {};
     const timestamp = details.timestamp || new Date().toLocaleString();
     
-    // NEW: Atomic Block - Insert BEFORE sending email
+    // Atomic Block - Insert or Update timestamp if older than 24h
     try {
       await pool.query(
-        `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`,
+        `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)
+         ON CONFLICT (hvel_user, no_extension_user) 
+         DO UPDATE SET nudge_sent_at = NOW() 
+         WHERE nudge_log.nudge_sent_at < NOW() - INTERVAL '24 hours'`,
         [hvelUserEmail, noExtUserEmail]
       );
     } catch (dbErr) {
@@ -675,18 +681,32 @@ app.post('/api/report-security-alert', async (req, res) => {
   try {
     // NEW: Atomic Block - Insert BEFORE sending alerts
     try {
+      const alreadyAlerted = await pool.query(
+        `SELECT id FROM security_alert_log 
+         WHERE LOWER(recipient_email) = $1 AND LOWER(attacker_email) = $2 
+         AND alert_sent_at > NOW() - INTERVAL '24 hours'
+         LIMIT 1`,
+        [email.toLowerCase(), attacker.toLowerCase()]
+      );
+
+      if (alreadyAlerted.rows.length > 0) {
+        console.log(`[HVEL API] ⛔ Alerted recently. Skipping.`);
+        return res.json({ success: true, message: 'Already notified recently.' });
+      }
+
       await pool.query(
-        `INSERT INTO security_alert_log (recipient_email, attacker_email) VALUES ($1, $2)`,
+        `INSERT INTO security_alert_log (recipient_email, attacker_email) VALUES ($1, $2)
+         ON CONFLICT (recipient_email, attacker_email) 
+         DO UPDATE SET alert_sent_at = NOW() 
+         WHERE security_alert_log.alert_sent_at < NOW() - INTERVAL '24 hours'`,
         [email.toLowerCase(), attacker.toLowerCase()]
       );
     } catch (dbErr) {
-      if (dbErr.code === '23505') { // Unique violation
-        console.log(`[HVEL API] ⛔ Race condition blocked: Security alert already logged for ${attacker}`);
-        return res.json({ success: true, message: 'Already notified once.' });
-      }
-      throw dbErr;
+      console.error("[HVEL API] DB Error in security lock:", dbErr);
     }
-  } catch (err) { return res.status(500).json({ error: 'Server error during security lock' }); }
+  } catch (err) { 
+    return res.status(500).json({ error: 'Server error during security lock' }); 
+  }
 
   console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
 
@@ -772,6 +792,78 @@ app.post('/api/report-security-alert', async (req, res) => {
   } catch (err) {
     console.error('[HVEL API] ❌ Error sending security alerts:', err);
     res.status(500).json({ error: 'Failed to send alerts', details: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /api/contact — Contact form submission → forwards to noreply.hvel@gmail.com
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/contact', async (req, res) => {
+  const { name, email, company, subject, message, type } = req.body;
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ success: false, error: 'Name, email, and message are required.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, error: 'Invalid email address.' });
+  }
+
+  const subjectLine = subject || `[HumanAttest Contact] ${type || 'General Inquiry'} from ${name}`;
+  const receivedAt = new Date().toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'long' });
+
+  const html = `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#2563EB 0%,#1D4ED8 100%);padding:32px 28px;">
+        <h2 style="margin:0;color:white;font-size:20px;font-weight:800;letter-spacing:-0.02em;">📬 New Contact Form Submission</h2>
+        <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:13px;">HumanAttest Website — ${receivedAt}</p>
+      </div>
+      <div style="padding:28px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:10px 0;color:#94A3B8;font-weight:600;width:120px;">Name</td>
+            <td style="padding:10px 0;color:#0F172A;font-weight:700;">${name}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:10px 0;color:#94A3B8;font-weight:600;">Email</td>
+            <td style="padding:10px 0;"><a href="mailto:${email}" style="color:#2563EB;font-weight:700;">${email}</a></td>
+          </tr>
+          ${company ? `<tr style="border-bottom:1px solid #F1F5F9;"><td style="padding:10px 0;color:#94A3B8;font-weight:600;">Company</td><td style="padding:10px 0;color:#0F172A;font-weight:700;">${company}</td></tr>` : ''}
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:10px 0;color:#94A3B8;font-weight:600;">Type</td>
+            <td style="padding:10px 0;"><span style="background:#EFF6FF;color:#2563EB;padding:3px 10px;border-radius:9999px;font-size:12px;font-weight:700;">${type || 'General Inquiry'}</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:10px 0;color:#94A3B8;font-weight:600;">Subject</td>
+            <td style="padding:10px 0;color:#0F172A;font-weight:600;">${subject || '—'}</td>
+          </tr>
+        </table>
+        <div style="margin-top:20px;">
+          <p style="font-size:12px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Message</p>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:18px;font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap;">${message}</div>
+        </div>
+      </div>
+      <div style="background:#F8FAFC;padding:16px 28px;border-top:1px solid #E2E8F0;">
+        <p style="margin:0;font-size:11px;color:#94A3B8;">Reply directly to this email to respond to ${name} at ${email}</p>
+      </div>
+    </div>`;
+
+  try {
+    await mainTransporter.sendMail({
+      from: `"HumanAttest Contact" <${process.env.EMAIL_USER}>`,
+      to: 'noreply.hvel@gmail.com',
+      replyTo: email,
+      subject: subjectLine,
+      html,
+      text: `New contact from ${name} (${email})\nCompany: ${company || 'N/A'}\nType: ${type || 'General'}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}\n\nReceived: ${receivedAt}`,
+    });
+
+    console.log(`[CONTACT] ✅ Contact form submitted by ${name} <${email}> — forwarded to noreply.hvel@gmail.com`);
+    res.json({ success: true, message: 'Message received. We will get back to you within 24 hours.' });
+  } catch (err) {
+    console.error('[CONTACT] ❌ Failed to send contact email:', err);
+    res.status(500).json({ success: false, error: 'Failed to send message. Please try again or email us directly.' });
   }
 });
 

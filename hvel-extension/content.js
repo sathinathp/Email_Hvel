@@ -420,7 +420,6 @@ async function scanIncomingMessages() {
                 const url = badgeLink.href;
                 const id = url.split('/v/').pop();
 
-                // Validate the stamp
                 chrome.runtime.sendMessage({
                     action: 'validateVerification',
                     id: id,
@@ -432,18 +431,20 @@ async function scanIncomingMessages() {
                     } else if (response && response.status === 'tampered') {
                         showTrustStatus(msg, 'tampered', response.message);
                         
-                        // NEW: Permanent "Once Ever" Flag for Alerts
                         const normSender = senderEmail.toLowerCase().trim();
                         const alertKey = `hvel_alerted_${normSender}`;
                         
                         chrome.storage.local.get([alertKey], (result) => {
-                            if (!result[alertKey] && !pendingRequests.has(alertKey)) {
+                            const lastAlert = result[alertKey];
+                            const now = Date.now();
+                            const dayInMs = 24 * 60 * 60 * 1000;
+
+                            if ((!lastAlert || (now - lastAlert > dayInMs)) && !pendingRequests.has(alertKey)) {
                                 const dateSpan = msg.querySelector('span[title]');
                                 const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
 
-                                // Lock immediately
                                 pendingRequests.add(alertKey);
-                                chrome.storage.local.set({ [alertKey]: 'true' });
+                                chrome.storage.local.set({ [alertKey]: now });
 
                                 chrome.runtime.sendMessage({
                                     action: 'reportSecurityAlert',
@@ -458,36 +459,44 @@ async function scanIncomingMessages() {
                         showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
                     }
                 });
-                // No HVEL found on a reply - Trigger Mandatory Nudge
-                // ONLY trigger if the message is actually VISIBLE (Expanded)
-                if (msg.offsetParent !== null) {
-                    const normSender = senderEmail.toLowerCase().trim();
-                    const nudgeKey = `hvel_nudged_${normSender}`;
-                    
-                    chrome.storage.local.get([nudgeKey], (result) => {
-                        if (!result[nudgeKey] && !pendingRequests.has(nudgeKey)) {
-                            // Capture timestamp from Gmail if possible
-                            const dateSpan = msg.querySelector('span[title]');
-                            const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
+            } else {
+                // No HVEL found on this message - Check if sender is ALREADY verified now
+                chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userStatus) => {
+                    if (userStatus && userStatus.verified) {
+                        // Sender is now verified, this was just an old message
+                        showTrustStatus(msg, 'verified', `Sender is now Human Verified (Legacy Message)`);
+                    } else {
+                        showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
+                        
+                        // Trigger Nudge only if expanded and 24h passed
+                        if (msg.offsetParent !== null) {
+                            const normSender = senderEmail.toLowerCase().trim();
+                            const nudgeKey = `hvel_nudged_${normSender}`;
+                            
+                            chrome.storage.local.get([nudgeKey], (result) => {
+                                const lastNudge = result[nudgeKey];
+                                const now = Date.now();
+                                const dayInMs = 24 * 60 * 60 * 1000;
 
-                            // LOCK IMMEDIATELY
-                            chrome.storage.local.set({ [nudgeKey]: 'true' });
-                            pendingRequests.add(nudgeKey);
+                                if ((!lastNudge || (now - lastNudge > dayInMs)) && !pendingRequests.has(nudgeKey)) {
+                                    const dateSpan = msg.querySelector('span[title]');
+                                    const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
 
-                            console.log(`[HVEL] Mandatory nudge triggered for: ${normSender}`);
-                            chrome.runtime.sendMessage({
-                                action: 'reportUnverifiedReply',
-                                hvelUserEmail: recipientEmail,
-                                noExtensionEmail: normSender,
-                                details: {
-                                    timestamp: msgTime,
-                                    url: window.location.href
+                                    pendingRequests.add(nudgeKey);
+                                    chrome.storage.local.set({ [nudgeKey]: now });
+
+                                    console.log(`[HVEL] Mandatory nudge triggered for: ${normSender}`);
+                                    chrome.runtime.sendMessage({
+                                        action: 'reportUnverifiedReply',
+                                        hvelUserEmail: recipientEmail,
+                                        noExtensionEmail: normSender,
+                                        details: { timestamp: msgTime, url: window.location.href }
+                                    });
                                 }
                             });
                         }
-                    });
-                }
-                showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
+                    }
+                });
             }
         }
     });
