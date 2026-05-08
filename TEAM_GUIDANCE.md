@@ -47,7 +47,30 @@ The project is split into three core repositories, working in a synchronized loo
 
 ---
 
-## 4. Technical deep-dive: 24-Hour Gate
+## 4. Detailed File Directory & Responsibilities
+
+### A. hvel-backend/
+*   **`index.js`**: The core engine. Contains all Express routes, PostgreSQL logic, SMTP email configuration, and the **24-hour gating logic** for nudges/alerts.
+*   **`public/auth.html`**: The user-facing portal for 2FA registration and pairing.
+*   **`public/trust_record.html`**: The dynamic template served to recipients when they verify a cryptographic hash.
+*   **`public/hvel-extension.zip`**: The packaged extension available for direct download.
+*   **`.env`**: (Sensitive) Contains SMTP credentials, DB connection strings, and the `RP_ID` for authentication.
+
+### B. hvel-extension/
+*   **`manifest.json`**: Defines permissions for Gmail (`https://mail.google.com/*`) and declares the background service worker.
+*   **`content.js`**: The most critical file. It scans the Gmail DOM, intercepts the "Send" button, manages local storage for the 24h gate, and injects the trust badges.
+*   **`background.js`**: Acts as a bridge between the content script and the backend API, handling verification state.
+*   **`styles.css`**: Contains the premium CSS for the injected HVEL badges and security popups.
+
+### C. hvel-website/ (Next.js)
+*   **`src/app/page.tsx`**: The main high-fidelity landing page. Contains the 2FA protocol descriptions, workflow tracks, and inbox mockups.
+*   **`src/components/Navbar.tsx`**: Implements the advanced `IntersectionObserver` logic for scroll-sync highlighting.
+*   **`src/lib/constants.ts`**: The single source of truth for global URLs (Backend API, Extension Download Link).
+*   **`public/logo.png`**: The master branding asset used across the entire ecosystem.
+
+---
+
+## 5. Technical deep-dive: 24-Hour Gate
 To ensure a premium user experience, we implemented a **24-hour notification gate**.
 *   **Implementation**: In `hvel-backend/index.js`, every nudge and alert uses an `ON CONFLICT` SQL trigger.
 *   **Logic**: If an alert was sent < 24 hours ago, the request is ignored. If > 24 hours, the timestamp is updated and a new email is sent.
