@@ -32,10 +32,10 @@ export default function Home() {
           </h1>
           <p style={{ fontSize:17, color:'#64748B', maxWidth:600, margin:'0 auto', lineHeight:1.7, fontWeight:500 }}>
             HumanAttest eliminates session hijacking and bot-driven emails through mandatory
-            biometric and physical device verification — without ever reading your emails.
+            physical intent verification — without ever reading your emails.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            {['WebAuthn Biometrics','Native Gmail Hook','Session Lockdown','Zero Email Storage'].map((f) => (
+            {['2FA OTP Scan','Native Gmail Hook','Session Lockdown','Zero Email Storage'].map((f) => (
               <div key={f} className="feature-pill-green">
                 <span style={{ color:'#16A34A' }}>✓</span> {f}
               </div>
@@ -172,7 +172,7 @@ export default function Home() {
               <div style={{ display:'flex', flexDirection:'column', gap:28 }}>
                 {[
                   { step:'01', icon:'🛡️', title:'Send Action Intercepted', desc:'The extension detects the Gmail send click and immediately pauses the action. Your email stays in the browser — nothing is transmitted yet.' },
-                  { step:'02', icon:'🔑', title:'Biometric Handshake', desc:'You verify your physical presence using WebAuthn (Touch ID / Face ID / hardware key). This happens entirely on your local device.' },
+                  { step:'02', icon:'📱', title:'2FA Authenticator Scan', desc:'You verify your physical presence by scanning a secure QR code and entering a rotating OTP from Google Authenticator or any standard 2FA app.' },
                   { step:'03', icon:'🔒', title:'Cryptographic Release', desc:'A one-time SHA-256 token is generated and logged. The send action is released. Only the hash — never the email — reaches our servers.' },
                 ].map((item) => (
                   <div key={item.step} style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
@@ -198,10 +198,15 @@ export default function Home() {
               <div className="card-3d" style={{ border:'1px solid #F1F5F9', borderRadius:20, padding:28, background:'white', overflow:'hidden', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.15)' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingBottom:20, borderBottom:'1px solid #F8FAFC', marginBottom:20 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    <div className="logo-pulse" style={{ width:42, height:42, borderRadius:12, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:17, fontWeight:900, boxShadow:'0 4px 12px rgba(37,99,235,0.35)', flexShrink:0 }}>H</div>
+                    <img 
+                      src="/logo.png" 
+                      alt="Logo" 
+                      className="logo-pulse" 
+                      style={{ width: 42, height: 42, objectFit: 'contain', flexShrink: 0 }} 
+                    />
                     <div>
                       <p style={{ fontWeight:900, color:'#0F172A', fontSize:13, letterSpacing:'-0.02em', lineHeight:1, margin:0 }}>HumanAttest Security Hub</p>
-                      <p className="animate-shimmer" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.12em', fontWeight:700, marginTop:4, marginBottom:0 }}>PENDING: INTENT AUTH</p>
+                      <p className="animate-shimmer" style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'0.12em', fontWeight:700, marginTop:4, marginBottom:0 }}>PENDING: 2FA SCAN</p>
                     </div>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:5, flexShrink:0 }}>
@@ -214,20 +219,191 @@ export default function Home() {
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:10, fontWeight:900, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.12em' }}>
-                    <span style={{ color:'#0F172A' }}>WebAuthn Status</span>
+                    <span style={{ color:'#0F172A' }}>2FA Security Status</span>
                     <span>SCAN TO AUTHORIZE</span>
                   </div>
                   <div style={{ width:'100%', height:190, background:'#0F172A', borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', position:'relative', boxShadow:'inset 0 2px 8px rgba(0,0,0,0.4)' }}>
                     <img src="/security_qr.png" alt="Security QR" className="floating" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', opacity:0.7, mixBlendMode:'screen', transform:'scale(1.1)' }} />
                     <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, #0F172A, transparent, transparent)', opacity:0.9 }}></div>
                   </div>
-                  <button className="btn-blue" style={{ width:'100%', padding:'16px 0', fontSize:15 }}>
+                  <a 
+                    href={EXTENSION_DOWNLOAD_URL} 
+                    download 
+                    className="btn-blue" 
+                    style={{ width:'100%', padding:'16px 0', fontSize:15, textAlign: 'center', textDecoration: 'none', display: 'block' }}
+                  >
                     <span style={{ fontSize:18 }}>🔒</span> Release Action
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it Works / Protocol ── */}
+      {/* ... previous content ... */}
+      
+      {/* ── End-to-End Workflow ── */}
+      <section id="workflow" style={{ padding:'80px 24px', background:'#F8FAFC', scrollMarginTop:'72px' }}>
+        <div className="container-custom">
+          <div style={{ textAlign:'center', marginBottom:64 }}>
+            <p style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.15em', color:'#2563EB', marginBottom:12 }}>
+              End-to-End Ecosystem
+            </p>
+            <h2 style={{ fontSize:42, fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1 }}>
+              Unified Security <span className="text-gradient-blue">Workflow.</span>
+            </h2>
+            <p style={{ color:'#64748B', marginTop:16, fontSize:17, maxWidth:600, margin:'16px auto 0' }}>
+              Whether you are sending or receiving, HVEL ensures every interaction is physically verified and cryptographically signed.
+            </p>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(400px, 1fr))', gap:32 }}>
+            
+            {/* SENDER WORKFLOW */}
+            <div className="workflow-card" style={{ background:'white', borderRadius:24, padding:40, border:'1px solid #E2E8F0', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:32 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:'#DBEAFE', color:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📤</div>
+                <h3 style={{ fontSize:22, fontWeight:900, color:'#0F172A', margin:0 }}>For Senders <span style={{ fontSize:13, fontWeight:600, color:'#3B82F6', marginLeft:8, padding:'2px 8px', background:'#EFF6FF', borderRadius:6 }}>EXTENSION REQUIRED</span></h3>
+              </div>
+              
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {[
+                  { title: 'One-Click Install', desc: 'Download the Chrome extension and refresh Gmail. No complex signup required.', icon: '⚡' },
+                  { title: '2FA Pairing', desc: 'Scan the secure QR code with Google Authenticator to link your physical device.', icon: '📱' },
+                  { title: 'Send Action Intercept', desc: 'Click "Send" in Gmail. HVEL pauses the action and triggers a security handshake.', icon: '🔒' },
+                  { title: 'Cryptographic Release', desc: 'Enter your 2FA OTP. HVEL signs the email with a unique hash and releases it.', icon: '🚀' }
+                ].map((step, idx, arr) => (
+                  <div key={step.title} style={{ display:'flex', gap:24, position:'relative' }}>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'#2563EB', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900, zIndex:2 }}>{idx + 1}</div>
+                      {idx !== arr.length - 1 && <div style={{ width:2, flex:1, background:'#E2E8F0', margin:'4px 0' }}></div>}
+                    </div>
+                    <div style={{ paddingBottom: idx === arr.length -1 ? 0 : 32 }}>
+                      <h4 style={{ fontSize:16, fontWeight:800, color:'#0F172A', marginBottom:4 }}>{step.icon} {step.title}</h4>
+                      <p style={{ fontSize:14, color:'#64748B', lineHeight:1.6, margin:0 }}>{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* RECIPIENT WORKFLOW */}
+            <div className="workflow-card" style={{ background:'white', borderRadius:24, padding:40, border:'1px solid #E2E8F0', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:32 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:'#DCFCE7', color:'#16A34A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📥</div>
+                <h3 style={{ fontSize:22, fontWeight:900, color:'#0F172A', margin:0 }}>For Recipients <span style={{ fontSize:13, fontWeight:600, color:'#10B981', marginLeft:8, padding:'2px 8px', background:'#F0FDF4', borderRadius:6 }}>NO EXTENSION NEEDED</span></h3>
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {[
+                  { title: 'Visual Trust Badge', desc: 'Instantly recognize verified humans via the HVEL Trust Stamp in your inbox.', icon: '🛡️' },
+                  { title: 'One-Click Verify', desc: 'Click the stamp to view the full cryptographic audit trail and sender identity.', icon: '🔍' },
+                  { title: 'Security Nudges', desc: 'If an unverified reply is received, HVEL alerts you and nudges the sender to verify.', icon: '⚠️' },
+                  { title: 'Identity Protection', desc: 'Even without the extension, our server-side gates prevent identity mismatch attacks.', icon: '✅' }
+                ].map((step, idx, arr) => (
+                  <div key={step.title} style={{ display:'flex', gap:24, position:'relative' }}>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'#16A34A', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900, zIndex:2 }}>{idx + 1}</div>
+                      {idx !== arr.length - 1 && <div style={{ width:2, flex:1, background:'#E2E8F0', margin:'4px 0' }}></div>}
+                    </div>
+                    <div style={{ paddingBottom: idx === arr.length -1 ? 0 : 32 }}>
+                      <h4 style={{ fontSize:16, fontWeight:800, color:'#0F172A', marginBottom:4 }}>{step.icon} {step.title}</h4>
+                      <p style={{ fontSize:14, color:'#64748B', lineHeight:1.6, margin:0 }}>{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* ── Inbox Experience Comparison ── */}
+          <div style={{ marginTop:80 }}>
+            <h3 style={{ fontSize:28, fontWeight:900, color:'#0F172A', textAlign:'center', marginBottom:48 }}>
+              The Inbox <span style={{ color:'#2563EB' }}>Experience</span>
+            </h3>
+            
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(350px, 1fr))', gap:48 }}>
+              
+              {/* Scenario 1: Extension User */}
+              <div className="hover-lift">
+                <p style={{ fontSize:13, fontWeight:800, color:'#2563EB', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:16, textAlign:'center' }}>
+                  Receiver HAS Extension
+                </p>
+                <div style={{ background:'#0F172A', borderRadius:20, padding:24, boxShadow:'0 20px 40px -12px rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, borderBottom:'1px solid rgba(255,255,255,0.1)', paddingBottom:12 }}>
+                    <div style={{ width:12, height:12, borderRadius:'50%', background:'#FF5F56' }}></div>
+                    <div style={{ width:12, height:12, borderRadius:'50%', background:'#FFBD2E' }}></div>
+                    <div style={{ width:12, height:12, borderRadius:'50%', background:'#27C93F' }}></div>
+                  </div>
+                  <div style={{ color:'white', fontSize:14 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900 }}>S</div>
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontWeight:700 }}>Sender Name</span>
+                          <span style={{ background:'#059669', color:'white', fontSize:10, padding:'2px 8px', borderRadius:99, fontWeight:900 }}>🛡️ VERIFIED HUMAN</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'#94A3B8' }}>sender@example.com</div>
+                      </div>
+                    </div>
+                    <div style={{ height:1, background:'rgba(255,255,255,0.05)', marginBottom:16 }}></div>
+                    <div style={{ color:'#CBD5E1', lineHeight:1.6 }}>
+                      Hello, I have verified my physical intent for this sensitive request...
+                    </div>
+                  </div>
+                </div>
+                <p style={{ fontSize:14, color:'#64748B', marginTop:20, textAlign:'center', lineHeight:1.5 }}>
+                  <strong>Native Integration:</strong> The extension automatically detects the hidden hash and injects a real-time trust badge into the Gmail interface.
+                </p>
+              </div>
+
+              {/* Scenario 2: Non-Extension User */}
+              <div className="hover-lift">
+                <p style={{ fontSize:13, fontWeight:800, color:'#16A34A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:16, textAlign:'center' }}>
+                  Receiver NO Extension
+                </p>
+                <div style={{ background:'white', borderRadius:20, padding:24, boxShadow:'0 10px 30px -5px rgba(0,0,0,0.1)', border:'1px solid #E2E8F0' }}>
+                  <div style={{ color:'#1E293B', fontSize:14 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'#E2E8F0', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748B', fontWeight:900 }}>S</div>
+                      <div>
+                        <span style={{ fontWeight:700 }}>Sender Name</span>
+                        <div style={{ fontSize:12, color:'#64748B' }}>sender@example.com</div>
+                      </div>
+                    </div>
+                    <div style={{ color:'#475569', lineHeight:1.6, marginBottom:24 }}>
+                      Hello, please find the sensitive documents attached...
+                    </div>
+                    <div style={{ borderTop:'1px solid #F1F5F9', paddingTop:16 }}>
+                      <div style={{ background:'#F8FAFC', padding:12, borderRadius:12, border:'1px solid #E2E8F0', cursor:'pointer' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <img src="/logo.png" style={{ width:24, height:24 }} alt="H" />
+                          <div>
+                            <div style={{ fontWeight:800, fontSize:11, color:'#0F172A' }}>HVEL TRUST STAMP</div>
+                            <div style={{ fontSize:9, color:'#2563EB', fontWeight:700 }}>CLICK TO VERIFY CRYPTOGRAPHIC IDENTITY</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p style={{ fontSize:14, color:'#64748B', marginTop:20, textAlign:'center', lineHeight:1.5 }}>
+                  <strong>Universal Portal:</strong> Non-users see a professional Trust Stamp. Clicking it opens a secure hosted page showing the full audit trail.
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Integration Note */}
+          <div style={{ marginTop:48, background:'rgba(37,99,235,0.03)', border:'1px dashed #BFDBFE', borderRadius:16, padding:24, textAlign:'center' }}>
+            <p style={{ margin:0, fontSize:14, color:'#1E40AF', fontWeight:600 }}>
+              🚀 <span style={{ color:'#2563EB' }}>Pro Tip:</span> Non-extension users are automatically nudged to join the protocol upon their first reply, ensuring viral network security.
+            </p>
           </div>
         </div>
       </section>
@@ -246,7 +422,7 @@ export default function Home() {
 
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:20, marginBottom:48 }}>
             {[
-              { icon:'🛡️', title:'FIDO2 WebAuthn', color:'blue', desc:'Military-grade biometric authentication using your device\'s built-in fingerprint or face sensor. No passwords, no phishing.' },
+              { icon:'📱', title:'2FA OTP Scan', color:'blue', desc:'Military-grade 2FA integration using Google Authenticator. Verify your physical intent by scanning a secure QR code for every sensitive send.' },
               { icon:'🔗', title:'Native Gmail Hook', color:'green', desc:'Direct injection into the Gmail send pipeline. The extension intercepts the action before any data leaves your browser.' },
               { icon:'🔔', title:'Security Nudges', color:'orange', desc:'Recipients see a verified human badge on emails sent through HumanAttest, building trust at the inbox level.' },
               { icon:'🔍', title:'Audit Engine', color:'purple', desc:'Every verification is logged as a cryptographic hash to a secure PostgreSQL database. Full audit trail, zero email content.' },
@@ -266,7 +442,11 @@ export default function Home() {
 
           <div className="business-profile-bar">
             <div style={{ display:'flex', alignItems:'center', gap:20 }}>
-              <div style={{ width:52, height:52, borderRadius:14, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:22, boxShadow:'0 4px 12px rgba(37,99,235,0.4)', flexShrink:0 }}>🏢</div>
+              <img 
+                src="/logo.png" 
+                alt="Business Logo" 
+                style={{ width:52, height:52, objectFit: 'contain', flexShrink: 0 }} 
+              />
               <div>
                 <h4 style={{ fontSize:18, fontWeight:900, color:'white', letterSpacing:'-0.03em' }}>Business Profile</h4>
                 <p style={{ fontSize:11, color:'#60A5FA', textTransform:'uppercase', letterSpacing:'0.12em', fontWeight:700 }}>HUMANATTEST SECURITY LTD.</p>

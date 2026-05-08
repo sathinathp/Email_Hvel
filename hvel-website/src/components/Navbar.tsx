@@ -1,14 +1,46 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { EXTENSION_DOWNLOAD_URL } from '@/lib/constants';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [activeHash, setActiveHash] = useState('');
+
+  useEffect(() => {
+    // 1. Handle URL hash changes
+    const handleHashChange = () => {
+      setActiveHash(window.location.hash || '#protocol');
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+
+    // 2. Scroll-based highlighting using IntersectionObserver
+    const sections = ['protocol', 'workflow', 'features'];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setActiveHash('#' + entry.target.id);
+        }
+      });
+    }, { threshold: 0.5, rootMargin: '-72px 0px 0px 0px' });
+
+    sections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      observer.disconnect();
+    };
+  }, [pathname]);
 
   const navLinks = [
     { href: '/#protocol',  label: 'Protocol' },
+    { href: '/#workflow',  label: 'Workflow' },
     { href: '/#features',  label: 'Features' },
     { href: '/docs',       label: 'Docs' },
     { href: '/pricing',    label: 'Pricing' },
@@ -17,7 +49,10 @@ export default function Navbar() {
   ];
 
   const isActive = (href: string) => {
-    if (href.startsWith('/#')) return pathname === '/';
+    if (href.startsWith('/#')) {
+      const targetHash = href.substring(1);
+      return pathname === '/' && activeHash === targetHash;
+    }
     return pathname === href || pathname.startsWith(href + '/');
   };
 
@@ -28,14 +63,12 @@ export default function Navbar() {
 
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 10,
-                background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontWeight: 900, fontSize: 15,
-                boxShadow: '0 4px 12px rgba(37,99,235,0.35)', flexShrink: 0,
-              }}>H</div>
+            <Link href="/" onClick={() => setActiveHash('#protocol')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+              <img 
+                src="/logo.png" 
+                alt="HumanAttest Logo" 
+                style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} 
+              />
               <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
                 HumanAttest
               </span>
@@ -47,6 +80,9 @@ export default function Navbar() {
                 <Link
                   key={href}
                   href={href}
+                  onClick={() => {
+                    if (href.startsWith('/#')) setActiveHash(href.substring(1));
+                  }}
                   style={{
                     fontSize: 14,
                     fontWeight: isActive(href) ? 700 : 600,
@@ -57,8 +93,6 @@ export default function Navbar() {
                     paddingBottom: 2,
                     borderBottom: isActive(href) ? '2px solid #2563EB' : '2px solid transparent',
                   }}
-                  onMouseEnter={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.color = '#0F172A'; }}
-                  onMouseLeave={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
                 >
                   {label}
                 </Link>

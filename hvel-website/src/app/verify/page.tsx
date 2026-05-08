@@ -46,7 +46,6 @@ export default function Verify() {
   return (
     <main style={{ minHeight: '100vh', background: '#060B18', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
-
       {/* ── Hero section with animated background ── */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px 80px' }}>
 
@@ -272,6 +271,15 @@ export default function Verify() {
       <Footer />
 
       <style>{`
+        /* Force white navbar on this dark page */
+        .nav-full {
+          background: #ffffff !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          border-bottom: 1px solid #E2E8F0 !important;
+        }
+        .nav-full span[style*="color: rgb(15, 23, 42)"],
+        .nav-full span { color: #0F172A; }
         @keyframes orbFloat {
           0%, 100% { transform: translateX(-50%) translateY(0px); }
           50% { transform: translateX(-50%) translateY(-30px); }
