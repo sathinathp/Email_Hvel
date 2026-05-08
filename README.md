@@ -1,67 +1,63 @@
-# HVEL: Human Verification & Email Lockdown
+# HumanAttest (HVEL): Universal Human Verification Protocol
 
-HVEL is a robust authentication ecosystem designed to ensure "Proof of Humanity" for secure communications. It combines biometric WebAuthn (Passkeys) with TOTP-based 2FA to create a phishing-resistant, human-only verification flow, specifically tailored for Gmail integration.
+HumanAttest is a robust, zero-trust authentication ecosystem designed to ensure "Proof of Humanity" for secure digital communications. It eliminates session hijacking and bot-driven emails through mandatory physical intent verification via 2FA OTP, specifically tailored for seamless Gmail integration.
+
+![HumanAttest Logo](logo.png)
 
 ## 🚀 Overview
 
-The system consists of two primary components:
-1.  **HVEL Backend**: A Node.js API that manages user registration, WebAuthn challenges, and TOTP generation.
-2.  **HVEL Extension**: A Chrome extension that integrates directly into the Gmail UI to enforce human verification before sensitive actions (like sending emails) are allowed.
+The ecosystem provides a unified security layer across three primary tiers:
 
-## ✨ Features
+1.  **HVEL Backend (Core)**: A Node.js API managing cryptographic audit logs, 2FA pairing via QR codes, and server-side security gates with a 24-hour reset cycle.
+2.  **HVEL Extension (Shield)**: A Chrome extension that natively intercepts Gmail send actions, enforcing 2FA verification before any data leaves the browser.
+3.  **HVEL Website (Landing)**: A premium Next.js platform providing a dual-track workflow for both verified senders and universal recipients.
 
-- **Biometric Authentication**: Leverages WebAuthn for secure, platform-native biometric login (Fingerprint, Face ID, etc.).
-- **Multi-Step Verification**: A professional UI flow that transitions from biometric checks to TOTP verification.
-- **Gmail Integration**: Seamlessly blocks the "Send" button and compose interface until the user is verified.
-- **Security Nudges**: Automatically sends invitation/trust alert emails to unverified recipients, promoting the HVEL ecosystem.
-- **QR Code Setup**: Easy TOTP configuration with automatic QR code generation.
+## ✨ Key Features
+
+- **2FA Physical Intent Verification**: Replaces traditional passwords with a mandatory QR/OTP scan using Google Authenticator, ensuring a physical human presence for every sensitive send.
+- **24-Hour Security Gate**: An intelligent reset cycle for security nudges and alerts, preventing spam while ensuring continuous re-verification.
+- **Universal Trust Stamp**: Recipients see a professional "HVEL Trust Stamp" embedded in emails. Clicking it reveals a cryptographic audit trail hosted on our secure verification portal.
+- **Legacy Verification Protection**: Automatically recognizes senders who join the protocol after a thread has started, protecting historical communications from being flagged.
+- **Zero-Storage Privacy**: HVEL never reads or stores email content. We only log a one-time SHA-256 hash of the verification event for auditing purposes.
 
 ## 🛠️ Project Structure
 
 ```text
 HVEL/
-├── hvel-backend/      # Node.js Express server
-│   ├── index.js       # Main API logic
-│   └── public/        # Verification UI pages
-├── hvel-extension/    # Chrome Extension
-│   ├── manifest.json  # Extension configuration
-│   ├── content.js     # Gmail DOM manipulation & logic
-│   └── background.js  # Background service worker
-└── HVEL_PROJECT_REPORT.md # Detailed implementation report
+├── hvel-website/      # Next.js Frontend (Marketing & Docs)
+├── hvel-backend/      # Node.js Express server (Security API)
+│   ├── index.js       # Main logic & PostgreSQL integration
+│   └── public/        # Trust Record & Auth portals
+├── hvel-extension/    # Chrome Extension (Gmail Hook)
+│   ├── content.js     # Native Gmail UI injection & interception
+│   └── background.js  # Verification state management
+└── logo.png           # Unified Branding Asset
 ```
 
 ## ⚙️ Setup & Installation
 
-### Backend
-1. Navigate to the `hvel-backend` directory.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file with the following variables:
-   ```env
-   PORT=3000
-   RP_ID=localhost
-   RP_NAME="HVEL"
-   ORIGIN=http://localhost:3000
-   SMTP_HOST=your_smtp_host
-   SMTP_USER=your_email
-   SMTP_PASS=your_password
-   ```
-4. Start the server:
-   ```bash
-   npm start
-   ```
+### 1. Backend & Security API
+1. Navigate to `hvel-backend` and run `npm install`.
+2. Configure `.env` with your SMTP and Database credentials.
+3. Start the server: `npm run dev`.
 
-### Extension
-1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode**.
-3. Click **Load unpacked** and select the `hvel-extension` folder.
-4. Ensure the extension is communicating with your backend URL (configurable in `content.js`).
+### 2. Website & Landing Page
+1. Navigate to `hvel-website` and run `npm install`.
+2. Start the dev server: `npm run dev`.
+3. The platform will be available at `http://localhost:3000`.
 
-## 🛡️ Security
+### 3. Chrome Extension
+1. Open `chrome://extensions/` and enable **Developer mode**.
+2. Click **Load unpacked** and select the `hvel-extension` folder.
+3. Pair your device using the QR code in the extension popup.
 
-HVEL is built on the principle of **Mandatory Human Intervention**. By requiring physical biometric presence and a time-based token, it effectively prevents automated bots or AI systems from hijacking communication flows.
+## 🛡️ The Workflow
+
+### For Senders (Extension Required)
+Installation → 2FA Pairing → Send Intercept → OTP Verification → Signed Email Release.
+
+### For Recipients (Universal Support)
+Visual Trust Recognition → One-Click Cryptographic Audit → Automatic Security Nudges for Unverified Replies.
 
 ## 📄 License
 
