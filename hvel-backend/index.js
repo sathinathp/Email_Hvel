@@ -378,7 +378,7 @@ app.post('/api/verify', async (req, res) => {
               </div>
               <p style="margin:0 0 12px;font-size:14px;line-height:1.6;">To verify your own emails and earn the <strong>✅ Human Verified</strong> trust badge, download the free HVEL Chrome extension:</p>
               <div style="text-align:center;margin:20px 0;">
-                <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
+                <a href="https://humanattest.com/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
               </div>
             </div>
             <div style="background:#f9fafb;padding:16px 30px;border-top:1px solid #e5e7eb;">
@@ -527,7 +527,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           <div style="display:grid;gap:12px;">
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download HVEL Extension</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://hvel-backend.onrender.com/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://humanattest.com/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
             </div>
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Activate Your Identity</p>
@@ -540,7 +540,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           </div>
 
           <div style="text-align:center;margin-top:32px;">
-            <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
+            <a href="https://humanattest.com/verify" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
           </div>
         </div>
 
@@ -773,7 +773,7 @@ app.post('/api/report-security-alert', async (req, res) => {
             </table>
 
             <div style="margin-top:30px; text-align:center;">
-                <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
+                <a href="https://humanattest.com/verify" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
             </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://unmagnetized-unprudential-beth.ngrok-free.dev'; // Ngrok
+const API_BASE_URL = 'https://api.humanattest.com';
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -84,8 +84,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     fetch(`${API_BASE_URL}/api/totp-setup`, {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         email: request.senderEmail,

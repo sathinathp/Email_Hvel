@@ -683,7 +683,7 @@ async function handleVerifyClick(sendBtn, btnElement, type) {
                         </div>
                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
                             <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                            <a href="https://unmagnetized-unprudential-beth.ngrok-free.dev/verify.html" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
+                            <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
                         </div>
                     </div>
                 `;

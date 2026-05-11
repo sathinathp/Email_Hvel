@@ -9,7 +9,7 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
-    "http://52.144.45.25:4000/*"
+    "https://api.humanattest.com/*"
   ],
   "background": {
     "service_worker": "background.js"
