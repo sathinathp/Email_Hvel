@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://hvel-backend.onrender.com';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.humanattest.com';
 
 export default function Verify() {
   const [hash, setHash] = useState('');

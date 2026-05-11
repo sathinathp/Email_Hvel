@@ -12,7 +12,7 @@
     "https://api.humanattest.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    "extension_pages": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.humanattest.com;"
   },
   "background": {
     "service_worker": "background.js"
