@@ -9,8 +9,7 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
-    "https://unmagnetized-unprudential-beth.ngrok-free.dev/*",
-    "http://localhost:3000/*"
+    "http://52.144.45.25:4000/*"
   ],
   "background": {
     "service_worker": "background.js"
