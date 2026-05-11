@@ -11,6 +11,9 @@
     "https://mail.google.com/*",
     "https://api.humanattest.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline';"
+  },
   "background": {
     "service_worker": "background.js"
   },
