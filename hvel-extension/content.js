@@ -1,5 +1,26 @@
 console.log("HVEL Content Script loaded into Gmail.");
 
+// Inject animations and styles for premium toasts and button effects
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes hvel-spin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes hvel-shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-6px); }
+        40%, 80% { transform: translateX(6px); }
+    }
+    @keyframes hvel-toast-slide {
+        from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes hvel-toast-fade {
+        to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+    }
+`;
+document.head.appendChild(style);
+
 // Track in-flight requests to prevent spamming the server
 const pendingRequests = new Set();
 
@@ -47,15 +68,6 @@ async function markVerified(email) {
     });
 }
 
-// Handle clicks outside dropdown to close it
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.hvel-dropdown-container')) {
-        document.querySelectorAll('.hvel-dropdown-menu.show').forEach(menu => {
-            menu.classList.remove('show');
-        });
-    }
-});
-
 // Extract actual user email and name from Gmail DOM
 function getSenderProfile() {
     const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
@@ -83,296 +95,478 @@ function getSenderEmail() {
 
 // Function to find the recipient of an incoming message (the current user)
 function getCurrentUserEmail() {
-    return getSenderEmail(); // In Gmail, your own email is the one you're logged into
+    return getSenderEmail();
 }
 
-function showOTPModal(sendBtn, onVerified) {
-    const existing = document.querySelector('.hvel-otp-overlay');
-    if (existing) return;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'hvel-modal-overlay hvel-otp-overlay';
+// ─── SILENT MOUSE TRACKING ENGINE ───
+let mousePoints = [];
+document.addEventListener('mousemove', (e) => {
+    mousePoints.push({ x: e.clientX, y: e.clientY, t: Date.now() });
+    if (mousePoints.length > 50) {
+        mousePoints.shift(); // Keep rolling buffer to last 50 points
+    }
+});
 
-    const realEmail = getSenderEmail();
 
-    overlay.innerHTML = `
-        <div class="hvel-modal hvel-otp-modal" style="
-            width: 370px; border-radius: 20px; background: #ffffff; color: #1f2937;
-            text-align: center; box-shadow: 0 30px 70px -12px rgba(0,0,0,0.2);
-            overflow: hidden; font-family: 'Inter', 'Segoe UI', sans-serif;
-            animation: hvel-modal-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        ">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #6366f1, #3b82f6); padding: 18px 20px; position: relative;">
-                <div style="display:flex; align-items:center; gap:12px; position:relative; z-index:1;">
-                    <div style="width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; backdrop-filter: blur(10px);">
-                        <span style="font-size:20px;">🔐</span>
-                    </div>
-                    <div style="text-align:left;">
-                        <div style="font-size:15px; font-weight:700; color:white; letter-spacing:-0.4px;">Gmail 2FA Verification</div>
-                        <div style="background:rgba(255,255,255,0.2); display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; margin-top:3px;">
-                            <div style="width:5px; height:5px; background:#10b981; border-radius:50%;"></div>
-                            <span style="font-size:10px; color:white; font-weight:600;">${realEmail}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+// ─── FRICTIONLESS CLICK INTERCEPTION ───
+let isVerifying = false;
 
-            <!-- Body -->
-            <div style="padding: 20px;">
-                
-                <!-- Verification View -->
-                <div id="hvel-view-step2">
-                    
-                    <!-- Tabs -->
-                    <div style="display:flex; background:#f1f5f9; padding:3px; border-radius:10px; margin-bottom:15px;">
-                        <button id="hvel-tab-scan" style="flex:1; padding:6px; border:none; border-radius:7px; background:white; color:#1e293b; font-size:12px; font-weight:700; box-shadow:0 1px 2px rgba(0,0,0,0.1); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;">
-                            📷 Scan QR
-                        </button>
-                        <button id="hvel-tab-code" style="flex:1; padding:6px; border:none; border-radius:7px; background:transparent; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;">
-                            ⌨️ Enter Code
-                        </button>
-                    </div>
+// Helper to restore send button state safely
+function restoreSendButton(btn) {
+    if (btn) {
+        btn.style.pointerEvents = 'auto';
+        btn.style.width = '';
+        const originalHTML = btn.getAttribute('data-original-html');
+        if (originalHTML) {
+            btn.innerHTML = originalHTML;
+            btn.removeAttribute('data-original-html');
+        }
+    }
+}
 
-                    <!-- Scan QR Section -->
-                    <div id="hvel-sec-scan">
-                        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px; margin-bottom:15px; display:flex; align-items:center; gap:8px; text-align:left;">
-                            <span style="font-size:16px;">📱</span>
-                            <span style="font-size:10px; color:#0369a1; line-height:1.3; font-weight:500;">
-                                <strong>Authenticator</strong> → tap <strong>+</strong> → <strong>Scan QR code</strong>
-                            </span>
-                        </div>
+document.addEventListener('click', async (e) => {
+    const sendBtn = e.target.closest('div[role="button"]');
+    if (!sendBtn) return;
 
-                        <div style="background:white; border:1.5px solid #f1f5f9; border-radius:16px; padding:12px; display:inline-block; margin-bottom:12px;">
-                            <img id="hvel-qr-img" style="width:150px; height:150px; display:block;">
-                        </div>
+    const tooltip = sendBtn.getAttribute('data-tooltip') || '';
+    if (!tooltip.includes('Send') && !tooltip.includes('send') && sendBtn.innerText.toLowerCase() !== 'send') return;
 
-                        <button id="hvel-scan-done-btn" style="
-                            width:100%; background:#6366f1; color:white; border:none; padding:13px;
-                            border-radius:12px; font-size:13px; font-weight:700; cursor:pointer;
-                            transition:0.2s; box-shadow:0 4px 6px rgba(99,102,241,0.2);
-                        ">✅ I've added it — Continue</button>
-                    </div>
+    // 1. If this is a programmatic click initiated after successful verification, bypass the check
+    if (sendBtn.getAttribute('data-hvel-verified') === 'true') {
+        sendBtn.removeAttribute('data-hvel-verified');
+        return;
+    }
 
-                    <!-- Enter Code Section -->
-                    <div id="hvel-sec-code" style="display:none;">
-                        <p style="font-size:12px; color:#64748b; margin-bottom:15px;">Enter the 6-digit code:</p>
+    // 2. Intercept the click completely
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isVerifying) return;
+    isVerifying = true;
+
+    try {
+        // 3. Show dynamic premium spinner state on the Send button
+        const originalHTML = sendBtn.innerHTML;
+        const originalWidth = sendBtn.offsetWidth;
+        
+        sendBtn.setAttribute('data-original-html', originalHTML);
+        sendBtn.style.width = `${originalWidth}px`;
+        sendBtn.style.pointerEvents = 'none';
+        sendBtn.innerHTML = `
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+                <div style="width: 12px; height: 12px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: hvel-spin 0.6s linear infinite; box-sizing: border-box;"></div>
+                Verifying...
+            </span>
+        `;
+
+        // Wait a brief 200ms to capture the final cursor movements leading directly to the button
+        setTimeout(() => {
+            try {
+                chrome.runtime.sendMessage({
+                    action: 'verifyHumanity',
+                    points: mousePoints
+                }, async (response) => {
+                    try {
+                        const isHuman = !!(response && response.success);
+                        const isNetworkError = !!(response && response.error && (
+                            response.error.toLowerCase().includes('fetch') || 
+                            response.error.toLowerCase().includes('network') || 
+                            response.error.toLowerCase().includes('failed to connect')
+                        ));
+
+                        const realEmail = getSenderEmail();
+                        const recipientEmail = getRecipientEmail(sendBtn);
                         
-                        <div style="position:relative; margin-bottom:15px;">
-                            <input type="text" id="hvel-otp-in" maxlength="6" placeholder="000 000" style="
-                                width:100%; border:2px solid #e2e8f0; font-size:28px; text-align:center;
-                                letter-spacing:6px; padding:12px; border-radius:14px; outline:none;
-                                font-weight:700; box-sizing:border-box; color:#1e293b; transition:0.3s;
-                            ">
-                        </div>
+                        // Find compose body related to this send button
+                        let composeBody = document.querySelector('div[aria-label="Message Body"]');
+                        const dialog = sendBtn.closest('div[role="dialog"]');
+                        if (dialog) {
+                            composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+                        }
                         
-                        <div id="hvel-otp-err" style="color:#ef4444; font-size:10px; font-weight:600; margin-bottom:15px; display:none; background:#fef2f2; padding:8px; border-radius:8px; border:1px solid #fecaca;"></div>
+                        const emailBodyText = composeBody ? composeBody.innerText : "";
+                        const contentHash = await computeHash(emailBodyText);
 
-                        <button id="hvel-otp-btn" style="
-                            width:100%; background:linear-gradient(135deg,#10b981,#059669); color:white;
-                            border:none; padding:13px; border-radius:12px; font-size:13px; font-weight:700;
-                            cursor:pointer; box-shadow:0 8px 16px -4px rgba(16,185,129,0.3);
-                        ">🔓 Complete Verification</button>
-                    </div>
-                </div>
+                        if (isNetworkError) {
+                            // Offline / Network Error fallback - let them send, stamp as Offline Unverified
+                            isVerifying = false;
+                            restoreSendButton(sendBtn);
 
-            </div>
-        </div>
+                            if (composeBody) {
+                                const badgeHtml = `
+                                    <br/><br/>
+                                    <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
+                                        <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                            <div style="display: flex; align-items: center; justify-content: center; background: #64748b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: bold;">
+                                                !
+                                            </div>
+                                            <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
+                                        </div>
+                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                            <span>Verification Server Offline</span>
+                                        </div>
+                                    </div>
+                                `;
+                                composeBody.innerHTML += badgeHtml;
+                            }
+
+                            showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
+                            sendBtn.setAttribute('data-hvel-verified', 'true');
+                            setTimeout(() => {
+                                sendBtn.click();
+                            }, 800);
+                            return;
+                        }
+
+                        // Not a network error: can be either verified human or detected robotic bot
+                        const verificationType = isHuman ? 'human' : 'robotic';
+
+                        // Call background verifyEmail API to save verification record in DB and get the Trust Record URL
+                        chrome.runtime.sendMessage({
+                            action: 'verifyEmail',
+                            type: verificationType,
+                            senderEmail: realEmail,
+                            recipientEmail: recipientEmail,
+                            contentHash: contentHash
+                        }, (verifyRes) => {
+                            try {
+                                isVerifying = false;
+                                restoreSendButton(sendBtn);
+
+                                // Handle verify response
+                                const isVerifySuccess = !!(verifyRes && verifyRes.success);
+                                const isVerifyNetworkErr = !!(verifyRes && verifyRes.error && (
+                                    verifyRes.error.toLowerCase().includes('fetch') || 
+                                    verifyRes.error.toLowerCase().includes('network') || 
+                                    verifyRes.error.toLowerCase().includes('failed to connect')
+                                ));
+
+                                if (isVerifyNetworkErr) {
+                                    if (composeBody) {
+                                        const badgeHtml = `
+                                            <br/><br/>
+                                            <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
+                                                <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                    <div style="display: flex; align-items: center; justify-content: center; background: #64748b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: bold;">
+                                                        !
+                                                    </div>
+                                                    <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
+                                                </div>
+                                                <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                                    <span>Verification Server Offline</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                        composeBody.innerHTML += badgeHtml;
+                                    }
+                                    showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
+                                    sendBtn.setAttribute('data-hvel-verified', 'true');
+                                    setTimeout(() => {
+                                        sendBtn.click();
+                                    }, 800);
+                                    return;
+                                }
+
+                                // If DB insert succeeded
+                                if (isVerifySuccess) {
+                                    if (composeBody) {
+                                        let badgeHtml;
+                                        if (isHuman) {
+                                            badgeHtml = `
+                                                <br/><br/>
+                                                <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
+                                                    <div style="display: flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <div style="display: flex; align-items: center; justify-content: center; background: #10b981; color: white; border-radius: 50%; width: 18px; height: 18px;">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                                            </svg>
+                                                        </div>
+                                                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Human Verified</span>
+                                                        <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
+                                                        <a href="${verifyRes.url}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
+                                                            <span>Trust Record</span>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                                <polyline points="15 3 21 3 21 9"></polyline>
+                                                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                            </svg>
+                                                        </a>
+                                                    </div>
+                                                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
+                                                        <span>Hash: ${contentHash.substring(0, 16)}...</span>
+                                                        <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        } else {
+                                            badgeHtml = `
+                                                <br/><br/>
+                                                <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
+                                                    <div style="display: flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <div style="display: flex; align-items: center; justify-content: center; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px;">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                                                <circle cx="12" cy="12" r="10"></circle>
+                                                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                                                            </svg>
+                                                        </div>
+                                                        <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
+                                                        <div style="width: 1px; height: 12px; background: #fee2e2;"></div>
+                                                        <a href="${verifyRes.url}" target="_blank" style="color: #dc2626; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
+                                                            <span>Trust Record</span>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                                <polyline points="15 3 21 3 21 9"></polyline>
+                                                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                            </svg>
+                                                        </a>
+                                                    </div>
+                                                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
+                                                        <span>Hash: ${contentHash.substring(0, 16)}...</span>
+                                                        <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }
+                                        composeBody.innerHTML += badgeHtml;
+                                    }
+
+                                    if (isHuman) {
+                                        showVerificationSuccessToast("Human intent confirmed! Appending green trust badge...");
+                                    } else {
+                                        showVerificationWarningToast("Robotic / AI Sender", "Robotic pattern detected. Appending robotic stamp...");
+                                    }
+
+                                    sendBtn.setAttribute('data-hvel-verified', 'true');
+                                    setTimeout(() => {
+                                        sendBtn.click();
+                                    }, 800);
+                                } else {
+                                    // DB save failed but it's not a network error
+                                    showVerificationWarningToast("Verification Warning", "Failed to generate trust record, dispatching email.");
+                                    sendBtn.setAttribute('data-hvel-verified', 'true');
+                                    setTimeout(() => {
+                                        sendBtn.click();
+                                    }, 800);
+                                }
+                            } catch (innerErr) {
+                                console.error("HVEL Inner Callback Error:", innerErr);
+                                isVerifying = false;
+                                restoreSendButton(sendBtn);
+                                sendBtn.setAttribute('data-hvel-verified', 'true');
+                                sendBtn.click();
+                            }
+                        });
+                    } catch (midErr) {
+                        console.error("HVEL Mid Callback Error:", midErr);
+                        isVerifying = false;
+                        restoreSendButton(sendBtn);
+                        sendBtn.setAttribute('data-hvel-verified', 'true');
+                        sendBtn.click();
+                    }
+                });
+            } catch (msgErr) {
+                console.error("HVEL Message Send Error:", msgErr);
+                isVerifying = false;
+                restoreSendButton(sendBtn);
+                sendBtn.setAttribute('data-hvel-verified', 'true');
+                sendBtn.click();
+            }
+        }, 200);
+    } catch (outerErr) {
+        console.error("HVEL Outer Handler Error:", outerErr);
+        isVerifying = false;
+        restoreSendButton(sendBtn);
+        sendBtn.setAttribute('data-hvel-verified', 'true');
+        sendBtn.click();
+    }
+}, true); // Capture phase guarantees we intercept before Gmail handlers process the event! // Capture phase guarantees we intercept before Gmail handlers process the event!
+
+
+// ─── PREMIUM INTERFACE UTILITIES ───
+
+// Show premium emerald green success toast notification
+function showVerificationSuccessToast(message) {
+    const existing = document.getElementById('hvel-success-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'hvel-success-toast';
+    toast.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 16px;
+        padding: 16px 20px;
+        color: white;
+        z-index: 10000000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        max-width: 380px;
+        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     `;
+    toast.innerHTML = `
+        <div style="
+            width: 36px; height: 36px; border-radius: 10px; 
+            background: rgba(16, 185, 129, 0.2); 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        ">✅</div>
+        <div style="flex: 1; text-align: left;">
+            <div style="font-size: 13px; font-weight: 700; color: #a7f3d0; margin-bottom: 2px;">Identity Verified</div>
+            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
+        </div>
+        <button style="
+            background: transparent; border: none; color: #94a3b8; 
+            font-size: 18px; cursor: pointer; padding: 0 4px;
+            font-weight: 700; transition: color 0.2s;
+        " id="hvel-toast-close">×</button>
+    `;
+    document.body.appendChild(toast);
 
-    document.body.appendChild(overlay);
+    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
+            setTimeout(() => toast.remove(), 400);
+        }
+    }, 4000);
+}
 
-    const secScan = overlay.querySelector('#hvel-sec-scan');
-    const secCode = overlay.querySelector('#hvel-sec-code');
-    const tabScan = overlay.querySelector('#hvel-tab-scan');
-    const tabCode = overlay.querySelector('#hvel-tab-code');
-    const otpInput = overlay.querySelector('#hvel-otp-in');
-    const otpError = overlay.querySelector('#hvel-otp-err');
+// Show premium warning toast notification for robotic or offline conditions
+function showVerificationWarningToast(title, message) {
+    const existing = document.getElementById('hvel-warning-toast');
+    if (existing) existing.remove();
 
-    function switchToScan() {
-        secScan.style.display = 'block';
-        secCode.style.display = 'none';
-        tabScan.style.background = 'white';
-        tabScan.style.color = '#1e293b';
-        tabScan.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-        tabCode.style.background = 'transparent';
-        tabCode.style.color = '#64748b';
-        tabCode.style.boxShadow = 'none';
-    }
+    const toast = document.createElement('div');
+    toast.id = 'hvel-warning-toast';
+    toast.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 16px;
+        padding: 16px 20px;
+        color: white;
+        z-index: 10000000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        max-width: 380px;
+        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    `;
+    toast.innerHTML = `
+        <div style="
+            width: 36px; height: 36px; border-radius: 10px; 
+            background: rgba(245, 158, 11, 0.2); 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        ">⚠️</div>
+        <div style="flex: 1; text-align: left;">
+            <div style="font-size: 13px; font-weight: 700; color: #fde047; margin-bottom: 2px;">${title}</div>
+            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
+        </div>
+        <button style="
+            background: transparent; border: none; color: #94a3b8; 
+            font-size: 18px; cursor: pointer; padding: 0 4px;
+            font-weight: 700; transition: color 0.2s;
+        " id="hvel-toast-close">×</button>
+    `;
+    document.body.appendChild(toast);
 
-    function switchToCode() {
-        secScan.style.display = 'none';
-        secCode.style.display = 'block';
-        tabCode.style.background = 'white';
-        tabCode.style.color = '#1e293b';
-        tabCode.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-        tabScan.style.background = 'transparent';
-        tabScan.style.color = '#64748b';
-        tabScan.style.boxShadow = 'none';
-        otpInput.focus();
-    }
+    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
+            setTimeout(() => toast.remove(), 400);
+        }
+    }, 5000);
+}
 
-    tabScan.onclick = switchToScan;
-    tabCode.onclick = switchToCode;
-    overlay.querySelector('#hvel-scan-done-btn').onclick = switchToCode;
+// Show premium glassmorphic toast notification
+function showBotBlockedToast(message) {
+    const existing = document.getElementById('hvel-bot-toast');
+    if (existing) existing.remove();
 
-    function loadTOTP(forceNew = false) {
-        const qrImg = overlay.querySelector('#hvel-qr-img');
-        if (!qrImg) return;
+    const toast = document.createElement('div');
+    toast.id = 'hvel-bot-toast';
+    toast.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 16px;
+        padding: 16px 20px;
+        color: white;
+        z-index: 10000000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        max-width: 380px;
+        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    `;
+    toast.innerHTML = `
+        <div style="
+            width: 36px; height: 36px; border-radius: 10px; 
+            background: rgba(239, 68, 68, 0.2); 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        ">🛡️</div>
+        <div style="flex: 1; text-align: left;">
+            <div style="font-size: 13px; font-weight: 700; color: #fca5a5; margin-bottom: 2px;">Verification Blocked</div>
+            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
+        </div>
+        <button style="
+            background: transparent; border: none; color: #94a3b8; 
+            font-size: 18px; cursor: pointer; padding: 0 4px;
+            font-weight: 700; transition: color 0.2s;
+        " id="hvel-toast-close">×</button>
+    `;
+    document.body.appendChild(toast);
 
-        qrImg.style.opacity = '0.3';
+    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
+            setTimeout(() => toast.remove(), 400);
+        }
+    }, 6000);
+}
 
-        chrome.runtime.sendMessage({
-            action: 'setupTOTP',
-            senderEmail: realEmail,
-            force: forceNew
-        }, (response) => {
-            qrImg.style.opacity = '1';
-
-            if (response && response.success) {
-                console.log("[HVEL] TOTP loaded successfully");
-                qrImg.src = response.qrcode;
-                
-                // if they already have it verified, default to code entry
-                if (response.isVerified && !forceNew) {
-                    switchToCode();
-                } else {
-                    switchToScan();
-                }
-            } else {
-                console.error("[HVEL] Failed to load TOTP:", response ? response.error : 'No response');
-                qrImg.src = ''; 
-                qrImg.alt = 'Failed to load QR code';
-            }
-        });
-    }
-    loadTOTP();
-
-    overlay.querySelector('#hvel-otp-btn').onclick = () => {
-        const code = otpInput.value.trim();
-        if (code.length !== 6) return;
-
-        chrome.runtime.sendMessage({ action: 'verifyTOTP', senderEmail: realEmail, code: code }, (response) => {
-            if (response && response.success) {
-                markVerified(realEmail).then(() => {
-                    overlay.remove();
-                    if (onVerified) onVerified();
-                });
-            } else {
-                otpError.innerText = response.error || 'Invalid code.';
-                otpError.style.display = 'block';
-                otpInput.style.borderColor = '#ef4444';
-            }
-        });
-    };
-
-    otpInput.oninput = (e) => {
-        e.target.value = e.target.value.replace(/[^0-9]/g, '');
-        if (e.target.value.length === 6) overlay.querySelector('#hvel-otp-btn').click();
-    };
+// Shake an element visually to indicate blocking
+function shakeElement(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth; // Force reflow
+    el.style.animation = 'hvel-shake 0.4s ease';
 }
 
 
-async function injectHvelUI() {
-    // Look for the "Send" button.
-    const sendButtons = Array.from(document.querySelectorAll('div[role="button"]')).filter(
-        btn => btn.getAttribute('data-tooltip') && btn.getAttribute('data-tooltip').includes('Send')
-    );
-
-    const verified = await isSessionValid();
-
-    sendButtons.forEach(sendBtn => {
-        // Handle Blocking
-        if (!verified) {
-            if (!sendBtn.classList.contains('hvel-blocked')) {
-                sendBtn.classList.add('hvel-blocked');
-                sendBtn.style.opacity = '0.5';
-                sendBtn.style.pointerEvents = 'none';
-                sendBtn.style.filter = 'grayscale(1)';
-
-                // Add a tooltip or message
-                sendBtn.setAttribute('data-hvel-original-tooltip', sendBtn.getAttribute('data-tooltip'));
-                sendBtn.setAttribute('data-tooltip', 'Verification Required to Send');
-
-                // Show the modal when this compose window is detected/focused
-                showOTPModal(sendBtn, () => {
-                    // Unblock ALL send buttons when one is verified (session-wide)
-                    document.querySelectorAll('.hvel-blocked').forEach(btn => {
-                        btn.classList.remove('hvel-blocked');
-                        btn.style.opacity = '1';
-                        btn.style.pointerEvents = 'auto';
-                        btn.style.filter = 'none';
-                        btn.setAttribute('data-tooltip', btn.getAttribute('data-hvel-original-tooltip'));
-                    });
-                });
-            }
-        }
-
-        const row = sendBtn.closest('tr');
-
-        // If we found the row and haven't injected our button yet
-        if (row && !row.querySelector('.hvel-verify-btn')) {
-
-            const hvelContainer = document.createElement('td');
-            hvelContainer.className = 'hvel-container';
-            hvelContainer.style.verticalAlign = 'bottom';
-            hvelContainer.style.paddingLeft = '10px';
-
-            // Create a dropdown container
-            hvelContainer.innerHTML = `
-                <div class="hvel-dropdown-container">
-                    <button class="hvel-verify-btn" type="button">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                        <span>Verify</span>
-                    </button>
-                    <div class="hvel-dropdown-menu">
-                        <div class="hvel-dropdown-item" data-type="human">
-                            <span>🧑</span> Human Verified
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            const mainBtn = hvelContainer.querySelector('.hvel-verify-btn');
-            const menu = hvelContainer.querySelector('.hvel-dropdown-menu');
-            const items = hvelContainer.querySelectorAll('.hvel-dropdown-item');
-
-            mainBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Toggle this menu, hide others
-                document.querySelectorAll('.hvel-dropdown-menu.show').forEach(m => {
-                    if (m !== menu) m.classList.remove('show');
-                });
-                menu.classList.toggle('show');
-            });
-
-            items.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const type = item.getAttribute('data-type');
-                    menu.classList.remove('show');
-
-                    handleVerifyClick(sendBtn, mainBtn, type);
-                });
-            });
-
-            // Insert our <td> right after the Send button's <td>
-            const sendTd = sendBtn.closest('td');
-            if (sendTd && sendTd.parentNode) {
-                sendTd.parentNode.insertBefore(hvelContainer, sendTd.nextSibling);
-            }
-        }
-    });
-}
-
-// NEW: Scanning Incoming Emails for Trust Signals
+// ─── PASSIVE INCOMING INBOX SCANNER ───
 async function scanIncomingMessages() {
-    // Broaden the search: scan any element that looks like a message container
     const messages = document.querySelectorAll('.adn, .ads, div[role="listitem"]');
 
     messages.forEach(async (msg) => {
@@ -380,31 +574,25 @@ async function scanIncomingMessages() {
         msg.setAttribute('data-hvel-scanned', 'true');
 
         const badgeLink = msg.querySelector('a[href*="/v/"]');
-
-        // Improved Sender Detection: Highly robust for Gmail
         let senderEmail = null;
 
-        // 1. Look for .gD (the actual name/email element)
         const gD = msg.querySelector('.gD');
         if (gD) {
             senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
         }
 
-        // 2. Look for any element with an 'email' attribute in the header
         if (!senderEmail || !senderEmail.includes('@')) {
             const emailSpan = msg.querySelector('span[email]');
             if (emailSpan) senderEmail = emailSpan.getAttribute('email');
         }
 
-        // 3. Fallback: Parse from the header text/names
         if (!senderEmail || !senderEmail.includes('@')) {
-            const headerText = msg.innerText.substring(0, 500); // Check first 500 chars
-            const match = headerText.match(/[a-zA-Z0-9._%+-]+@gmail\.com/); // Gmail specific for now
+            const headerText = msg.innerText.substring(0, 500);
+            const match = headerText.match(/[a-zA-Z0-9._%+-]+@gmail\.com/);
             if (match) senderEmail = match[0];
         }
 
         const recipientEmail = getCurrentUserEmail();
-
         const IGNORED_DOMAINS = [
             'vercel.com', 'google.com', 'microsoft.com', 'github.com',
             'aws.com', 'amazon.com', 'netflix.com'
@@ -412,10 +600,7 @@ async function scanIncomingMessages() {
         const senderDomain = senderEmail?.split('@')[1]?.toLowerCase();
         const isIgnoredDomain = IGNORED_DOMAINS.includes(senderDomain);
 
-        // Only proceed if we have a valid sender, they are NOT the current user, and NOT a whitelisted domain
         if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
-            console.log(`[HVEL] Processing message from: ${senderEmail}`);
-
             if (badgeLink) {
                 const url = badgeLink.href;
                 const id = url.split('/v/').pop();
@@ -460,15 +645,12 @@ async function scanIncomingMessages() {
                     }
                 });
             } else {
-                // No HVEL found on this message - Check if sender is ALREADY verified now
                 chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userStatus) => {
                     if (userStatus && userStatus.verified) {
-                        // Sender is now verified, this was just an old message
                         showTrustStatus(msg, 'verified', `Sender is now Human Verified (Legacy Message)`);
                     } else {
                         showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
                         
-                        // Trigger Nudge only if expanded and 24h passed
                         if (msg.offsetParent !== null) {
                             const normSender = senderEmail.toLowerCase().trim();
                             const nudgeKey = `hvel_nudged_${normSender}`;
@@ -485,7 +667,6 @@ async function scanIncomingMessages() {
                                     pendingRequests.add(nudgeKey);
                                     chrome.storage.local.set({ [nudgeKey]: now });
 
-                                    console.log(`[HVEL] Mandatory nudge triggered for: ${normSender}`);
                                     chrome.runtime.sendMessage({
                                         action: 'reportUnverifiedReply',
                                         hvelUserEmail: recipientEmail,
@@ -545,7 +726,6 @@ function showTrustStatus(msgElement, status, text) {
                 }
             </style>`;
 
-        // Add the dramatic Stamp Overlay
         const stamp = document.createElement('div');
         stamp.className = 'hvel-untrusted-stamp';
         stamp.style.cssText = `
@@ -558,7 +738,7 @@ function showTrustStatus(msgElement, status, text) {
         `;
         stamp.innerText = (status === 'tampered' || status === 'invalid') ? 'TAMPERED' : 'UNTRUSTED';
         msgElement.style.position = 'relative';
-        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)'; // Subtle red tint
+        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)';
         msgElement.appendChild(stamp);
     }
 
@@ -566,7 +746,7 @@ function showTrustStatus(msgElement, status, text) {
     insertTarget.prepend(notice);
 }
 
-// Compute SHA-256 hash of a string
+// Compute SHA-256 hash of email body contents
 async function computeHash(text) {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
@@ -575,30 +755,17 @@ async function computeHash(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Extract the raw text from the compose body
-function getEmailBody(sendBtn) {
-    let composeBody = document.querySelector('div[aria-label="Message Body"]');
-    const dialog = sendBtn.closest('div[role="dialog"]');
-    if (dialog) {
-        composeBody = dialog.querySelector('div[aria-label="Message Body"]');
-    }
-    return composeBody ? composeBody.innerText : "";
-}
-
 // Extract recipient emails from the "To" field
 function getRecipientEmail(sendBtn) {
     const dialog = sendBtn.closest('div[role="dialog"]');
     if (!dialog) return null;
 
-    // Look for elements that look like emails in the Recipient list
     const recipientChips = dialog.querySelectorAll('div[role="listitem"] span[email], .vT');
     if (recipientChips.length > 0) {
-        // Just grab the first one for the invitation
         const email = recipientChips[0].getAttribute('email') || recipientChips[0].innerText.trim();
         return email.includes('@') ? email : null;
     }
 
-    // Fallback: search for any email-like string in the Recipient area
     const recipientArea = dialog.querySelector('textarea[name="to"], input[name="to"]');
     if (recipientArea && recipientArea.value) {
         const match = recipientArea.value.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
@@ -608,108 +775,17 @@ function getRecipientEmail(sendBtn) {
     return null;
 }
 
-async function handleVerifyClick(sendBtn, btnElement, type) {
-    const btnText = btnElement.querySelector('span');
-    btnText.innerText = 'Verifying...';
-    btnElement.disabled = true;
 
-    // Get the real email of the user typing this message
-    const realEmail = getSenderEmail();
-
-    // Get email content and hash it for security
-    const emailBody = getEmailBody(sendBtn);
-    const contentHash = await computeHash(emailBody);
-
-    // Get recipient email for the automated invitation
-    const recipientEmail = getRecipientEmail(sendBtn);
-
-    // Send message to background script to trigger real API call
-    chrome.runtime.sendMessage({
-        action: 'verifyEmail',
-        type: type,
-        senderEmail: realEmail,
-        recipientEmail: recipientEmail,
-        contentHash: contentHash
-    }, (response) => {
-        if (response && response.success) {
-
-            // Set badge styling based on type
-            let badgeTitle = 'Human Verified';
-            let badgeIcon = '🧑';
-            let badgeColor = '#10b981'; // green
-
-            if (type === 'ai') {
-                badgeTitle = 'AI Assisted';
-                badgeIcon = '🤖';
-                badgeColor = '#8b5cf6'; // purple
-            } else if (type === 'automated') {
-                badgeTitle = 'Automated';
-                badgeIcon = '⚡';
-                badgeColor = '#6b7280'; // gray
-            }
-
-            btnText.innerText = 'Verified';
-            btnElement.classList.add('hvel-verified');
-            btnElement.style.borderColor = badgeColor;
-            btnElement.style.color = badgeColor;
-
-            // Find the compose body related to this send button
-            let composeBody = document.querySelector('div[aria-label="Message Body"]');
-            const dialog = sendBtn.closest('div[role="dialog"]');
-            if (dialog) {
-                composeBody = dialog.querySelector('div[aria-label="Message Body"]');
-            }
-
-            if (composeBody) {
-                const badgeHtml = `
-                    <br/><br/>
-                    <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                        <div style="display: flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                            <div style="display: flex; align-items: center; justify-content: center; background: #10b981; color: white; border-radius: 50%; width: 18px; height: 18px;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                            </div>
-                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">${badgeTitle}</span>
-                            <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
-                            <a href="${response.url}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
-                                <span>Trust Record</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </a>
-                        </div>
-                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
-                            <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                            <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
-                        </div>
-                    </div>
-                `;
-                composeBody.innerHTML += badgeHtml;
-            }
-        } else {
-            btnText.innerText = 'Error';
-            btnElement.disabled = false;
-        }
-    });
-}
-
-// Fallback interval to ensure we catch dynamically rendered windows
+// Interval loops to catch dynamically loaded view changes
 function runHvelIntervals() {
-    injectHvelUI();
     scanIncomingMessages();
 }
 
 setInterval(runHvelIntervals, 1500);
 
-// Use observer for quick reaction
-const observer = new MutationObserver((mutations) => {
+const observer = new MutationObserver(() => {
     runHvelIntervals();
 });
-
 observer.observe(document.body, { childList: true, subtree: true });
 
 runHvelIntervals();
-

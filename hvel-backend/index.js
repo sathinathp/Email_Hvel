@@ -582,8 +582,8 @@ app.get('/v/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM verifications WHERE id = $1', [req.params.id]);
     const record = result.rows[0];
     if (!record) return res.status(404).send('<h1>404 - Not found</h1>');
-    const badgeColor = record.type === 'ai' ? '#8b5cf6' : record.type === 'automated' ? '#6b7280' : '#10b981';
-    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : record.type === 'automated' ? 'Automated' : 'Human Verified';
+    const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#10b981';
+    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic / AI Sender' : 'Human Verified';
     res.send(`<!DOCTYPE html><html><head><title>HVEL Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><img src="/logo.png" alt="HVEL" style="width:48px;"></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by HVEL.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div></div></body></html>`);
   } catch (err) { res.status(500).send('<h1>500 - Server Error</h1>'); }
 });
@@ -792,6 +792,108 @@ app.post('/api/report-security-alert', async (req, res) => {
   } catch (err) {
     console.error('[HVEL API] ❌ Error sending security alerts:', err);
     res.status(500).json({ error: 'Failed to send alerts', details: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Proof of Humanity — Mouse Tracking Bot Detection Analyzer
+// ─────────────────────────────────────────────────────────────────────────────
+function verifyHumanBehavior(points) {
+  if (!points || points.length < 5) {
+    // If a human clicks without moving their mouse much, we still pass them
+    console.log(`[HUMAN VERIFIED] 🧑 Trigger: Few points (${points ? points.length : 0}), assuming stationary human.`);
+    return { success: true };
+  }
+
+  const start = points[0];
+  const end = points[points.length - 1];
+
+  // Calculate straight-line distance (displacement)
+  const displacement = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+  if (displacement < 5) {
+    // Small movements are allowed to pass immediately
+    return { success: true }; 
+  }
+
+  // 1. Straightness test (Linear deviation)
+  const A = end.y - start.y;
+  const B = start.x - end.x;
+  const C = end.x * start.y - start.x * end.y;
+  const denom = Math.sqrt(A * A + B * B);
+
+  let totalDeviation = 0;
+  for (let p of points) {
+    const dist = denom > 0 ? Math.abs(A * p.x + B * p.y + C) / denom : 0;
+    totalDeviation += dist;
+  }
+  const avgDeviation = totalDeviation / points.length;
+
+  // 2. Velocity variance check (Standard deviation of speed)
+  let speeds = [];
+  let prevPoint = points[0];
+  for (let i = 1; i < points.length; i++) {
+    const curr = points[i];
+    const dx = curr.x - prevPoint.x;
+    const dy = curr.y - prevPoint.y;
+    const dt = curr.t - prevPoint.t || 1; // avoid division by 0
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    speeds.push(dist / dt);
+    prevPoint = curr;
+  }
+
+  const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
+  const variance = speeds.reduce((sum, s) => sum + Math.pow(s - avgSpeed, 2), 0) / speeds.length;
+  const stdDev = Math.sqrt(variance);
+
+  // 3. Collinearity / Direction changes (Angles between segments)
+  let angles = [];
+  for (let i = 2; i < points.length; i++) {
+    const p1 = points[i - 2];
+    const p2 = points[i - 1];
+    const p3 = points[i];
+    const v1 = { x: p2.x - p1.x, y: p2.y - p1.y };
+    const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
+    const dot = v1.x * v2.x + v1.y * v2.y;
+    const len1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+    const len2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+    if (len1 > 0 && len2 > 0) {
+      const cos = dot / (len1 * len2);
+      const boundedCos = Math.max(-1, Math.min(1, cos));
+      angles.push(Math.acos(boundedCos));
+    }
+  }
+  const angleChanges = angles.reduce((sum, a) => sum + a, 0);
+
+  console.log(`[PROOF OF HUMANITY] Points: ${points.length} | Avg Dev: ${avgDeviation.toFixed(3)}px | Speed StdDev: ${stdDev.toFixed(4)}px/ms | Angles: ${angleChanges.toFixed(3)}`);
+
+  // BOT DETECTION thresholds (Extremely permissive so humans never fail):
+  // - Perfectly straight line: avgDeviation < 0.1 pixels
+  // - Uniform velocity: stdDev < 0.01 px/ms
+  // - Collinear movement: angleChanges < 0.01 radians
+  if (avgDeviation < 0.1) {
+    console.log(`[BOT DETECTED] 🤖 Trigger: Perfect straight line (Avg Dev: ${avgDeviation.toFixed(3)})`);
+    return { success: false, error: 'Automated bot movement detected (Linear path).' };
+  }
+  if (stdDev < 0.01) {
+    console.log(`[BOT DETECTED] 🤖 Trigger: Constant velocity (Speed StdDev: ${stdDev.toFixed(4)})`);
+    return { success: false, error: 'Automated bot movement detected (Uniform speed).' };
+  }
+  if (angleChanges < 0.01) {
+    console.log(`[BOT DETECTED] 🤖 Trigger: Perfect collinear movement (Angle changes: ${angleChanges.toFixed(3)})`);
+    return { success: false, error: 'Automated bot movement detected (Robotic steering).' };
+  }
+
+  console.log(`[HUMAN VERIFIED] 🧑 Validation passed successfully.`);
+  return { success: true };
+}
+
+app.post('/api/verify-human', (req, res) => {
+  const { points } = req.body;
+  const result = verifyHumanBehavior(points);
+  if (result.success) {
+    res.json({ success: true, message: 'Identity confirmed as Human' });
+  } else {
+    res.status(403).json({ success: false, error: result.error });
   }
 });
 

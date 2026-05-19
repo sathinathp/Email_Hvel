@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://api.humanattest.com';
+const API_BASE_URL = 'http://localhost:5000';
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -160,6 +160,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, verified: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'verifyHumanity') {
+    fetch(`${API_BASE_URL}/api/verify-human`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: request.points })
+    })
+    .then(r => r.json())
+    .then(data => sendResponse(data))
+    .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
