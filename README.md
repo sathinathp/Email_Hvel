@@ -1,6 +1,6 @@
 # HumanAttest (HVEL): Universal Human Verification Protocol
 
-HumanAttest is a robust, zero-trust authentication ecosystem designed to ensure "Proof of Humanity" for secure digital communications. It eliminates session hijacking and bot-driven emails through mandatory physical intent verification and behavioral mouse-tracking analysis, specifically tailored for seamless Gmail integration.
+HumanAttest is a robust, zero-trust authentication ecosystem designed to ensure "Proof of Humanity" for secure digital communications. It eliminates session hijacking and bot-driven emails through mandatory behavioral mouse-tracking analysis, specifically tailored for seamless Gmail integration.
 
 ![HumanAttest Logo](logo.png)
 
@@ -8,7 +8,7 @@ HumanAttest is a robust, zero-trust authentication ecosystem designed to ensure 
 
 The ecosystem provides a unified security layer across three primary tiers:
 
-1.  **HVEL Backend (Core)**: A Node.js API managing cryptographic audit logs, 2FA pairing via QR codes, mouse behavior bot-detection, and server-side security gates with intelligent reset cycles.
+1.  **HVEL Backend (Core)**: A Node.js API managing cryptographic audit logs, mouse behavior bot-detection, and server-side security gates with intelligent reset cycles.
 2.  **HVEL Extension (Shield)**: A Chrome extension that natively intercepts Gmail send actions, analyzes mouse trajectories to detect bots, computes content hashes, and enforces verification before any data leaves the browser. It also scans incoming emails to validate trust stamps.
 3.  **HVEL Website (Landing)**: A premium Next.js platform providing a dual-track workflow for both verified senders and universal recipients.
 
@@ -50,7 +50,7 @@ HVEL/
 ### 3. Chrome Extension
 1. Open `chrome://extensions/` and enable **Developer mode**.
 2. Click **Load unpacked** and select the `hvel-extension` folder.
-3. Pair your device using the QR code in the extension popup.
+3. Pin the extension to your browser toolbar to monitor status.
 
 ## 🛡️ The Complete Workflow
 

@@ -1,7 +1,7 @@
 # 🛡️ HumanAttest: Complete Team Guidance & Project Blueprint
 
 ## 1. Project Vision
-HumanAttest (HVEL) is a **Universal Human Verification Protocol**. It is designed to stop "Identity Mismatch" attacks and automated email fraud by requiring a **Proof of Humanity** (behavioral mouse-tracking analysis and physical intent verification) before a sender can release an email from their browser.
+HumanAttest (HVEL) is a **Universal Human Verification Protocol**. It is designed to stop "Identity Mismatch" attacks and automated email fraud by requiring a **Proof of Humanity** (behavioral mouse-tracking analysis) before a sender can release an email from their browser.
 
 **The Goal:** Every email received with a HumanAttest Trust Stamp is guaranteed to have been sent by a verified human, with mathematically validated interactions, protecting against AI scripts and automated bots.
 
