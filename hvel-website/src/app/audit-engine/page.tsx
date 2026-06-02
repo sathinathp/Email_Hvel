@@ -18,7 +18,7 @@ export default function AuditEngine() {
             Audit Engine
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
-            Every HumanAttest verification creates an immutable, cryptographically signed audit
+            Every Attest verification creates an immutable, cryptographically signed audit
             record. Recipients can verify any email&apos;s authenticity at any time — without ever
             exposing email content.
           </p>
@@ -57,7 +57,7 @@ export default function AuditEngine() {
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>How Verification Works for Recipients</h2>
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>
               When you send a verified email, a SHA-256 hash is embedded in the email header as
-              <code style={{ background:'#F1F5F9', padding:'2px 6px', borderRadius:4, fontSize:13, margin:'0 4px' }}>X-HumanAttest-Hash</code>.
+              <code style={{ background:'#F1F5F9', padding:'2px 6px', borderRadius:4, fontSize:13, margin:'0 4px' }}>X-Attest-Hash</code>.
               Recipients can copy this hash and paste it into the{' '}
               <Link href="/verify" style={{ color:'#2563EB', fontWeight:600 }}>Verify page</Link> to
               confirm the email was sent by a verified human.
@@ -100,7 +100,7 @@ export default function AuditEngine() {
 
           <div style={{ textAlign:'center', padding:'32px 24px', background:'#F8FAFC', borderRadius:16, border:'1px solid #E2E8F0' }}>
             <p style={{ fontWeight:700, color:'#0F172A', fontSize:16, marginBottom:8 }}>Try the Audit Engine</p>
-            <p style={{ color:'#64748B', fontSize:14, marginBottom:20 }}>Paste any HumanAttest hash to verify a sender&apos;s identity.</p>
+            <p style={{ color:'#64748B', fontSize:14, marginBottom:20 }}>Paste any Attest hash to verify a sender&apos;s identity.</p>
             <Link href="/verify" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#9333EA', color:'white', padding:'12px 28px', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
               Open Verify Page →
             </Link>

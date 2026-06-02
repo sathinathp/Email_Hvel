@@ -10,7 +10,7 @@ export default function PrivacyPolicy() {
           <h1 style={{ fontSize:'clamp(32px,5vw,48px)', fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1, marginBottom:12 }}>
             Privacy Policy
           </h1>
-          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: May 2026 · HumanAttest Security Ltd.</p>
+          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: May 2026 · Attest Security Ltd.</p>
         </div>
       </section>
 
@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
           {[
             {
               title:'1. Our Core Privacy Commitment',
-              content:`HumanAttest is built on a zero-knowledge architecture. We do not read, store, or transmit your email content — ever. This is not a policy choice; it is a technical constraint enforced by our extension's permission model. The extension does not request Gmail API access and cannot read your emails even if it wanted to.`,
+              content:`Attest is built on a zero-knowledge architecture. We do not read, store, or transmit your email content — ever. This is not a policy choice; it is a technical constraint enforced by our extension's permission model. The extension does not request Gmail API access and cannot read your emails even if it wanted to.`,
             },
             {
               title:'2. What We Collect',
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
             },
             {
               title:'4. How We Use Your Data',
-              content:`Your registered name is used solely to display the verified sender badge to email recipients. Verification hashes and timestamps are used to provide the audit trail service. We do not sell, share, or use your data for advertising, profiling, or any purpose other than providing the HumanAttest verification service.`,
+              content:`Your registered name is used solely to display the verified sender badge to email recipients. Verification hashes and timestamps are used to provide the audit trail service. We do not sell, share, or use your data for advertising, profiling, or any purpose other than providing the Attest verification service.`,
             },
             {
               title:'5. Data Storage & Security',
@@ -40,15 +40,15 @@ export default function PrivacyPolicy() {
             },
             {
               title:'6. Data Retention & Deletion',
-              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@humanattest.com. Account deletion removes all associated records within 30 days.`,
+              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@attest.com. Account deletion removes all associated records within 30 days.`,
             },
             {
               title:'7. Your Rights (GDPR / CCPA)',
-              content:`You have the right to access, correct, export, or delete your personal data at any time. EU residents have additional rights under GDPR including the right to object to processing and the right to data portability. California residents have rights under CCPA including the right to know what data is collected and the right to opt out of sale (we do not sell data). To exercise any right, contact privacy@humanattest.com.`,
+              content:`You have the right to access, correct, export, or delete your personal data at any time. EU residents have additional rights under GDPR including the right to object to processing and the right to data portability. California residents have rights under CCPA including the right to know what data is collected and the right to opt out of sale (we do not sell data). To exercise any right, contact privacy@attest.com.`,
             },
             {
               title:'8. Contact',
-              content:`Privacy inquiries: privacy@humanattest.com\nSecurity disclosures: security@humanattest.com\nHumanAttest Security Ltd., 2026`,
+              content:`Privacy inquiries: privacy@attest.com\nSecurity disclosures: security@attest.com\nAttest Security Ltd., 2026`,
             },
           ].map((section) => (
             <div key={section.title}>

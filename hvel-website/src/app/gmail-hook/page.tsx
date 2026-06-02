@@ -18,7 +18,7 @@ export default function GmailHook() {
             Native Gmail Send Hook
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
-            The HumanAttest extension hooks directly into Gmail&apos;s send pipeline at the DOM level —
+            The Attest extension hooks directly into Gmail&apos;s send pipeline at the DOM level —
             intercepting the send action before any data leaves your browser, without reading a
             single character of your email.
           </p>
@@ -69,7 +69,7 @@ export default function GmailHook() {
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>Extension Permissions</h2>
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>
               You can verify this yourself. Open <code style={{ background:'#F1F5F9', padding:'2px 6px', borderRadius:4, fontSize:13 }}>chrome://extensions</code>, find
-              HumanAttest, and click &quot;Details&quot;. The permissions list contains only:
+              Attest, and click &quot;Details&quot;. The permissions list contains only:
             </p>
             <div style={{ background:'#0F172A', borderRadius:12, padding:24, fontFamily:'monospace', fontSize:13, color:'#94A3B8' }}>
               <p style={{ color:'#60A5FA', marginBottom:8 }}>// manifest.json — permissions</p>

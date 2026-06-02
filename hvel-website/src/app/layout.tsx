@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HumanAttest | Human Verified Email Layer",
+  title: "Attest | Human Verified Email Layer",
   description: "Secure your Gmail with high-trust human verification. Professional email security for the modern enterprise.",
 };
 

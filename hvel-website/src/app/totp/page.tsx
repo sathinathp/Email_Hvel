@@ -18,7 +18,7 @@ export default function TOTPPage() {
             TOTP — Time-Based One-Time Password
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
-            TOTP is the fallback verification method in HumanAttest. It generates a fresh 6-digit
+            TOTP is the fallback verification method in Attest. It generates a fresh 6-digit
             code every 30 seconds using a secret stored only on your device — compatible with
             Google Authenticator, Authy, and any RFC 6238 app.
           </p>
@@ -31,7 +31,7 @@ export default function TOTPPage() {
           <div>
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>How TOTP Works</h2>
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>
-              During registration, HumanAttest generates a shared secret and displays it as a QR code.
+              During registration, Attest generates a shared secret and displays it as a QR code.
               You scan it once with your authenticator app. From that point, both your app and our
               server independently compute the same 6-digit code every 30 seconds using HMAC-SHA1
               and the current Unix timestamp.
@@ -47,7 +47,7 @@ export default function TOTPPage() {
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:16 }}>Setup in 3 Steps</h2>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {[
-                ['1','Register on the portal','Create your HumanAttest account with your full name. A QR code is generated for your TOTP secret.'],
+                ['1','Register on the portal','Create your Attest account with your full name. A QR code is generated for your TOTP secret.'],
                 ['2','Scan with authenticator','Open Google Authenticator, Authy, or any TOTP app and scan the QR code. A 6-digit rotating code appears.'],
                 ['3','Verify on first send','Click Send in Gmail. Enter the 6-digit code when prompted. Done — you are verified.'],
               ].map(([num, title, desc]) => (
@@ -87,7 +87,7 @@ export default function TOTPPage() {
           <div style={{ background:'rgba(22,163,74,0.06)', border:'1px solid rgba(22,163,74,0.15)', borderRadius:16, padding:24 }}>
             <p style={{ fontWeight:800, color:'#15803D', fontSize:14, marginBottom:6 }}>🔒 Privacy Note</p>
             <p style={{ fontSize:14, color:'#64748B', margin:0, lineHeight:1.6 }}>
-              Your TOTP secret is stored only on your device. HumanAttest stores only the
+              Your TOTP secret is stored only on your device. Attest stores only the
               verification result (pass/fail) and timestamp — never the secret itself, never your
               Gmail address, and never any email content.
             </p>

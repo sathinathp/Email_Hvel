@@ -26,16 +26,16 @@ const S = {
 
 const DOCS_CONTENT = {
   introduction: {
-    title: 'Introduction to HumanAttest',
+    title: 'Introduction to Attest',
     subsections: [
       { id:'mission',      title:'Mission & Vision' },
       { id:'how-it-works', title:'How it Works' },
-      { id:'why-hvel',     title:'Why HumanAttest?' },
+      { id:'why-hvel',     title:'Why Attest?' },
     ],
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          HumanAttest (HVEL — Human Verified Email Layer) is a browser extension + verification
+          Attest (HVEL — Human Verified Email Layer) is a browser extension + verification
           backend that proves a real human intentionally sent an email — without ever reading,
           storing, or transmitting your email content.
         </p>
@@ -58,7 +58,7 @@ const DOCS_CONTENT = {
             <div style={{ padding:20, background:'rgba(52,168,83,0.05)', border:'1px solid rgba(52,168,83,0.12)', borderRadius:14 }}>
               <div style={S.tag('#34A853')}>The Solution</div>
               <p style={{ ...S.p, marginBottom:0, fontSize:14 }}>
-                HumanAttest requires a physical biometric or TOTP verification for every send action.
+                Attest requires a physical biometric or TOTP verification for every send action.
                 No verification = no email sent. Simple.
               </p>
             </div>
@@ -91,15 +91,15 @@ const DOCS_CONTENT = {
         </section>
 
         <section id="why-hvel" style={{ scrollMarginTop:96 }}>
-          <h3 style={S.h3}>Why HumanAttest?</h3>
+          <h3 style={S.h3}>Why Attest?</h3>
           <p style={S.p}>
-            Standard 2FA protects your <strong>login</strong>. HumanAttest protects your <strong>actions</strong>.
+            Standard 2FA protects your <strong>login</strong>. Attest protects your <strong>actions</strong>.
             Even if an attacker has your session cookie, they cannot send an email without your physical device.
           </p>
           <div style={S.callout('#4285F4')}>
             <strong style={{ color:'#1D4ED8' }}>Key insight:</strong>{' '}
             <span style={{ color:'#475569', fontSize:14 }}>
-              Session hijacking is the #1 vector for business email compromise (BEC). HumanAttest is
+              Session hijacking is the #1 vector for business email compromise (BEC). Attest is
               the only tool that blocks it at the send layer — not the login layer.
             </span>
           </div>
@@ -119,7 +119,7 @@ const DOCS_CONTENT = {
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Privacy is not a feature — it is the foundation of HumanAttest. Our architecture is
+          Privacy is not a feature — it is the foundation of Attest. Our architecture is
           designed so that it is <strong>technically impossible</strong> for us to read your emails,
           even if we wanted to.
         </p>
@@ -131,7 +131,7 @@ const DOCS_CONTENT = {
               🚫 Zero Email Access — Guaranteed
             </strong>
             <p style={{ ...S.p, marginBottom:0, fontSize:14 }}>
-              The HumanAttest Chrome extension does <strong>NOT</strong> request the{' '}
+              The Attest Chrome extension does <strong>NOT</strong> request the{' '}
               <code style={S.code}>gmail.readonly</code> or any Gmail content permission.
               It only hooks the send button click event. Your email body, subject, recipients,
               and attachments are <strong>never accessible</strong> to our extension or servers.
@@ -198,7 +198,7 @@ const DOCS_CONTENT = {
         <section id="legality" style={{ scrollMarginTop:96 }}>
           <h3 style={S.h3}>Global Legality</h3>
           <p style={S.p}>
-            HumanAttest is <strong style={{ color:'#16A34A' }}>legal in all countries</strong>.
+            Attest is <strong style={{ color:'#16A34A' }}>legal in all countries</strong>.
             It functions as a security enhancement tool — similar to a hardware security key —
             and does not intercept, store, or process personal communications.
           </p>
@@ -232,7 +232,7 @@ const DOCS_CONTENT = {
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Get HumanAttest running in under 5 minutes. No server setup required for individual use.
+          Get Attest running in under 5 minutes. No server setup required for individual use.
         </p>
 
         <section id="requirements" style={{ scrollMarginTop:96, marginBottom:40 }}>
@@ -258,7 +258,7 @@ const DOCS_CONTENT = {
               ['2','Open Chrome Extensions','Navigate to <code>chrome://extensions</code> in your browser.'],
               ['3','Enable Developer Mode','Toggle the "Developer mode" switch in the top-right corner.'],
               ['4','Load Unpacked','Click "Load unpacked" and select the extracted extension folder.'],
-              ['5','Pin the extension','Click the puzzle icon in Chrome toolbar and pin HumanAttest for easy access.'],
+              ['5','Pin the extension','Click the puzzle icon in Chrome toolbar and pin Attest for easy access.'],
             ].map(([num, title, desc]) => (
               <div key={num} style={{ display:'flex', gap:16, padding:'16px 20px', background:'#F8FAFC', borderRadius:12, border:'1px solid #E2E8F0' }}>
                 <div style={{ width:32, height:32, background:'#2563EB', color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:13, flexShrink:0 }}>{num}</div>
@@ -274,7 +274,7 @@ const DOCS_CONTENT = {
         <section id="registration" style={{ scrollMarginTop:96, marginBottom:40 }}>
           <h3 style={S.h3}>Account Registration</h3>
           <p style={S.p}>
-            Visit the HumanAttest portal and register with your full name and email. You will receive
+            Visit the Attest portal and register with your full name and email. You will receive
             a QR code to scan with your authenticator app. This sets up your TOTP secret — stored
             only on your device.
           </p>
@@ -290,7 +290,7 @@ const DOCS_CONTENT = {
         <section id="test-send" style={{ scrollMarginTop:96 }}>
           <h3 style={S.h3}>Test Your First Send</h3>
           <p style={S.p}>
-            Open Gmail, compose a test email to yourself, and click Send. The HumanAttest overlay
+            Open Gmail, compose a test email to yourself, and click Send. The Attest overlay
             will appear asking for your 6-digit TOTP code. Enter it and the email will send normally.
             Check the <a href="/verify" style={{ color:'#2563EB', fontWeight:600 }}>Verify page</a> to
             confirm the hash was logged.
@@ -310,7 +310,7 @@ const DOCS_CONTENT = {
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Once installed, HumanAttest runs silently in the background. You only see it when you
+          Once installed, Attest runs silently in the background. You only see it when you
           click Send in Gmail.
         </p>
 
@@ -340,7 +340,7 @@ const DOCS_CONTENT = {
         <section id="verify-email" style={{ scrollMarginTop:96, marginBottom:40 }}>
           <h3 style={S.h3}>Verifying an Email You Received</h3>
           <p style={S.p}>
-            If you receive an email with a HumanAttest verification badge, you can confirm it is
+            If you receive an email with an Attest verification badge, you can confirm it is
             genuine. Copy the SHA-256 hash from the email header (or the badge tooltip) and paste
             it into the <a href="/verify" style={{ color:'#2563EB', fontWeight:600 }}>Verify page</a>.
             The result will show the sender&apos;s registered name and the exact timestamp of verification.
@@ -351,10 +351,10 @@ const DOCS_CONTENT = {
           <h3 style={S.h3}>Frequently Asked Questions</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {[
-              ['Does HumanAttest read my emails?','No. The extension has no Gmail read permission. It only intercepts the send button click. Your email content is never accessible to us.'],
+              ['Does Attest read my emails?','No. The extension has no Gmail read permission. It only intercepts the send button click. Your email content is never accessible to us.'],
               ['Does it store my Gmail address?','No. We never store your Gmail address or any Google account identifier. Registration only requires your full name.'],
               ['What if I lose my phone?','You can reset your TOTP secret from the portal using your registered email. Contact support for account recovery.'],
-              ['Does it work with Google Workspace?','Yes. HumanAttest works with any Gmail interface — personal accounts and Google Workspace (G Suite) accounts.'],
+              ['Does it work with Google Workspace?','Yes. Attest works with any Gmail interface — personal accounts and Google Workspace (G Suite) accounts.'],
               ['Is it free?','The Individual plan is free forever. See the Pricing page for team and enterprise options.'],
             ].map(([q, a]) => (
               <div key={q} style={{ padding:'18px 20px', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:12 }}>

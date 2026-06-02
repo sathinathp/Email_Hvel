@@ -74,7 +74,7 @@ export default function Contact() {
             📬 Get in Touch
           </div>
           <h1 style={{ fontSize: 'clamp(32px,5vw,52px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.04em', lineHeight: 1.1, marginBottom: 14 }}>
-            Contact HumanAttest
+            Contact Attest
           </h1>
           <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>
             Questions about the protocol, enterprise pricing, security audits, or anything else —
@@ -96,10 +96,10 @@ export default function Contact() {
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[
-                  { icon: '📧', label: 'General', value: 'hello@humanattest.com' },
-                  { icon: '🔐', label: 'Security', value: 'security@humanattest.com' },
-                  { icon: '⚖️', label: 'Legal / Privacy', value: 'privacy@humanattest.com' },
-                  { icon: '💼', label: 'Enterprise Sales', value: 'sales@humanattest.com' },
+                  { icon: '📧', label: 'General', value: 'hello@attest.com' },
+                  { icon: '🔐', label: 'Security', value: 'security@attest.com' },
+                  { icon: '⚖️', label: 'Legal / Privacy', value: 'privacy@attest.com' },
+                  { icon: '💼', label: 'Enterprise Sales', value: 'sales@attest.com' },
                 ].map((c) => (
                   <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{c.icon}</span>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.humanattest.com';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.com';
 
 export default function Verify() {
   const [hash, setHash] = useState('');
@@ -64,7 +64,7 @@ export default function Verify() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', borderRadius: 9999, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3B82F6', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              HumanAttest Verification Engine
+              Attest Verification Engine
             </div>
           </div>
 
@@ -114,7 +114,7 @@ export default function Verify() {
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}
                   onKeyDown={handleKeyDown}
-                  placeholder="e3b0c44298fc1c149afb...  (paste hash from email X-HumanAttest-Hash header)"
+                  placeholder="e3b0c44298fc1c149afb...  (paste hash from email X-Attest-Hash header)"
                   rows={4}
                   style={{
                     width: '100%', padding: '16px 18px', borderRadius: 14,
@@ -244,7 +244,7 @@ export default function Verify() {
 
               {/* Footer note */}
               <p style={{ textAlign: 'center', fontSize: 12, color: '#475569', marginTop: 14, fontWeight: 500 }}>
-                © 2026 HumanAttest Security Protocol. All identities are verified via 2FA &amp; WebAuthn.
+                © 2026 Attest Security Protocol. All identities are verified via 2FA &amp; WebAuthn.
               </p>
             </div>
           )}
@@ -253,7 +253,7 @@ export default function Verify() {
           {!result && !error && (
             <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
               {[
-                { icon: '📧', title: 'Get the Hash', desc: 'Copy the X-HumanAttest-Hash from the email header' },
+                { icon: '📧', title: 'Get the Hash', desc: 'Copy the X-Attest-Hash from the email header' },
                 { icon: '🔍', title: 'Paste & Verify', desc: 'Paste it above and click Verify Authenticity' },
                 { icon: '✅', title: 'See the Proof', desc: 'View the verified sender name and timestamp' },
               ].map((s) => (

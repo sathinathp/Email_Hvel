@@ -66,11 +66,11 @@ export default function Navbar() {
             <Link href="/" onClick={() => setActiveHash('#protocol')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
               <img 
                 src="/logo.png" 
-                alt="HumanAttest Logo" 
+                alt="Attest Logo" 
                 style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} 
               />
               <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
-                HumanAttest
+                Attest
               </span>
             </Link>
 

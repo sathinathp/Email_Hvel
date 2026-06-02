@@ -12,10 +12,10 @@ export default function Whitepaper() {
             📄 Security Whitepaper — v2.1
           </div>
           <h1 style={{ fontSize:'clamp(32px,5vw,52px)', fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1, marginBottom:16 }}>
-            HumanAttest Security Whitepaper
+            Attest Security Whitepaper
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640, marginBottom:24 }}>
-            A technical overview of the HumanAttest architecture, threat model, cryptographic
+            A technical overview of the Attest architecture, threat model, cryptographic
             protocols, and privacy guarantees.
           </p>
           <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
@@ -23,7 +23,7 @@ export default function Whitepaper() {
             <span style={{ color:'#E2E8F0' }}>·</span>
             <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Published May 2026</span>
             <span style={{ color:'#E2E8F0' }}>·</span>
-            <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>HumanAttest Security Ltd.</span>
+            <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Attest Security Ltd.</span>
           </div>
         </div>
       </section>
@@ -36,7 +36,7 @@ export default function Whitepaper() {
             <p style={{ color:'#64748B', lineHeight:1.75 }}>
               Business Email Compromise (BEC) caused over $2.9 billion in losses in 2023 (FBI IC3).
               The root cause is not weak passwords — it is the absence of human-intent verification
-              at the send layer. HumanAttest introduces a mandatory out-of-band verification step
+              at the send layer. Attest introduces a mandatory out-of-band verification step
               that proves a real human intentionally sent an email, using FIDO2 WebAuthn or TOTP,
               without ever accessing email content.
             </p>
@@ -44,11 +44,11 @@ export default function Whitepaper() {
 
           <div>
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>2. Threat Model</h2>
-            <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>HumanAttest is designed to defend against:</p>
+            <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>Attest is designed to defend against:</p>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                ['Session Hijacking','Attacker steals browser session cookie and sends emails from victim\'s account. HumanAttest blocks this — the attacker cannot pass the biometric/TOTP check without the victim\'s physical device.'],
-                ['AI-Generated Phishing','AI writes convincing emails from compromised accounts. HumanAttest ensures every sent email has a cryptographic proof of human intent.'],
+                ['Session Hijacking','Attacker steals browser session cookie and sends emails from victim\'s account. Attest blocks this — the attacker cannot pass the biometric/TOTP check without the victim\'s physical device.'],
+                ['AI-Generated Phishing','AI writes convincing emails from compromised accounts. Attest ensures every sent email has a cryptographic proof of human intent.'],
                 ['Malware-Driven Sending','Malware on the victim\'s machine attempts to send emails silently. The extension intercepts all send actions, including programmatic ones.'],
                 ['Insider Threats','An employee sends unauthorized emails. The audit log provides a timestamped, cryptographically signed record of every verified send action.'],
               ].map(([threat, desc]) => (
@@ -85,7 +85,7 @@ export default function Whitepaper() {
           <div>
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>4. Privacy Architecture</h2>
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>
-              HumanAttest is designed with a zero-knowledge architecture. The extension has no
+              Attest is designed with a zero-knowledge architecture. The extension has no
               Gmail API permissions and cannot read email content. The server receives only a
               cryptographic hash — never the email itself. This is enforced at the protocol level,
               not just by policy.
@@ -103,7 +103,7 @@ export default function Whitepaper() {
           <div style={{ borderTop:'1px solid #E2E8F0', paddingTop:32 }}>
             <p style={{ fontSize:13, color:'#94A3B8', lineHeight:1.6 }}>
               For security disclosures, contact{' '}
-              <a href="mailto:security@humanattest.com" style={{ color:'#2563EB', fontWeight:600 }}>security@humanattest.com</a>.
+              <a href="mailto:security@attest.com" style={{ color:'#2563EB', fontWeight:600 }}>security@attest.com</a>.
               For the full technical specification, see the{' '}
               <Link href="/docs" style={{ color:'#2563EB', fontWeight:600 }}>Documentation</Link>.
             </p>

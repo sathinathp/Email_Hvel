@@ -33,7 +33,7 @@ export default function Footer() {
           <div style={{ ...col, gap:16 }} className="footer-brand">
             <Link href="/" style={{ display:'inline-flex', alignItems:'center', gap:10, textDecoration:'none' }}>
               <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#2563EB,#1D4ED8)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:900, fontSize:16, boxShadow:'0 4px 12px rgba(37,99,235,0.4)', flexShrink:0 }}>H</div>
-              <span style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.04em', color:'white' }}>HumanAttest</span>
+              <span style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.04em', color:'white' }}>Attest</span>
             </Link>
 
             <p style={{ fontSize:14, color:'#64748B', lineHeight:1.7, maxWidth:280, margin:0 }}>
@@ -105,7 +105,7 @@ export default function Footer() {
       <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', padding:'14px 24px' }}>
         <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:10 }}>
           <p style={{ fontSize:12, fontWeight:700, color:'#334155', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>
-            © 2026 HumanAttest Security Ltd.
+            © 2026 Attest Security Ltd.
           </p>
           <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
             <span style={{ fontSize:12, fontWeight:700, color:'#334155', textTransform:'uppercase', letterSpacing:'0.1em', display:'flex', alignItems:'center', gap:6 }}>

@@ -10,7 +10,7 @@ export default function Terms() {
           <h1 style={{ fontSize:'clamp(32px,5vw,48px)', fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1, marginBottom:12 }}>
             Terms of Service
           </h1>
-          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: May 2026 · HumanAttest Security Ltd.</p>
+          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: May 2026 · Attest Security Ltd.</p>
         </div>
       </section>
 
@@ -19,11 +19,11 @@ export default function Terms() {
           {[
             {
               title:'1. Acceptance of Terms',
-              content:'By installing the HumanAttest extension or creating an account, you agree to these Terms of Service. If you do not agree, do not use the service.',
+              content:'By installing the Attest extension or creating an account, you agree to these Terms of Service. If you do not agree, do not use the service.',
             },
             {
               title:'2. Description of Service',
-              content:'HumanAttest provides a browser extension and verification backend that adds human-intent verification to Gmail send actions. The service does not read, store, or transmit email content. It logs only cryptographic hashes, timestamps, registered names, and verification results.',
+              content:'Attest provides a browser extension and verification backend that adds human-intent verification to Gmail send actions. The service does not read, store, or transmit email content. It logs only cryptographic hashes, timestamps, registered names, and verification results.',
             },
             {
               title:'3. Account Registration',
@@ -31,7 +31,7 @@ export default function Terms() {
             },
             {
               title:'4. Acceptable Use',
-              content:'You may not use HumanAttest to impersonate another person, circumvent security systems, or violate any applicable law. You may not attempt to reverse-engineer, decompile, or tamper with the extension or backend services.',
+              content:'You may not use Attest to impersonate another person, circumvent security systems, or violate any applicable law. You may not attempt to reverse-engineer, decompile, or tamper with the extension or backend services.',
             },
             {
               title:'5. Privacy',
@@ -43,7 +43,7 @@ export default function Terms() {
             },
             {
               title:'7. Limitation of Liability',
-              content:'HumanAttest is a security enhancement tool. We do not guarantee that use of the service will prevent all security incidents. Our liability is limited to the amount you paid for the service in the 12 months preceding any claim.',
+              content:'Attest is a security enhancement tool. We do not guarantee that use of the service will prevent all security incidents. Our liability is limited to the amount you paid for the service in the 12 months preceding any claim.',
             },
             {
               title:'8. Termination',
@@ -55,7 +55,7 @@ export default function Terms() {
             },
             {
               title:'10. Contact',
-              content:'Legal inquiries: legal@humanattest.com\nHumanAttest Security Ltd., 2026',
+              content:'Legal inquiries: legal@attest.com\nAttest Security Ltd., 2026',
             },
           ].map((section) => (
             <div key={section.title}>

@@ -140,7 +140,7 @@ export default function Pricing() {
             Every Plan. Zero Email Risk.
           </h2>
           <p style={{ color:'#94A3B8', fontSize:15, lineHeight:1.7, maxWidth:560, margin:'0 auto 48px' }}>
-            Regardless of which plan you choose, HumanAttest <strong style={{ color:'white' }}>never reads, stores, or transmits</strong> your email content. This is not a policy — it is a technical guarantee baked into our architecture.
+            Regardless of which plan you choose, Attest <strong style={{ color:'white' }}>never reads, stores, or transmits</strong> your email content. This is not a policy — it is a technical guarantee baked into our architecture.
           </p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:16 }}>
             {[
@@ -175,7 +175,7 @@ export default function Pricing() {
               ['Can I cancel anytime?','Yes. Cancel from your account dashboard at any time. No cancellation fees.'],
               ['Is the free plan really free?','Yes, forever. The Individual plan has no time limit and no credit card required.'],
               ['What happens to my data if I cancel?','Your verification logs are retained for 90 days after cancellation, then permanently deleted. You can request immediate deletion at any time.'],
-              ['Does HumanAttest work with Google Workspace?','Yes. It works with any Gmail interface — personal @gmail.com accounts and Google Workspace (formerly G Suite) accounts.'],
+              ['Does Attest work with Google Workspace?','Yes. It works with any Gmail interface — personal @gmail.com accounts and Google Workspace (formerly G Suite) accounts.'],
             ].map(([q, a]) => (
               <div key={q} style={{ padding:'20px 24px', background:'white', border:'1px solid #E2E8F0', borderRadius:14 }}>
                 <p style={{ fontWeight:700, color:'#0F172A', fontSize:15, marginBottom:8 }}>{q}</p>

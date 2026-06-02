@@ -18,7 +18,7 @@ export default function WebAuthn() {
             WebAuthn Biometric Authentication
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
-            HumanAttest uses the W3C WebAuthn standard to verify physical human presence using your
+            Attest uses the W3C WebAuthn standard to verify physical human presence using your
             device&apos;s built-in biometric sensor — Touch ID, Face ID, or a hardware security key.
             No passwords. No phishing. No remote bypass.
           </p>
@@ -36,14 +36,14 @@ export default function WebAuthn() {
               specification and is natively supported in Chrome, Firefox, Safari, and Edge.
             </p>
             <p style={{ color:'#64748B', lineHeight:1.75 }}>
-              When you register with HumanAttest, your device generates a unique cryptographic key
+              When you register with Attest, your device generates a unique cryptographic key
               pair. The private key never leaves your device. The public key is stored on our server.
               Every verification challenge is signed locally — we never see your biometric data.
             </p>
           </div>
 
           <div>
-            <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:16 }}>How HumanAttest Uses WebAuthn</h2>
+            <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:16 }}>How Attest Uses WebAuthn</h2>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {[
                 ['Registration','You register once. Your device creates a key pair. The public key is stored on our server. Your fingerprint or face scan stays on your device — always.'],

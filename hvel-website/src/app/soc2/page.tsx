@@ -15,7 +15,7 @@ export default function SOC2() {
             SOC 2 Compliance
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
-            HumanAttest is actively pursuing SOC 2 Type II certification. This page outlines our
+            Attest is actively pursuing SOC 2 Type II certification. This page outlines our
             current security controls and compliance posture.
           </p>
         </div>
@@ -75,7 +75,7 @@ export default function SOC2() {
               Enterprise customers can request our current security documentation, penetration test
               summaries, and compliance evidence package by contacting our security team.
             </p>
-            <a href="mailto:security@humanattest.com" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#2563EB', color:'white', padding:'10px 22px', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
+            <a href="mailto:security@attest.com" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#2563EB', color:'white', padding:'10px 22px', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
               Contact Security Team →
             </a>
           </div>
