@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://api.humanattest.com';
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
