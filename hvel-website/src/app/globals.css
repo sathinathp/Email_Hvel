@@ -882,3 +882,219 @@ img { max-width: 100%; display: block; }
 section[id] {
   scroll-margin-top: 72px;
 }
+
+/* ── Split matrix (Problem & Solution) styling ─────────────── */
+.split-matrix-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+
+@media (max-width: 900px) {
+  .split-matrix-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.split-matrix-arrow-container {
+  display: flex;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+@media (max-width: 900px) {
+  .split-matrix-arrow-container {
+    display: none !important;
+  }
+}
+
+.split-matrix-left-col {
+  border-right: 1px solid #E2E8F0;
+}
+
+@media (max-width: 900px) {
+  .split-matrix-left-col {
+    border-right: none !important;
+    border-bottom: 1px solid #E2E8F0;
+  }
+}
+
+/* ── Stepper Timeline responsive styling ──────── */
+.stepper-container {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.stepper-line {
+  position: absolute;
+  top: 30px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: #E2E8F0;
+  z-index: 1;
+}
+
+.stepper-start-dot {
+  position: absolute;
+  top: 27px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563EB;
+  z-index: 2;
+}
+
+.stepper-end-dot {
+  position: absolute;
+  top: 27px;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563EB;
+  z-index: 2;
+}
+
+.stepper-item {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.stepper-circle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #DBEAFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: #2563EB;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  flex-shrink: 0;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.stepper-item:hover .stepper-circle {
+  border-color: #2563EB;
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.16);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 900px) {
+  .stepper-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 40px;
+    padding-left: 30px;
+  }
+  
+  .stepper-line {
+    top: 30px;
+    bottom: 30px;
+    left: 29px;
+    width: 2px;
+    height: auto;
+    right: auto;
+  }
+  
+  .stepper-start-dot {
+    top: 15px;
+    left: 26px;
+  }
+  
+  .stepper-end-dot {
+    top: auto;
+    bottom: 15px;
+    left: 26px;
+    right: auto;
+  }
+  
+  .stepper-item {
+    width: 100%;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 24px;
+  }
+
+  .stepper-circle {
+    margin-bottom: 0;
+  }
+}
+
+/* ── High-Trust Fields grid layout ───────────────── */
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+}
+
+.fields-cell {
+  padding: 48px 40px;
+  display: flex;
+  gap: 20px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+/* Vertical and horizontal divider lines on desktop */
+.fields-cell-1, .fields-cell-2, .fields-cell-4, .fields-cell-5 {
+  border-right: 1px solid #E2E8F0;
+}
+
+.fields-cell-1, .fields-cell-2, .fields-cell-3 {
+  border-bottom: 1px solid #E2E8F0;
+}
+
+@media (max-width: 1024px) {
+  .fields-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .fields-cell {
+    border: none;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 36px 20px;
+  }
+  
+  .fields-cell:nth-child(odd) {
+    border-right: 1px solid #E2E8F0;
+  }
+  
+  /* Remove bottom border for the last row in 2-column layout */
+  .fields-cell:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .fields-cell {
+    border-right: none !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    padding: 32px 0;
+  }
+  
+  .fields-cell:last-child {
+    border-bottom: none !important;
+  }
+}

@@ -39,9 +39,6 @@ export default function Navbar() {
   }, [pathname]);
 
   const navLinks = [
-    { href: '/#protocol',  label: 'Protocol' },
-    { href: '/#workflow',  label: 'Workflow' },
-    { href: '/#features',  label: 'Features' },
     { href: '/docs',       label: 'Docs' },
     { href: '/pricing',    label: 'Pricing' },
     { href: '/verify',     label: 'Verify Hash' },

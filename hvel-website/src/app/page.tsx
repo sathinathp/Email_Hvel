@@ -11,8 +11,6 @@ interface MousePoint {
   t: number;
 }
 
-type TabType = 'protocol' | 'workflow' | 'features';
-
 export default function Home() {
   // Load premium typography fonts
   useEffect(() => {
@@ -22,39 +20,6 @@ export default function Home() {
     document.head.appendChild(link);
     return () => {
       document.head.removeChild(link);
-    };
-  }, []);
-
-  // Tabs state synced with hash
-  const [activeTab, setActiveTab] = useState<TabType>('protocol');
-
-  useEffect(() => {
-    let lastHash = window.location.hash;
-
-    const handleHash = () => {
-      const currentHash = window.location.hash;
-      if (currentHash !== lastHash) {
-        lastHash = currentHash;
-        const cleanHash = currentHash.replace('#', '') as TabType;
-        if (cleanHash === 'protocol' || cleanHash === 'workflow' || cleanHash === 'features') {
-          setActiveTab(cleanHash);
-          if (window.scrollY < 400) {
-            const el = document.getElementById('tabs-section');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth' });
-            }
-          }
-        }
-      }
-    };
-
-    handleHash();
-    const interval = setInterval(handleHash, 100);
-    window.addEventListener('hashchange', handleHash);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('hashchange', handleHash);
     };
   }, []);
 
@@ -85,9 +50,8 @@ export default function Home() {
   const animationRef = useRef<number | null>(null);
   const pointsRef = useRef<MousePoint[]>([]);
 
-  // Handle canvas resizing dynamically using ResizeObserver to avoid initial 0x0 issues
+  // Handle canvas resizing dynamically using ResizeObserver
   useEffect(() => {
-    if (activeTab !== 'protocol') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -125,11 +89,10 @@ export default function Home() {
 
     resizeObserver.observe(canvas);
     return () => resizeObserver.disconnect();
-  }, [activeTab]);
+  }, []);
 
   // Draw sandbox trails
   useEffect(() => {
-    if (activeTab !== 'protocol') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -155,7 +118,7 @@ export default function Home() {
     ctx.arc(last.x, last.y, 5, 0, 2 * Math.PI);
     ctx.fillStyle = '#1D4ED8';
     ctx.fill();
-  }, [points, activeTab]);
+  }, [points]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (animationRef.current) return;
@@ -315,12 +278,13 @@ export default function Home() {
   };
 
   return (
-    <main 
+    <main
       className="min-h-screen bg-white"
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#0F172A', overflowX: 'hidden' }}
     >
       {/* Dynamic Keyframes & CSS Custom Injections */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
@@ -365,7 +329,7 @@ export default function Home() {
       {/* ── TOP ANNOUNCEMENT BAR (SEO Studio Style) ── */}
       <div style={{ background: '#2563EB', color: '#ffffff', textAlign: 'center', padding: '12px 24px', fontSize: 13, fontWeight: 700, letterSpacing: '0.02em' }}>
         🛡️ Verify Human Participation securely. Protect your organization against AI outbox hijacking instantly.{' '}
-        <a href="#tabs-section" style={{ color: '#ffffff', textDecoration: 'underline', marginLeft: 6, fontWeight: 800 }}>
+        <a href="#sandbox-section" style={{ color: '#ffffff', textDecoration: 'underline', marginLeft: 6, fontWeight: 800 }}>
           Try the Whiteboard Sandbox →
         </a>
       </div>
@@ -374,13 +338,13 @@ export default function Home() {
 
       {/* ── HERO SECTION ── */}
       <section style={{ paddingTop: 80, paddingBottom: 96, background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)', position: 'relative', overflow: 'hidden' }}>
-        
+
         {/* Subtle grid pattern overlay */}
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(37, 99, 235, 0.08) 1px, transparent 1px)', backgroundSize: '32px 32px', opacity: 0.5, pointerEvents: 'none' }} />
 
         <div className="container-custom" style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 64, alignItems: 'center' }}>
-            
+
             {/* Left Column: Authentic Copy & Typography */}
             <div>
               {/* Rounded Blue Badge */}
@@ -389,18 +353,19 @@ export default function Home() {
               </div>
 
               <h1 style={{ fontSize: 'clamp(38px, 4.5vw, 56px)', fontWeight: 900, lineHeight: 1.15, color: '#0F172A', letterSpacing: '-0.04em' }}>
-                Add Proof of Human Intent <br />
-                for Every Email <span style={{ color: '#2563EB', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>in the Era of AI.</span>
+                Add Proof of Human <br />
+                Intent for Every Email <br />
+                in the Era of AI.
               </h1>
-              
+
               <p style={{ fontSize: 17, color: '#475569', lineHeight: 1.6, marginTop: 24, marginBottom: 32, maxWidth: 540, fontWeight: 500 }}>
                 Let Attest verify that a real person intentionally sent an email or message without ever reading content, interrupting workflows, or requiring complex integrations.
               </p>
 
               {/* CTAs Styled exactly like SEO Studio */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-                <a 
-                  href={EXTENSION_DOWNLOAD_URL} 
+                <a
+                  href={EXTENSION_DOWNLOAD_URL}
                   className="btn-hover"
                   style={{ background: '#2563EB', color: '#ffffff', padding: '16px 32px', borderRadius: 8, fontWeight: 700, textDecoration: 'none', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', fontSize: 15 }}
                 >
@@ -435,21 +400,19 @@ export default function Home() {
                 ))}
               </div>
 
-              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                (ENTERPRISE-GRADE PROTECTION · CHROME &amp; GOOGLE WORKSPACE)
-              </p>
+
             </div>
 
             {/* Right Column: Workflow Interactive Animation (Styled like SEO Studio console) */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <div 
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #E2E8F0', 
-                  borderRadius: 24, 
-                  padding: 0, 
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: 24,
+                  padding: 0,
                   width: '100%',
-                  maxWidth: 460, 
+                  maxWidth: 460,
                   position: 'relative',
                   overflow: 'hidden'
                 }}
@@ -470,7 +433,7 @@ export default function Home() {
                         onClick={() => setWorkflowStep(s.step)}
                         style={{
                           background: isActive ? '#2563EB' : 'transparent',
-                          color: isActive ? '#475569' : '#64748B',
+                          color: isActive ? '#ffffff' : '#64748B',
                           border: 'none',
                           padding: '6px 12px',
                           borderRadius: 6,
@@ -489,7 +452,7 @@ export default function Home() {
 
                 {/* Central Animation Area */}
                 <div style={{ height: 280, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#ffffff', position: 'relative' }}>
-                  
+
                   {/* STEP 1: Click Send */}
                   {workflowStep === 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', justifyContent: 'center', animation: 'fadeIn 0.3s' }}>
@@ -596,218 +559,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── INBOX EXPERIENCE COMPARISON SECTION (Restored & Styled Premium) ── */}
-      <section style={{ padding: '96px 24px', background: '#ffffff', borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9' }}>
+
+
+      {/* ── PROBLEM / LIMITATION / SOLUTION SECTION (Problem Matrix) ── */}
+      <section id="problem-intro-section" style={{ padding: '96px 24px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
-          
-          <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <h3 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em' }}>
-              The Inbox <span style={{ color: '#2563EB' }}>Experience</span>
-            </h3>
-            <p style={{ fontSize: 16, color: '#64748B', marginTop: 12, fontWeight: 500, maxWidth: 640, margin: '12px auto 0 auto' }}>
-              See how verified human emails display trust cues seamlessly across different recipient setups.
-            </p>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 48 }}>
-            
-            {/* Scenario 1: Extension User */}
-            <div className="hover-lift" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <p style={{ fontSize: 13, fontWeight: 800, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 18 }}>
-                Receiver HAS Extension
-              </p>
-              <div style={{ width: '100%', background: '#0F172A', borderRadius: 20, padding: 28, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56' }}></div>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }}></div>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }}></div>
-                </div>
-                <div style={{ color: 'white', fontSize: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>S</div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, color: '#ffffff' }}>Sender Name</span>
-                        <span style={{ background: '#059669', color: 'white', fontSize: 9, padding: '2px 8px', borderRadius: 99, fontWeight: 900, letterSpacing: '0.03em' }}>🛡️ VERIFIED HUMAN</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>sender@example.com</div>
-                    </div>
-                  </div>
-                  <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', marginBottom: 16 }}></div>
-                  <div style={{ color: '#CBD5E1', lineHeight: 1.6, fontSize: 13.5 }}>
-                    Hello, I have verified my physical intent for this sensitive request...
-                  </div>
-                </div>
-              </div>
-              <p style={{ fontSize: 14, color: '#64748B', marginTop: 20, textAlign: 'center', lineHeight: 1.5, maxWidth: 420 }}>
-                <strong>Native Integration:</strong> The extension automatically detects the cryptographic header hash and injects a real-time trust badge into the Gmail interface.
-              </p>
-            </div>
 
-            {/* Scenario 2: Non-Extension User */}
-            <div className="hover-lift" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <p style={{ fontSize: 13, fontWeight: 800, color: '#16A34A', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 18 }}>
-                Receiver NO Extension
-              </p>
-              <div style={{ width: '100%', background: 'white', borderRadius: 20, padding: 28, border: '1px solid #E2E8F0' }} className="premium-shadow-lg">
-                <div style={{ color: '#1E293B', fontSize: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontWeight: 900 }}>S</div>
-                    <div>
-                      <span style={{ fontWeight: 700, color: '#0F172A' }}>Sender Name</span>
-                      <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>sender@example.com</div>
-                    </div>
-                  </div>
-                  <div style={{ color: '#475569', lineHeight: 1.6, marginBottom: 24, fontSize: 13.5 }}>
-                    Hello, please find the sensitive documents attached...
-                  </div>
-                  <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
-                    <div style={{ background: '#F8FAFC', padding: 12, borderRadius: 12, border: '1px solid #E2E8F0', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {/* Soft blue small stamp icon */}
-                        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#2563EB', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>A</div>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 11, color: '#0F172A', letterSpacing: '0.02em' }}>ATTEST TRUST STAMP</div>
-                          <div style={{ fontSize: 9, color: '#2563EB', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 1 }}>CLICK TO VERIFY CRYPTOGRAPHIC IDENTITY</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p style={{ fontSize: 14, color: '#64748B', marginTop: 20, textAlign: 'center', lineHeight: 1.5, maxWidth: 420 }}>
-                <strong>Universal Portal:</strong> Non-users see a professional Trust Stamp. Clicking it opens a secure hosted verification page showing the full audit trail.
-              </p>
-            </div>
-
-          </div>
-
-          {/* Integration Note / Pro Tip */}
-          <div style={{ marginTop: 48, background: '#EFF6FF', border: '1px dashed #BFDBFE', borderRadius: 16, padding: 24, textAlign: 'center', maxWidth: 900, margin: '48px auto 0 auto' }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#1E40AF', fontWeight: 600 }}>
-              🚀 <span style={{ color: '#2563EB' }}>Pro Tip:</span> Non-extension users are automatically nudged to join the protocol upon their first reply, ensuring viral network security.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── LOGO WALL (SEO Studio Style) ── */}
-      <section style={{ padding: '48px 24px 64px 24px', borderBottom: '1px solid #F1F5F9', background: '#ffffff' }}>
-        <div className="container-custom" style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 32 }}>
-            Trusted by security-first teams and modern enterprises worldwide
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '32px 56px' }}>
-            {['Google Workspace', 'Microsoft 365', 'Okta Identity', 'Yubico Keys', 'SOC 2 Compliant', 'AES-256 Security'].map((logo) => (
-              <div 
-                key={logo} 
-                className="logo-grayscale"
-                style={{ fontSize: 18, fontWeight: 800, color: '#475569', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <span style={{ color: '#2563EB' }}>❖</span> {logo}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES SECTION (SEO Studio Grid style) ── */}
-      <section style={{ padding: '96px 24px', background: '#FFFFFF' }}>
-        <div className="container-custom">
-          
-          <div style={{ textAlign: 'center', marginBottom: 64, maxWidth: 640, margin: '0 auto 64px auto' }}>
-            <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
-              FEATURES
-            </span>
-            <h2 style={{ fontSize: 'clamp(30px, 3.8vw, 42px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 16 }}>
-              Everything you need to secure communication
-            </h2>
-            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-              Action-level local cryptographic security for modern workforces. No content access.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-            {[
-              {
-                title: 'Verify Human Participation',
-                desc: 'Capture kinetic cursor curve tracing directly at the browser client. Bots move in perfect linear formulas; human muscles carry micro-jitters that cannot be faked.',
-                bg: '#FAF5FF',
-                color: '#9333EA',
-                icon: '✍️'
-              },
-              {
-                title: 'Privacy-First Design',
-                desc: 'Our zero-access framework is mathematically isolated. Storing or routing your message body, headers, or credentials is technically impossible.',
-                bg: '#ECFDF5',
-                color: '#10B981',
-                icon: '🔒'
-              },
-              {
-                title: 'Never Reads Email',
-                desc: 'The Chrome extension intercepts actions purely at the DOM layer without OAuth Gmail API authorization permissions. Fully auditable.',
-                bg: '#FEF2F2',
-                color: '#EF4444',
-                icon: '🚫'
-              },
-              {
-                title: 'One Click Integration',
-                desc: 'Deploy without modifying DNS, installing central server systems, or restructuring workflows. Ready for teams in minutes.',
-                bg: '#EFF6FF',
-                color: '#2563EB',
-                icon: '🔌'
-              },
-              {
-                title: 'Immutable Audit Trail',
-                desc: 'Store simple hash event payloads securely. Recipients verify signatures instantly, matching timestamps and verified records transparently.',
-                bg: '#FFFBEB',
-                color: '#F59E0B',
-                icon: '🔎'
-              },
-              {
-                title: 'Enterprise BEC Protection',
-                desc: 'Block script sessions even if attackers compromise admin accounts, duplicate session cookies, or bypass multi-factor authentications.',
-                bg: '#EEF2FF',
-                color: '#4F46E5',
-                icon: '👔'
-              }
-            ].map((f) => (
-              <div 
-                key={f.title} 
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #E2E8F0', 
-                  borderRadius: 16, 
-                  padding: 32, 
-                  transition: 'all 0.2s', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: 16 
-                }} 
-                className="premium-shadow"
-              >
-                {/* Rounded Icon square */}
-                <div style={{ width: 48, height: 48, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: f.bg, color: f.color }}>
-                  {f.icon}
-                </div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                  {f.title}
-                </h3>
-                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-                  {f.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── PROBLEM / LIMITATION / SOLUTION SECTION (SEO Studio style) ── */}
-      <section id="problem-intro-section" style={{ padding: '96px 24px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
-        <div className="container-custom">
-          
           <div style={{ textAlign: 'center', marginBottom: 64, maxWidth: 800, margin: '0 auto 64px auto' }}>
             <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
               THE REALITY OF DIGITAL IDENTITY
@@ -819,8 +576,8 @@ export default function Home() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
             {/* PROBLEM CARD */}
-            <div 
-              style={{ 
+            <div
+              style={{
                 background: '#ffffff',
                 borderRadius: 16,
                 border: '1px solid #E2E8F0',
@@ -843,8 +600,8 @@ export default function Home() {
             </div>
 
             {/* LIMITATION CARD */}
-            <div 
-              style={{ 
+            <div
+              style={{
                 background: '#ffffff',
                 borderRadius: 16,
                 border: '1px solid #E2E8F0',
@@ -867,8 +624,8 @@ export default function Home() {
             </div>
 
             {/* HOW ATTEST SOLVES IT CARD */}
-            <div 
-              style={{ 
+            <div
+              style={{
                 background: '#ffffff',
                 borderRadius: 16,
                 border: '1px solid #E2E8F0',
@@ -886,7 +643,7 @@ export default function Home() {
                 How Attest Solves It
               </h3>
               <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-                Attest verifies real human interaction like active keyboard and mouse behavior during message creation and adds a trusted human-authenticated signature that recipients can instantly recognize.
+                Attest verifies real human interaction like active keyboard & mouse behavior & adds a trusted human-authenticated signature.
               </p>
             </div>
           </div>
@@ -897,76 +654,215 @@ export default function Home() {
       {/* ── THE THREAT & SAFEGUARD SPLIT MATRIX ── */}
       <section style={{ padding: '96px 24px', background: '#ffffff' }}>
         <div className="container-custom">
-          
+
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
-              THE PROBLEM & THE ANTIDOTE
+              THE PROBLEM &amp; THE SOLUTION
             </span>
             <h2 style={{ fontSize: 'clamp(30px, 3.8vw, 42px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
               Digital communication is losing trust.
             </h2>
+            <p style={{ fontSize: 16, color: '#64748B', margin: '16px auto 0 auto', maxWidth: 600, fontWeight: 500, lineHeight: 1.6 }}>
+              Attest brings back trust with human verification at every step.
+            </p>
           </div>
 
           <div style={{ border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden', background: '#ffffff' }} className="premium-shadow-lg">
             {[
               {
-                issue: 'AI-generated emails flood inboxes',
-                issueDesc: 'Autonomous software agents send thousands of perfectly worded emails with zero active human involvement. Recipients have no reliable way to verify presence.',
-                solution: 'Human activity verification',
-                solDesc: 'Attest captures and traces natural physical cursor velocity, path deviations, and steering configurations at the exact moment of click.'
+                issueTitle: 'AI-generated emails flood inboxes',
+                issueDesc: 'Autonomous software agents send thousands of perfectly worded emails with zero human involvement. Recipients have no reliable way to verify presence.',
+                solutionTitle: 'Human activity verification',
+                solDesc: 'Attest captures and traces natural physical cursor velocity, path deviations, and steering configurations at the exact moment of click.',
+                problemIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#FEF2F2" />
+                    <circle cx="28" cy="28" r="27" stroke="#FECACA" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#EF4444" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#EF4444" opacity="0.5" />
+                    <rect x="16" y="20" width="24" height="16" rx="2" stroke="#475569" strokeWidth="2.5" fill="#ffffff" />
+                    <path d="M16 22l12 8 12-8" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <circle cx="40" cy="34" r="7.5" fill="#EF4444" />
+                    <text x="40" y="34.5" textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontSize="10" fontWeight="950" fontFamily="system-ui, sans-serif">!</text>
+                  </svg>
+                ),
+                solutionIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#ECFDF5" />
+                    <circle cx="28" cy="28" r="27" stroke="#A7F3D0" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#10B981" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#10B981" opacity="0.5" />
+                    <rect x="16" y="18" width="24" height="20" rx="3" stroke="#475569" strokeWidth="2.5" fill="#ffffff" />
+                    <line x1="16" y1="24" x2="40" y2="24" stroke="#475569" strokeWidth="2" />
+                    <circle cx="20" cy="21" r="1" fill="#475569" />
+                    <circle cx="23" cy="21" r="1" fill="#475569" />
+                    <circle cx="26" cy="21" r="1" fill="#475569" />
+                    <circle cx="28" cy="29" r="3.5" fill="#475569" />
+                    <path d="M22 36c0-3 3-4 6-4s6 1 6 4" stroke="#475569" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="40" cy="34" r="7.5" fill="#10B981" />
+                    <path d="M37 34l2 2 4-4" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
               },
               {
-                issue: 'Impersonation and spoofed senders',
+                issueTitle: 'Impersonation and spoofed senders',
                 issueDesc: 'Attackers spoof corporate email identities to bypass standard filters, impersonating leadership or legal representatives with full credentials.',
-                solution: 'Human-attested signature layer',
-                solDesc: 'Add cryptographic signature header stamps that can only be generated through real, physical user calibration on local systems.'
+                solutionTitle: 'Human-attested signature layer',
+                solDesc: 'Add cryptographic signature header stamps that can only be generated through real, physical user calibration on local systems.',
+                problemIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#FEF2F2" />
+                    <circle cx="28" cy="28" r="27" stroke="#FECACA" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#EF4444" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#EF4444" opacity="0.5" />
+                    <mask id="hacker-mask">
+                      <circle cx="28" cy="28" r="18" fill="#ffffff" />
+                    </mask>
+                    <g mask="url(#hacker-mask)">
+                      <path d="M28 14c-6.5 0-10 5-10 11c0 3.5 2.5 8 2.5 8s.5-3.5 3-4.5c2-1 3-3 4.5-3s2.5 2 4.5 3c2.5 1 3 4.5 3 4.5s2.5-4.5 2.5-8c0-6-3.5-11-10-11z" fill="#1E293B" />
+                      <circle cx="28" cy="25" r="3.5" fill="#F8FAFC" />
+                      <path d="M24.5 25h7" stroke="#1E293B" strokeWidth="1.5" />
+                      <rect x="22" y="23" width="12" height="4" rx="2" fill="#1E293B" />
+                      <circle cx="25.5" cy="25" r="1" fill="#ffffff" />
+                      <circle cx="30.5" cy="25" r="1" fill="#ffffff" />
+                      <path d="M16 38c0-5 5-7 12-7s12 2 12 7" stroke="#1E293B" strokeWidth="2.5" fill="#1E293B" />
+                    </g>
+                    <circle cx="40" cy="34" r="7.5" fill="#EF4444" />
+                    <text x="40" y="34.5" textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontSize="10" fontWeight="950" fontFamily="system-ui, sans-serif">!</text>
+                  </svg>
+                ),
+                solutionIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#ECFDF5" />
+                    <circle cx="28" cy="28" r="27" stroke="#A7F3D0" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#10B981" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#10B981" opacity="0.5" />
+                    <rect x="18" y="16" width="20" height="24" rx="2" stroke="#475569" strokeWidth="2.5" fill="#ffffff" />
+                    <line x1="22" y1="22" x2="34" y2="22" stroke="#94A3B8" strokeWidth="2" />
+                    <line x1="22" y1="26" x2="30" y2="26" stroke="#94A3B8" strokeWidth="2" />
+                    <path d="M22 33 q 2 -4 4 -2 t 3 1 t 2 -3 t 3 2" stroke="#10B981" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    <circle cx="40" cy="34" r="7.5" fill="#10B981" />
+                    <path d="M37 34l2 2 4-4" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
               },
               {
-                issue: 'Authentication verifies domains, not humans',
-                issueDesc: 'Standard algorithms prove server authorization records — leaving a massive structural gap between email servers and physical senders.',
-                solution: 'Verified intent proof layer',
-                solDesc: 'Trace the physical send actions dynamically, sealing the gap between server credentials and the actual human session.'
+                issueTitle: 'Authentication verifies domains, not humans',
+                issueDesc: 'Standard algorithms prove server authorization records—leaving a massive structural gap between email servers and physical senders.',
+                solutionTitle: 'Verified intent proof layer',
+                solDesc: 'Trace the physical send actions dynamically, sealing the gap between server credentials and the actual human session.',
+                problemIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#FEF2F2" />
+                    <circle cx="28" cy="28" r="27" stroke="#FECACA" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#EF4444" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#EF4444" opacity="0.5" />
+                    <circle cx="26" cy="26" r="10" stroke="#475569" strokeWidth="2" fill="#ffffff" />
+                    <path d="M16 26h20" stroke="#475569" strokeWidth="1.5" />
+                    <path d="M26 16c3 3 4 7 4 10s-1 7-4 10c-3-3-4-7-4-10s1-7 4-10z" stroke="#475569" strokeWidth="1.5" fill="none" />
+                    <circle cx="38" cy="34" r="7.5" fill="#EF4444" />
+                    <rect x="35" y="33" width="6" height="5" rx="1" fill="#ffffff" />
+                    <path d="M36 33v-2a2 2 0 114 0v2" stroke="#ffffff" strokeWidth="1.2" fill="none" />
+                  </svg>
+                ),
+                solutionIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#ECFDF5" />
+                    <circle cx="28" cy="28" r="27" stroke="#A7F3D0" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#10B981" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#10B981" opacity="0.5" />
+                    <path d="M28 16c6 0 10 3 10 3s0 9-2 13c-2.5 5-8 7-8 7s-5.5-2-8-7c-2-4-2-13-2-13s4-3 10-3z" stroke="#047857" strokeWidth="2.5" fill="#ffffff" strokeLinejoin="round" />
+                    <path d="M24 27l3 3 5-5" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
               },
               {
-                issue: 'Billing and payment invoice fraud',
+                issueTitle: 'Billing and payment invoice fraud',
                 issueDesc: 'Wire-transfer approvals and banking instructions are modified through active browser hijacking scripts, looking completely genuine.',
-                solution: 'Verifiable physical approval trail',
-                solDesc: 'Protect high-value outbox operations by forcing physical calibration checks, preventing autonomous scripts from dispatching orders.'
+                solutionTitle: 'Verifiable physical approval trail',
+                solDesc: 'Protect high-value outbox operations by forcing physical calibration checks, preventing autonomous scripts from dispatching orders.',
+                problemIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#FEF2F2" />
+                    <circle cx="28" cy="28" r="27" stroke="#FECACA" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#EF4444" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#EF4444" opacity="0.5" />
+                    <rect x="18" y="16" width="18" height="24" rx="2" stroke="#475569" strokeWidth="2.5" fill="#ffffff" />
+                    <line x1="22" y1="21" x2="32" y2="21" stroke="#94A3B8" strokeWidth="2" />
+                    <line x1="22" y1="25" x2="30" y2="25" stroke="#94A3B8" strokeWidth="2" />
+                    <line x1="22" y1="29" x2="26" y2="29" stroke="#94A3B8" strokeWidth="2" />
+                    <circle cx="38" cy="34" r="7.5" fill="#EF4444" />
+                    <text x="38" y="34.5" textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontSize="9" fontWeight="950" fontFamily="system-ui, sans-serif">$</text>
+                  </svg>
+                ),
+                solutionIcon: (
+                  <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <circle cx="28" cy="28" r="24" fill="#ECFDF5" />
+                    <circle cx="28" cy="28" r="27" stroke="#A7F3D0" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="8" cy="16" r="2" fill="#10B981" opacity="0.5" />
+                    <circle cx="48" cy="40" r="1.5" fill="#10B981" opacity="0.5" />
+                    <path d="M16 36h24v2H16zm3-12h2v12h-2zm5 0h2v12h-2zm5 0h2v12h-2zm5 0h2v12h-2zm-16-4l12-5 12 5z" stroke="#047857" strokeWidth="2" fill="#ffffff" strokeLinejoin="round" />
+                    <circle cx="40" cy="34" r="7.5" fill="#10B981" />
+                    <path d="M37 34l2 2 4-4" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
               }
             ].map((row, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              <div
+                key={idx}
+                className="split-matrix-row"
+                style={{
                   borderBottom: idx === 3 ? 'none' : '1px solid #E2E8F0',
-                  position: 'relative'
                 }}
               >
-                {/* Left Side: Issue Column */}
-                <div style={{ padding: '36px 40px', background: '#ffffff', borderRight: '1px solid #F1F5F9' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#EF4444', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                    🚨 ISSUE DETECTED
+                {/* Left Side: Problem Column */}
+                <div className="split-matrix-left-col" style={{ display: 'flex', gap: 20, padding: '36px 40px', background: '#ffffff' }}>
+                  <div style={{ flexShrink: 0 }}>
+                    {row.problemIcon}
                   </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 10px 0' }}>
-                    {row.issue}
-                  </h3>
-                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-                    {row.issueDesc}
-                  </p>
+                  <div>
+                    <div style={{ color: '#EF4444', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                      PROBLEM
+                    </div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 8px 0', lineHeight: 1.3 }}>
+                      {row.issueTitle}
+                    </h3>
+                    <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+                      {row.issueDesc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Arrow Connector Button */}
+                <div className="split-matrix-arrow-container" style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  border: '1px solid #E2E8F0',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <span style={{ color: '#64748B', fontWeight: 800, fontSize: 15 }}>→</span>
                 </div>
 
                 {/* Right Side: Solution Column */}
-                <div style={{ padding: '36px 40px', background: '#F8FAFC' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10B981', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                    🛡️ ATTEST SOLUTION
+                <div style={{ display: 'flex', gap: 20, padding: '36px 40px', background: '#ffffff' }}>
+                  <div style={{ flexShrink: 0 }}>
+                    {row.solutionIcon}
                   </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#047857', margin: '0 0 10px 0' }}>
-                    {row.solution}
-                  </h3>
-                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-                    {row.solDesc}
-                  </p>
+                  <div>
+                    <div style={{ color: '#10B981', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                      SOLUTION
+                    </div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: '0 0 8px 0', lineHeight: 1.3 }}>
+                      {row.solutionTitle}
+                    </h3>
+                    <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+                      {row.solDesc}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -975,320 +871,370 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── TAB INTERFACE (Protocol Interactive whiteboard & Scenarios) ── */}
-      <section id="tabs-section" style={{ padding: '96px 24px', background: '#FFFFFF', scrollMarginTop: 64 }}>
+      {/* ── INTERACTIVE WHITEBOARD SANDBOX (Fully Open, Not in tabs!) ── */}
+      <section id="sandbox-section" style={{ padding: '96px 24px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="container-custom">
+          {/* Header moved outside the column layout to align both cards side-by-side at the same top baseline */}
+          <div style={{ marginBottom: 48, maxWidth: 800 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#2563EB', display: 'block', marginBottom: 6 }}>
+              Interactive calibration tool
+            </span>
+            <h2 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', margin: 0 }}>
+              Check how a human and a bot will interact.
+            </h2>
+            <p style={{ color: '#64748B', fontSize: 15, marginTop: 12, lineHeight: 1.6, fontWeight: 500 }}>
+              Bots move in mathematically straight lines or uniform speeds. Humans have natural muscle micro-variance, acceleration curves, and steering fluctuations.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 64, alignItems: 'stretch' }}>
+
+            {/* Left Side: Interactive canvas */}
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              {/* Interactive Canvas Grid (Clean Grid mockup) */}
+              <div
+                ref={trackingAreaRef}
+                onPointerMove={handlePointerMove}
+                onPointerLeave={handlePointerLeave}
+                style={{
+                  width: '100%',
+                  height: 280,
+                  background: '#ffffff',
+                  backgroundImage: 'radial-gradient(rgba(37, 99, 235, 0.12) 1px, transparent 1px)',
+                  backgroundSize: '16px 16px',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: 16,
+                  position: 'relative',
+                  cursor: 'crosshair',
+                  overflow: 'hidden',
+                  flexGrow: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+                className="premium-shadow"
+              >
+                <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
+                {!isTracking && points.length === 0 && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', padding: 24, textAlign: 'center' }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>✍️ Draw a trajectory signature in this canvas grid</span>
+                    <span style={{ fontSize: 12, color: '#64748B', marginTop: 4, fontWeight: 500 }}>Move your mouse to trace curves, or simulate robotic scripts below</span>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <button
+                  onClick={simulateBot}
+                  style={{ flex: 1, padding: '12px 18px', background: 'white', border: '1px solid #D1D5DB', color: '#475569', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                  className="premium-shadow"
+                >
+                  🤖 Check how a Bot moves
+                </button>
+                <button
+                  onClick={resetCanvas}
+                  style={{ padding: '12px 24px', background: '#2563EB', border: 'none', color: '#ffffff', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                  className="premium-shadow"
+                >
+                  Reset Canvas
+                </button>
+              </div>
+            </div>
+
+            {/* Right Side: Simplified Behavior Analysis Card */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 36, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="premium-shadow">
+                <div>
+                  <h3 style={{ fontSize: 13, fontWeight: 800, color: '#2563EB', marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid #F1F5F9', paddingBottom: 10 }}>
+                    Behavioral Analysis
+                  </h3>
+
+                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, marginBottom: 24, fontWeight: 500 }}>
+                    Our AI models analyze micro-jitter, velocity profiles, and steering configurations in real time to verify human participation.
+                  </p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', display: 'block', marginBottom: 8, letterSpacing: '0.05em' }}>
+                    Classification Verdict
+                  </span>
+
+                  <div style={{
+                    background: stats.verdict.includes('BOT') ? '#FEF2F2' : stats.verdict.includes('HUMAN') ? '#ECFDF5' : '#F8FAFC',
+                    border: `1px solid ${stats.verdict.includes('BOT') ? '#FCA5A5' : stats.verdict.includes('HUMAN') ? '#A7F3D0' : '#E2E8F0'}`,
+                    borderRadius: 12,
+                    padding: '24px 16px',
+                    textAlign: 'center',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <span style={{
+                      fontSize: 16,
+                      fontWeight: 900,
+                      color: stats.verdict.includes('BOT') ? '#DC2626' : stats.verdict.includes('HUMAN') ? '#047857' : '#2563EB',
+                      display: 'block',
+                      letterSpacing: '-0.01em'
+                    }}>
+                      {stats.verdict.includes('BOT')
+                        ? '❌ Robotic / AI Sender Detected'
+                        : stats.verdict.includes('HUMAN')
+                          ? '✅ Verified Human (Passed)'
+                          : stats.verdict}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 6, display: 'block', fontWeight: 500 }}>
+                      {stats.verdict.includes('BOT')
+                        ? 'Trajectory flagged for perfect constant velocity and zero directional deviation.'
+                        : stats.verdict.includes('HUMAN')
+                          ? 'Natural physical muscle acceleration and micro-jitter patterns detected.'
+                          : 'Draw curves on the whiteboard canvas to begin security analysis.'}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── THE 5 STEPS TO ADD PROOF OF HUMAN INTENT (Fully Open!) ── */}
+      <section style={{ padding: '96px 24px', background: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
           
-          {/* Tab Selection Switcher exactly like SEO Studio pricing toggle */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 56 }}>
-            <div style={{ background: '#F1F5F9', padding: 4, borderRadius: 10, display: 'inline-flex', gap: 4 }}>
-              {(['protocol', 'workflow', 'features'] as const).map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      window.location.hash = tab;
-                    }}
-                    style={{
-                      background: isActive ? '#ffffff' : 'transparent',
-                      color: isActive ? '#2563EB' : '#475569',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '10px 24px',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      textTransform: 'capitalize',
-                      outline: 'none',
-                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-                    }}
-                  >
-                    {tab === 'protocol' ? 'Whiteboard Sandbox' : tab === 'workflow' ? 'Scenario Workflows' : 'High-Trust Industries'}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Top Pill Badge */}
+          <div style={{ background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 9999, fontSize: 12, fontWeight: 700, marginBottom: 24, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 11l2 2 4-4" />
+            </svg>
+            Simple. Secure. Human.
           </div>
 
-          {/* Tab Contents */}
-          <div className="tab-content-active">
+          <div style={{ marginBottom: 48 }}>
+            <h3 style={{ fontSize: 'clamp(32px, 4.2vw, 48px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 20 }}>
+              Adding Proof of Human Intent <br />
+              Takes Just <span style={{ color: '#2563EB' }}>5 Steps</span>
+            </h3>
             
-            {/* PROTOCOL SANDBOX */}
-            {activeTab === 'protocol' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 64 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 64, alignItems: 'center' }}>
-                  
-                  {/* Left Side: Interactive canvas */}
-                  <div>
-                    <div style={{ marginBottom: 24 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#2563EB', display: 'block', marginBottom: 6 }}>
-                        Interactive calibration tool
-                      </span>
-                      <h2 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', margin: 0 }}>
-                        Test your trajectory signature
-                      </h2>
-                      <p style={{ color: '#64748B', fontSize: 15, marginTop: 12, lineHeight: 1.6, fontWeight: 500 }}>
-                        Bots move in mathematically straight lines or uniform speeds. Humans have natural muscle micro-variance, acceleration curves, and steering fluctuations.
-                      </p>
-                    </div>
+            {/* Left aligned horizontal blue bar */}
+            <div style={{ width: 48, height: 4, background: '#2563EB', borderRadius: 2, marginBottom: 24 }} />
 
-                    {/* Interactive Canvas Grid (Clean Grid mockup) */}
-                    <div 
-                      ref={trackingAreaRef}
-                      onPointerMove={handlePointerMove}
-                      onPointerLeave={handlePointerLeave}
-                      style={{ 
-                        width: '100%', 
-                        height: 280, 
-                        background: '#ffffff', 
-                        backgroundImage: 'radial-gradient(rgba(37, 99, 235, 0.12) 1px, transparent 1px)',
-                        backgroundSize: '16px 16px',
-                        border: '1px solid #E2E8F0', 
-                        borderRadius: 16, 
-                        position: 'relative', 
-                        cursor: 'crosshair',
-                        overflow: 'hidden'
-                      }}
-                      className="premium-shadow"
-                    >
-                      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
-                      {!isTracking && points.length === 0 && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', padding: 24, textAlign: 'center' }}>
-                          <span style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>✍️ Draw a trajectory signature in this canvas grid</span>
-                          <span style={{ fontSize: 12, color: '#64748B', marginTop: 4, fontWeight: 500 }}>Move your mouse to trace curves, or simulate robotic scripts below</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                      <button 
-                        onClick={simulateBot}
-                        style={{ flex: 1, padding: '12px 18px', background: 'white', border: '1px solid #D1D5DB', color: '#475569', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                        className="premium-shadow"
-                      >
-                        🤖 Simulate Bot Script (Perfect Line)
-                      </button>
-                      <button 
-                        onClick={resetCanvas}
-                        style={{ padding: '12px 24px', background: '#2563EB', border: 'none', color: '#ffffff', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                        className="premium-shadow"
-                      >
-                        Reset Canvas
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right Side: Telemetry admin dashboard console */}
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 32 }} className="premium-shadow">
-                      <h3 style={{ fontSize: 13, fontWeight: 800, color: '#2563EB', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                        Live Mathematical Output
-                      </h3>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                          <span style={{ color: '#64748B' }}>Cursor Coordinates:</span>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{stats.coords}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                          <span style={{ color: '#64748B' }}>Average Velocity:</span>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{stats.velocity}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                          <span style={{ color: '#64748B' }}>Jitter StdDev:</span>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{stats.speedStdDev}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                          <span style={{ color: '#64748B' }}>Linear Deviation:</span>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{stats.avgDeviation}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
-                          <span style={{ color: '#64748B' }}>Steering Entropy:</span>
-                          <span style={{ fontWeight: 700, color: '#0F172A' }}>{stats.steeringEntropy}</span>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: 28 }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: 8, letterSpacing: '0.05em' }}>
-                          Classification Verdict
-                        </span>
-                        <div style={{ 
-                          background: stats.verdict.includes('BOT') ? '#FEF2F2' : stats.verdict.includes('HUMAN') ? '#ECFDF5' : '#F8FAFC', 
-                          border: `1px solid ${stats.verdict.includes('BOT') ? '#FCA5A5' : stats.verdict.includes('HUMAN') ? '#A7F3D0' : '#E2E8F0'}`, 
-                          borderRadius: 10, 
-                          padding: '14px', 
-                          textAlign: 'center'
-                        }}>
-                          <span style={{ 
-                            fontSize: 13, 
-                            fontWeight: 800, 
-                            color: stats.verdict.includes('BOT') ? '#DC2626' : stats.verdict.includes('HUMAN') ? '#047857' : '#2563EB',
-                          }}>
-                            {stats.verdict}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Adding Proof of Human Intent Steps (EXACT USER STEPS) */}
-                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 48 }}>
-                  <div style={{ marginBottom: 36, maxWidth: 640 }}>
-                    <h3 style={{ fontSize: 24, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 12 }}>
-                      Adding Proof of Human Intent Takes Just 5 Steps
-                    </h3>
-                    <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                      No complex integrations, workflow changes, or content access required. Attest adds proof of human intent to every verified email in just a few simple steps.
-                    </p>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
-                    {[
-                      { step: '01', icon: '💻', title: 'Step 1: Install Attest', desc: 'Add the extension to your Gmail in seconds.' },
-                      { step: '02', icon: '✉️', title: 'Step 2: Communicate Normally', desc: 'Continue using your existing email workflows as usual.' },
-                      { step: '03', icon: '⚡', title: 'Step 3: Verify Human Activity', desc: 'Attest tracks cursor movement before every email send.' },
-                      { step: '04', icon: '🔏', title: 'Step 4: Verification Signature Added', desc: 'A trusted human-authenticated signature is securely attached.' },
-                      { step: '05', icon: '🏅', title: 'Step 5: Recipient Sees the Trust Badge', desc: 'Recipients instantly recognize verified human communication.' }
-                    ].map((item) => (
-                      <div key={item.step} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 24, background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 14 }} className="premium-shadow">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 22 }}>{item.icon}</span>
-                          <div style={{ width: 28, height: 28, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontWeight: 900, fontSize: 12 }}>
-                            {item.step}
-                          </div>
-                        </div>
-                        <div>
-                          <h4 style={{ fontWeight: 800, color: '#0F172A', fontSize: 15, marginBottom: 6, margin: 0 }}>
-                            {item.title}
-                          </h4>
-                          <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* WORKFLOWS TAB (EXACT SCENARIOS VERBATIM) */}
-            {activeTab === 'workflow' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
-                <div style={{ maxWidth: 640 }}>
-                  <h3 style={{ fontSize: 26, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 12 }}>
-                    Trust and Protection for Everyone in the Conversation
-                  </h3>
-                  <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.6, fontWeight: 500 }}>
-                    Whether you are sending emails or receiving them, Attest helps identify human-verified communication and warns users when emails come from unverified senders.
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
-                  {/* Scenario 1 */}
-                  <div style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }} className="premium-shadow">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                      <span style={{ fontSize: 24 }}>📬</span>
-                      <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 1 — Recipient Does Not Have Extension</h4>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      {[
-                        { t: '1️⃣ See Trust Badge', d: 'Verified emails display a visible trust badge if sender has extension.' },
-                        { t: '2️⃣ Recognize Trusted Emails', d: 'Know which emails came from verified humans.' },
-                        { t: '3️⃣ Spot Unverified Senders', d: 'Emails without badges appear less trustworthy.' },
-                        { t: '4️⃣ Stay Protected Automatically', d: 'No install needed to benefit from verification.' }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ borderLeft: '3px solid #2563EB', paddingLeft: 16 }}>
-                          <span style={{ fontWeight: 800, fontSize: 14, color: '#2563EB', display: 'block', marginBottom: 4 }}>{item.t}</span>
-                          <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Scenario 2 */}
-                  <div style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }} className="premium-shadow">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                      <span style={{ fontSize: 24 }}>🔍</span>
-                      <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 2 — Sender Does Not has Extension</h4>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      {[
-                        { t: '1️⃣ Scan Incoming Emails', d: 'Extension checks sender verification automatically if receiver has the extension' },
-                        { t: '2️⃣ Detect Missing Verification', d: 'Unverified emails are clearly highlighted.' },
-                        { t: '3️⃣ Get Risk Warnings', d: 'Potential AI-generated emails become easier to spot.' },
-                        { t: '4️⃣ Encourage Sender Verification', d: 'Prompt senders to become human-verified.' }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ borderLeft: '3px solid #10B981', paddingLeft: 16 }}>
-                          <span style={{ fontWeight: 800, fontSize: 14, color: '#10B981', display: 'block', marginBottom: 4 }}>{item.t}</span>
-                          <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* HIGH-TRUST INDUSTRIES TAB (EXACT VERBATIM TEXT) */}
-            {activeTab === 'features' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
-                <div style={{ maxWidth: 640 }}>
-                  <h3 style={{ fontSize: 26, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 12 }}>
-                    Built for Industries Where Human Trust Still Matters in the Age of AI
-                  </h3>
-                  <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.6, fontWeight: 500 }}>
-                    When emails involve money, access, legal decisions, or sensitive information, Attest helps ensure real human involvement before sending.
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-                  {[
-                    { icon: '🏦', title: 'Finance & Banking', desc: 'Add confidence to payment approvals, invoices, and transaction-related communication by verifying real human participation.' },
-                    { icon: '🏥', title: 'Healthcare', desc: 'Increase trust in patient, insurance, and operational communications involving sensitive information and decisions.' },
-                    { icon: '⚖️', title: 'Legal & Compliance', desc: 'Strengthen accountability for legal notices, approvals, and other important communications with verified human involvement.' },
-                    { icon: '🛡️', title: 'Enterprise Security', desc: 'Reduce risks from spoofed, impersonated, or AI-generated communication by providing proof of human intent.' },
-                    { icon: '👔', title: 'Executive Communication', desc: 'Verify leadership announcements, executive directives, and other high-impact communications.' },
-                    { icon: '⚙️', title: 'High Trust Workflows', desc: 'Ensure critical decisions and approvals involve verified human participation within AI-assisted and digital workflows.' }
-                  ].map((item) => (
-                    <div 
-                      key={item.title} 
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: 14, 
-                        background: '#ffffff', 
-                        padding: 32, 
-                        borderRadius: 16, 
-                        border: '1px solid #E2E8F0' 
-                      }} 
-                      className="premium-shadow"
-                    >
-                      <div style={{ width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: '#EFF6FF', color: '#2563EB' }}>
-                        {item.icon}
-                      </div>
-                      <h4 style={{ fontWeight: 800, color: '#0F172A', fontSize: 16, margin: 0 }}>{item.title}</h4>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>{item.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
+            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: '0 0 6px 0', maxWidth: 700 }}>
+              No complex integrations, workflow changes, or content access required.
+            </p>
+            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: 0, maxWidth: 700 }}>
+              Attest adds proof of human intent to every verified email in just a few simple steps.
+            </p>
           </div>
 
+          <div className="stepper-container" style={{ marginTop: 64 }}>
+            {/* Timeline connectors */}
+            <div className="stepper-line" />
+            <div className="stepper-start-dot" />
+            <div className="stepper-end-dot" />
+
+            {[
+              { step: '01', title: 'Install Attest', desc: 'Add the extension to your Gmail in seconds.' },
+              { step: '02', title: 'Communicate Normally', desc: 'Continue using your existing email workflows as usual.' },
+              { step: '03', title: 'Verify Human Activity', desc: 'Attest tracks cursor movement before every email send.' },
+              { step: '04', title: 'Verification Added', desc: 'A trusted human-authenticated signature is securely attached.' },
+              { step: '05', title: 'Recipient Sees the Trust Badge', desc: 'Recipients instantly recognize verified human communication.' }
+            ].map((item) => (
+              <div key={item.step} className="stepper-item">
+                <div className="stepper-circle">
+                  {item.step}
+                </div>
+                <div>
+                  <h4 style={{ fontWeight: 800, color: '#0F172A', fontSize: 15, marginBottom: 8, margin: 0, lineHeight: 1.3 }}>
+                    {item.title}
+                  </h4>
+                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HIGH-TRUST INDUSTRIES GRID (Fully Open!) ── */}
+      <section style={{ padding: '96px 24px 0 24px', background: '#ffffff' }}>
+        <div className="container-custom">
+          
+          <div style={{ marginBottom: 48 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
+              HIGH-TRUST FIELDS
+            </span>
+            {/* Left aligned horizontal blue bar */}
+            <div style={{ width: 40, height: 3, background: '#2563EB', borderRadius: 1.5, marginBottom: 24 }} />
+
+            <h3 style={{ fontSize: 'clamp(28px, 3.8vw, 40px)', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.2 }}>
+              Built for Industries Where <br />Human Trust Still Matters in the Age of AI
+            </h3>
+            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
+              When emails involve money, access, legal decisions, or sensitive information,<br />
+              Attest helps ensure real human involvement before sending.
+            </p>
+          </div>
+
+          <div className="fields-grid" style={{ borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
+            {[
+              {
+                title: 'Finance & Banking',
+                desc: 'Add confidence to payment approvals, invoices, and transaction-related communication by verifying real human participation.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#EFF6FF" />
+                    <path d="M12 34h24v2H12v-2zm3-12h2v12h-2zm6 0h2v12h-2zm6 0h2v12h-2zm6 0h2v12h-2zm-18-4l12-5 12 5H15z" stroke="#2563EB" strokeWidth="2" strokeLinejoin="round" fill="none" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Healthcare',
+                desc: 'Increase trust in patient, insurance, and operational communications involving sensitive information and decisions.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#F0FDF4" />
+                    <path d="M16 23.5h3.5l2-5 3.5 10 2-7.5 2.5 2.5H32" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M24 35c-8-6-10-10-10-13.5a5.5 5.5 0 019.5-3.5l.5.5.5-.5a5.5 5.5 0 019.5 3.5c0 3.5-2 7.5-10 13.5z" stroke="#16A34A" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Legal & Compliance',
+                desc: 'Strengthen accountability for legal notices, approvals, and other important communications with verified human involvement.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#FAF5FF" />
+                    <path d="M24 14v22M20 36h8M16 18h16" stroke="#9333EA" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M20 18l-4 6h8l-4-6zm-4 6a4 4 0 008 0" stroke="#9333EA" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d="M28 18l-4 6h8l-4-6zm-4 6a4 4 0 008 0" stroke="#9333EA" strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Enterprise Security',
+                desc: 'Reduce risks from spoofed, impersonated, or AI-generated communication by providing proof of human intent.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#EFF6FF" />
+                    <path d="M24 14c4.5 0 8 2 8 2s0 7-1.5 10c-2 4-6.5 6-6.5 6s-4.5-2-6.5-6C16 23 16 16 16 16s3.5-2 8-2z" stroke="#2563EB" strokeWidth="2" strokeLinejoin="round" />
+                    <path d="M21 23l2 2 4-4" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Executive Communication',
+                desc: 'Verify leadership announcements, executive directives, and other high-impact communications.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#FFF7ED" />
+                    <circle cx="24" cy="20" r="5" stroke="#EA580C" strokeWidth="2" />
+                    <path d="M16 32c0-4 4-5 8-5s8 1 8 5M24 27v6l-1-1v-4" stroke="#EA580C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'High Trust Workflows',
+                desc: 'Ensure critical decisions and approvals involve verified human participation within AI-assisted and digital workflows.',
+                icon: (
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="22" fill="#F0FDFA" />
+                    <rect x="22" y="14" width="4" height="4" rx="1" stroke="#0D9488" strokeWidth="2" fill="#ffffff" />
+                    <rect x="16" y="26" width="4" height="4" rx="1" stroke="#0D9488" strokeWidth="2" fill="#ffffff" />
+                    <rect x="28" y="26" width="4" height="4" rx="1" stroke="#0D9488" strokeWidth="2" fill="#ffffff" />
+                    <path d="M24 18v5M18 26v-3h12v3" stroke="#0D9488" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                )
+              }
+            ].map((item, idx) => (
+              <div key={item.title} className={`fields-cell fields-cell-${idx + 1}`}>
+                <div style={{ flexShrink: 0 }}>
+                  {item.icon}
+                </div>
+                <div>
+                  <h4 style={{ fontWeight: 800, color: '#0F172A', fontSize: 16, margin: '0 0 10px 0', lineHeight: 1.3 }}>
+                    {item.title}
+                  </h4>
+                  <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TRUST & SCENARIO WORKFLOWS (Fully Open!) ── */}
+      <section style={{ padding: '96px 24px', background: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="container-custom">
+          <div style={{ maxWidth: 640, marginBottom: 48 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
+              CONVERSATIONAL SEGMENTS
+            </span>
+            <h3 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 12 }}>
+              Trust and Protection for Everyone in the Conversation
+            </h3>
+            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500 }}>
+              Whether you are sending emails or receiving them, Attest helps identify human-verified communication and warns users when emails come from unverified senders.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 32 }}>
+
+            {/* Scenario 1 */}
+            <div style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }} className="premium-shadow">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+                <span style={{ fontSize: 24 }}>📬</span>
+                <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 1 — Recipient Does Not Have Extension</h4>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {[
+                  { t: '1️⃣ See Trust Badge', d: 'Verified emails display a visible trust badge if sender has extension.' },
+                  { t: '2️⃣ Recognize Trusted Emails', d: 'Know which emails came from verified humans.' },
+                  { t: '3️⃣ Spot Unverified Senders', d: 'Emails without badges appear less trustworthy.' },
+                  { t: '4️⃣ Stay Protected Automatically', d: 'No install needed to benefit from verification.' }
+                ].map((item, idx) => (
+                  <div key={idx} style={{ borderLeft: '3px solid #2563EB', paddingLeft: 16 }}>
+                    <span style={{ fontWeight: 800, fontSize: 14, color: '#2563EB', display: 'block', marginBottom: 4 }}>{item.t}</span>
+                    <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Scenario 2 */}
+            <div style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }} className="premium-shadow">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+                <span style={{ fontSize: 24 }}>🔍</span>
+                <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 2 — Sender Does Not has Extension</h4>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {[
+                  { t: '1️⃣ Scan Incoming Emails', d: 'Extension checks sender verification automatically if receiver has the extension' },
+                  { t: '2️⃣ Detect Missing Verification', d: 'Unverified emails are clearly highlighted.' },
+                  { t: '3️⃣ Get Risk Warnings', d: 'Potential AI-generated emails become easier to spot.' },
+                  { t: '4️⃣ Encourage Sender Verification', d: 'Prompt senders to become human-verified.' }
+                ].map((item, idx) => (
+                  <div key={idx} style={{ borderLeft: '3px solid #10B981', paddingLeft: 16 }}>
+                    <span style={{ fontWeight: 800, fontSize: 14, color: '#10B981', display: 'block', marginBottom: 4 }}>{item.t}</span>
+                    <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
       {/* ── PRIVACY CONFIDENCE SECTION (EXACT USER NEVER BULLETS) ── */}
-      <section style={{ padding: '96px 24px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
+      <section style={{ padding: '96px 24px', background: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 64, alignItems: 'center' }}>
-            
+
             {/* Left side: Bold Title & Subtext */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#2563EB', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
@@ -1298,39 +1244,12 @@ export default function Home() {
                 Your Emails Stay Private. Always.
               </h2>
               <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-                Let Attest verify that a real person intentionally sent an email or message without ever reading content, interrupting workflows, or requiring complex integrations.
+                Attest never reads, stores, or accesses your email content, attachments, or inbox data.
               </p>
-
-              {/* Dynamic Badges below */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 32 }}>
-                {[
-                  'AES-256 Encrypted',
-                  'Zero Data Retention',
-                  'SOC 2 Ready',
-                  'GDPR Compliant'
-                ].map((badge) => (
-                  <span 
-                    key={badge} 
-                    style={{ 
-                      fontSize: 10, 
-                      fontWeight: 800, 
-                      color: '#2563EB', 
-                      background: '#EFF6FF', 
-                      border: '1px solid #DBEAFE', 
-                      padding: '6px 12px', 
-                      borderRadius: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    {badge}
-                  </span>
-                ))}
-              </div>
             </div>
 
             {/* Right side: 6 Never Bullets inside White Card */}
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 20, padding: '36px 32px' }} className="premium-shadow">
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 20, padding: '36px 32px' }} className="premium-shadow">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {[
                   'Never reads email content or conversations',
@@ -1350,13 +1269,41 @@ export default function Home() {
 
           </div>
 
+          {/* ── TRUST & COMPLIANCE LOGOS ── */}
+          <div style={{ marginTop: 80, borderTop: '1px solid #E2E8F0', paddingTop: 48, textAlign: 'center' }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 28 }}>
+              VERIFIED TRUST &amp; COMPLIANCE STANDARDS
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 64, alignItems: 'center', marginTop: 40 }}>
+              {/* AES-256 */}
+              <div style={{ opacity: 0.9, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 96, width: 'auto', objectFit: 'contain' }} />
+              </div>
+
+              {/* Zero Data Retention */}
+              <div style={{ opacity: 0.9, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 96, width: 'auto', objectFit: 'contain' }} />
+              </div>
+
+              {/* SOC 2 Ready */}
+              <div style={{ opacity: 0.9, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 96, width: 'auto', objectFit: 'contain' }} />
+              </div>
+
+              {/* GDPR Compliant */}
+              <div style={{ opacity: 0.9, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 96, width: 'auto', objectFit: 'contain' }} />
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
       {/* ── TESTIMONIALS & CASE STUDIES (Loved by SEO Professionals style) ── */}
-      <section style={{ padding: '96px 24px', background: '#FFFFFF' }}>
+      <section style={{ padding: '96px 24px', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
-          
+
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#2563EB', display: 'block', marginBottom: 12 }}>
               TESTIMONIALS
@@ -1387,18 +1334,18 @@ export default function Home() {
                 rating: 5
               }
             ].map((t, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #E2E8F0', 
-                  borderRadius: 20, 
-                  padding: 32, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
+              <div
+                key={idx}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: 20,
+                  padding: 32,
+                  display: 'flex',
+                  flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: 20 
-                }} 
+                  gap: 20
+                }}
                 className="premium-shadow"
               >
                 <div>
@@ -1412,7 +1359,7 @@ export default function Home() {
                     "{t.quote}"
                   </p>
                 </div>
-                
+
                 {/* Author Block */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
                   {/* Decorative avatar block */}
@@ -1431,14 +1378,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FOOTER CALL TO ACTION BANNER (SEO Studio Style block) ── */}
-      <section style={{ padding: '96px 24px', background: '#ffffff', borderTop: '1px solid #F1F5F9' }}>
+      {/* ── FOOTER CALL TO ACTION BANNER (VERBATIM BRING TRUST BACK BANNERS) ── */}
+      <section style={{ padding: '96px 24px', background: '#ffffff' }}>
         <div className="container-custom">
-          <div 
-            style={{ 
-              background: 'linear-gradient(135deg, #1E40AF 0%, #2563EB 100%)', 
-              borderRadius: 24, 
-              padding: '64px 48px', 
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1E40AF 0%, #2563EB 100%)',
+              borderRadius: 24,
+              padding: '64px 48px',
               textAlign: 'center',
               position: 'relative',
               overflow: 'hidden'
@@ -1448,27 +1395,21 @@ export default function Home() {
             {/* White background grid overlay */}
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)', backgroundSize: '24px 24px', opacity: 0.5, pointerEvents: 'none' }} />
 
-            <div style={{ position: 'relative', zIndex: 2, maxWidth: 640, margin: '0 auto' }}>
-              <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 16 }}>
-                Ready to secure your communication?
+            <div style={{ position: 'relative', zIndex: 2, maxWidth: 720, margin: '0 auto' }}>
+              <h2 style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 16 }}>
+                Bring Trust Back to Email Communication with HumanAttest.
               </h2>
               <p style={{ fontSize: 16, color: '#EFF6FF', lineHeight: 1.6, marginBottom: 36, fontWeight: 500 }}>
-                Join thousands of secure organizations establishing local, cryptographic outbox verification. Set up complete protection in under 15 seconds.
+                Deploy complete protection in under 15 seconds. Let Attest verify human intent for every dispatch.
               </p>
 
               <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
-                <a 
-                  href={EXTENSION_DOWNLOAD_URL} 
+                <a
+                  href={EXTENSION_DOWNLOAD_URL}
                   style={{ background: '#ffffff', color: '#2563EB', padding: '16px 36px', borderRadius: 8, fontWeight: 800, textDecoration: 'none', transition: 'all 0.2s', fontSize: 15 }}
                   className="premium-shadow"
                 >
                   Install Extension Now
-                </a>
-                <a 
-                  href="/docs" 
-                  style={{ background: 'transparent', color: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.6)', padding: '15px 36px', borderRadius: 8, fontWeight: 800, textDecoration: 'none', transition: 'all 0.2s', fontSize: 15 }}
-                >
-                  Read Documentation
                 </a>
               </div>
             </div>
