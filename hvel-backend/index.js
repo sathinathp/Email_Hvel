@@ -349,7 +349,9 @@ app.post('/api/verify', async (req, res) => {
       `INSERT INTO verifications (id, sender_email, recipient_email, type, content_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [verificationId, senderEmail, recipientEmail || null, type, contentHash || null]
     );
-    const verificationUrl = `${ORIGIN}/v/${verificationId}`;
+    const host = req.get('host') || 'api.humanattest.com';
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const verificationUrl = `${proto}://${host}/v/${verificationId}`;
 
     // Send invite email — only once per sender→recipient pair
     if (recipientEmail && !isBlockedEmail(recipientEmail) &&
