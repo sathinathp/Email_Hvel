@@ -73,7 +73,7 @@ export default function Verify() {
             <h1 style={{ fontSize: 'clamp(36px,6vw,64px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, color: 'white', marginBottom: 16 }}>
               Verify{' '}
               <span style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #818CF8 50%, #06B6D4 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                Human Intent
+                Human Sender
               </span>
             </h1>
             <p style={{ fontSize: 17, color: '#94A3B8', lineHeight: 1.7, maxWidth: 480, margin: '0 auto', fontWeight: 400 }}>
@@ -244,7 +244,7 @@ export default function Verify() {
 
               {/* Footer note */}
               <p style={{ textAlign: 'center', fontSize: 12, color: '#475569', marginTop: 14, fontWeight: 500 }}>
-                © 2026 Attest Security Protocol. All identities are verified via 2FA &amp; WebAuthn.
+                © 2026 Attest Security. All identities are verified via 2FA &amp; WebAuthn.
               </p>
             </div>
           )}

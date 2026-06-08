@@ -23,7 +23,7 @@ export default function Terms() {
             },
             {
               title:'2. Description of Service',
-              content:'Attest provides a browser extension and verification backend that adds human-intent verification to Gmail send actions. The service does not read, store, or transmit email content. It logs only cryptographic hashes, timestamps, registered names, and verification results.',
+              content:'Attest provides a browser extension and verification backend that verifies a real human sent the email on Gmail send actions. The service does not read, store, or transmit email content. It logs only cryptographic hashes, timestamps, registered names, and verification results.',
             },
             {
               title:'3. Account Registration',

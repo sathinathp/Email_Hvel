@@ -36,7 +36,7 @@ const DOCS_CONTENT = {
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
           Attest (HVEL — Human Verified Email Layer) is a browser extension + verification
-          backend that proves a real human intentionally sent an email — without ever reading,
+          backend that proves a real human sent an email — without ever reading,
           storing, or transmitting your email content.
         </p>
 

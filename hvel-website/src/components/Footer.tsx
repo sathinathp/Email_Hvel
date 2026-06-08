@@ -32,12 +32,12 @@ export default function Footer() {
           {/* Brand column */}
           <div style={{ ...col, gap:16 }} className="footer-brand">
             <Link href="/" style={{ display:'inline-flex', alignItems:'center', gap:10, textDecoration:'none' }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#2563EB,#1D4ED8)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:900, fontSize:16, boxShadow:'0 4px 12px rgba(37,99,235,0.4)', flexShrink:0 }}>H</div>
+              <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#007A5E,#005A44)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:900, fontSize:16, boxShadow:'0 4px 12px rgba(0,122,94,0.4)', flexShrink:0 }}>H</div>
               <span style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.04em', color:'white' }}>Attest</span>
             </Link>
 
             <p style={{ fontSize:14, color:'#64748B', lineHeight:1.7, maxWidth:280, margin:0 }}>
-              The first &ldquo;Proof of Humanity&rdquo; protocol for secure email — proving a real human
+              The easiest way to check if a human or AI sent the email — proving a real human
               sent every message, without ever reading your emails.
             </p>
 
@@ -72,7 +72,7 @@ export default function Footer() {
 
           {/* Protocol column */}
           <div style={col}>
-            <p style={heading}>Protocol</p>
+            <p style={heading}>Verification</p>
             <FooterLink href="/webauthn">WebAuthn / FIDO2</FooterLink>
             <FooterLink href="/totp">TOTP Verification</FooterLink>
             <FooterLink href="/gmail-hook">Gmail Send Hook</FooterLink>

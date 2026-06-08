@@ -35,9 +35,9 @@ export default function Whitepaper() {
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>1. Executive Summary</h2>
             <p style={{ color:'#64748B', lineHeight:1.75 }}>
               Business Email Compromise (BEC) caused over $2.9 billion in losses in 2023 (FBI IC3).
-              The root cause is not weak passwords — it is the absence of human-intent verification
-              at the send layer. Attest introduces a mandatory out-of-band verification step
-              that proves a real human intentionally sent an email, using FIDO2 WebAuthn or TOTP,
+              The root cause is not weak passwords — it is the absence of verification that a real
+              human sent the email. Attest introduces a mandatory out-of-band verification step
+              that proves a real human sent the email, using FIDO2 WebAuthn or TOTP,
               without ever accessing email content.
             </p>
           </div>
@@ -48,7 +48,7 @@ export default function Whitepaper() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
                 ['Session Hijacking','Attacker steals browser session cookie and sends emails from victim\'s account. Attest blocks this — the attacker cannot pass the biometric/TOTP check without the victim\'s physical device.'],
-                ['AI-Generated Phishing','AI writes convincing emails from compromised accounts. Attest ensures every sent email has a cryptographic proof of human intent.'],
+                ['AI-Generated Phishing','AI writes convincing emails from compromised accounts. Attest ensures every sent email has cryptographic proof of being sent by a real human.'],
                 ['Malware-Driven Sending','Malware on the victim\'s machine attempts to send emails silently. The extension intercepts all send actions, including programmatic ones.'],
                 ['Insider Threats','An employee sends unauthorized emails. The audit log provides a timestamped, cryptographically signed record of every verified send action.'],
               ].map(([threat, desc]) => (
@@ -93,7 +93,7 @@ export default function Whitepaper() {
             <div style={{ background:'rgba(22,163,74,0.06)', border:'1px solid rgba(22,163,74,0.15)', borderRadius:14, padding:20 }}>
               <p style={{ fontWeight:700, color:'#15803D', fontSize:14, marginBottom:8 }}>Data Minimization Principle</p>
               <p style={{ fontSize:13, color:'#64748B', margin:0, lineHeight:1.6 }}>
-                We collect the minimum data required to prove human intent. The four stored fields
+                We collect the minimum data required to prove a real human sent the email. The four stored fields
                 (hash, timestamp, name, result) are the irreducible minimum for a verifiable audit
                 trail. No additional data is collected, inferred, or retained.
               </p>

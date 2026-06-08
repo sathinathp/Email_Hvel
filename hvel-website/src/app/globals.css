@@ -5,11 +5,11 @@
 
 /* ── CSS Variables ─────────────────────────────────────────── */
 :root {
-  --blue:          #2563EB;
-  --blue-hover:    #1D4ED8;
-  --blue-light:    #EFF6FF;
-  --blue-mid:      #BFDBFE;
-  --blue-glow:     rgba(37, 99, 235, 0.25);
+  --blue:          #007A5E;
+  --blue-hover:    #00634B;
+  --blue-light:    #E6F4EA;
+  --blue-mid:      #C2E7CD;
+  --blue-glow:     rgba(0, 122, 94, 0.25);
   --dark:          #0A0F1E;
   --dark-2:        #0F172A;
   --dark-3:        #1E293B;
@@ -20,8 +20,8 @@
   --text-main:      #0F172A;
   --text-secondary: #64748B;
   --text-muted:     #94A3B8;
-  --green:         #16A34A;
-  --green-light:   #F0FDF4;
+  --green:         #007A5E;
+  --green-light:   #E6F4EA;
   --orange:        #EA580C;
   --orange-light:  #FFF7ED;
   --purple:        #9333EA;
@@ -30,13 +30,13 @@
   --container:     1200px;
   --nav-h:         72px;
   --background:    #ffffff;
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
+  --color-primary: #007A5E;
+  --color-primary-hover: #00634B;
   --color-dark:    #0F172A;
   --color-text:    #1E293B;
   --color-text-muted: #64748B;
   --color-border:  #E2E8F0;
-  --color-bg-light:#F8FAFC;
+  --color-bg-light:#F6FAF5;
   --container-width: 1200px;
 }
 
@@ -447,9 +447,12 @@ body {
 
 /* ── Navbar ────────────────────────────────────────────────── */
 .nav-full {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 50;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 999;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -458,7 +461,7 @@ body {
   display: flex;
   align-items: center;
   padding: 0 24px;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
 }
 
 .nav-full .container-custom {
@@ -501,7 +504,7 @@ body {
 
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn-blue {
-  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-hover) 100%);
   color: white;
   padding: 14px 32px;
   border-radius: 12px;
@@ -515,13 +518,13 @@ body {
   justify-content: center;
   gap: 10px;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 122, 94, 0.25);
   letter-spacing: -0.01em;
 }
 
 .btn-blue:hover {
-  background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  background: linear-gradient(135deg, var(--blue-hover) 0%, #00503D 100%);
+  box-shadow: 0 6px 20px rgba(0, 122, 94, 0.35);
   transform: translateY(-1px);
 }
 
@@ -1096,5 +1099,374 @@ section[id] {
   
   .fields-cell:last-child {
     border-bottom: none !important;
+  }
+}
+
+/* ================================================================
+   ✨ PROFESSIONAL ANIMATION SYSTEM — Attest Landing Page
+   All animations are scroll-triggered via IntersectionObserver.
+   Add class "animate-on-scroll" to any element to opt-in.
+   ================================================================ */
+
+/* ── 1. KEYFRAME DEFINITIONS ─────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-8px) rotate(1.5deg); }
+  66%       { transform: translateY(-4px) rotate(-1deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 94, 0.3); }
+  50%       { box-shadow: 0 0 0 14px rgba(0, 122, 94, 0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes lineGrow {
+  from { scaleX: 0; transform-origin: left; }
+  to   { scaleX: 1; transform-origin: left; }
+}
+
+@keyframes numberCountUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes heroBadgePop {
+  0%   { opacity: 0; transform: scale(0.7) translateY(8px); }
+  70%  { transform: scale(1.08) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes borderPulse {
+  0%, 100% { border-color: rgba(0, 122, 94, 0.3); }
+  50%       { border-color: rgba(0, 122, 94, 0.8); }
+}
+
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes typewriterBlink {
+  0%, 100% { border-color: #007A5E; }
+  50%       { border-color: transparent; }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(24px, -20px) scale(1.04); }
+  66%       { transform: translate(-16px, 14px) scale(0.97); }
+}
+
+/* ── 2. SCROLL-TRIGGERED REVEAL CLASSES ─────────────────────── */
+
+/* Base hidden state — elements start invisible */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Triggered when IntersectionObserver adds .in-view */
+.animate-on-scroll.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Directional variants */
+.animate-from-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-from-left.in-view { opacity: 1; transform: translateX(0); }
+
+.animate-from-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-from-right.in-view { opacity: 1; transform: translateX(0); }
+
+.animate-scale-in {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-scale-in.in-view { opacity: 1; transform: scale(1); }
+
+/* ── 3. STAGGERED DELAY CHILDREN ─────────────────────────────── */
+.stagger-children .animate-on-scroll:nth-child(1)  { transition-delay: 0ms; }
+.stagger-children .animate-on-scroll:nth-child(2)  { transition-delay: 80ms; }
+.stagger-children .animate-on-scroll:nth-child(3)  { transition-delay: 160ms; }
+.stagger-children .animate-on-scroll:nth-child(4)  { transition-delay: 240ms; }
+.stagger-children .animate-on-scroll:nth-child(5)  { transition-delay: 320ms; }
+.stagger-children .animate-on-scroll:nth-child(6)  { transition-delay: 400ms; }
+.stagger-children .animate-on-scroll:nth-child(7)  { transition-delay: 480ms; }
+.stagger-children .animate-on-scroll:nth-child(8)  { transition-delay: 560ms; }
+
+/* ── 4. PERSISTENT ANIMATIONS (always playing) ───────────────── */
+
+.float-y {
+  animation: floatY 4s ease-in-out infinite;
+}
+
+.float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+.spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+.blob-float {
+  animation: blobFloat 10s ease-in-out infinite;
+}
+
+.hero-badge-pop {
+  animation: heroBadgePop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── 5. GRADIENT TEXT ANIMATION ──────────────────────────────── */
+.gradient-text-animated {
+  background: linear-gradient(270deg, #007A5E, #00B894, #007A5E, #00634B);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 5s ease infinite;
+}
+
+/* ── 6. CARD HOVER LIFT ──────────────────────────────────────── */
+.card-hover-lift {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card-hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.09);
+}
+
+/* ── 7. BUTTON HOVER / RIPPLE EFFECT ─────────────────────────── */
+.btn-animated {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-animated:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 122, 94, 0.35);
+}
+.btn-animated:active { transform: translateY(0); }
+.btn-animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.15);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.btn-animated:hover::after { opacity: 1; }
+
+/* ── 8. SHIMMER SKELETON LOADER ──────────────────────────────── */
+.shimmer {
+  background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 8px;
+}
+
+/* ── 9. BORDER PULSE AROUND TRUST / BADGE ELEMENTS ───────────── */
+.border-pulse {
+  animation: borderPulse 2.5s ease-in-out infinite;
+}
+
+/* ── 10. NUMBER COUNT-UP POP ─────────────────────────────────── */
+.number-pop {
+  opacity: 0;
+  transform: translateY(16px) scale(0.9);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.number-pop.in-view {
+  animation: numberCountUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── 11. SECTION HEADING UNDERLINE GROW ──────────────────────── */
+.heading-underline {
+  position: relative;
+  display: inline-block;
+}
+.heading-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #007A5E, #00B894);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.heading-underline.in-view::after { width: 100%; }
+
+/* ── 12. STEP NUMBER BADGE STAGGER ───────────────────────────── */
+.step-badge-animated {
+  opacity: 0;
+  transform: scale(0) rotate(-12deg);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.step-badge-animated.in-view {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* ── 13. SECTION FADE-IN WITH BLUR ───────────────────────────── */
+.fade-in-blur {
+  opacity: 0;
+  filter: blur(8px);
+  transition: opacity 0.8s ease, filter 0.8s ease;
+}
+.fade-in-blur.in-view {
+  opacity: 1;
+  filter: blur(0px);
+}
+
+/* ── 14. DECORATIVE BLOB ─────────────────────────────────────── */
+.decorative-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+  animation: blobFloat 12s ease-in-out infinite;
+}
+
+/* ── 15. HERO TITLE STAGGER ──────────────────────────────────── */
+.hero-title-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px);
+}
+.hero-title-word.in-view {
+  animation: fadeInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hero-title-word:nth-child(1) { animation-delay: 0ms; }
+.hero-title-word:nth-child(2) { animation-delay: 70ms; }
+.hero-title-word:nth-child(3) { animation-delay: 140ms; }
+.hero-title-word:nth-child(4) { animation-delay: 210ms; }
+.hero-title-word:nth-child(5) { animation-delay: 280ms; }
+
+/* ── 16. TESTIMONIAL CARD ENTRANCE ───────────────────────────── */
+.testimonial-card-animate {
+  opacity: 0;
+  transform: translateY(40px) scale(0.97);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.testimonial-card-animate.in-view {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ── 17. LINE GROW SEPARATOR ─────────────────────────────────── */
+.line-grow {
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #007A5E, #00B894);
+  border-radius: 2px;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.line-grow.in-view { width: 100%; }
+
+/* ── 18. RESPECT REDUCED MOTION ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-on-scroll,
+  .animate-from-left,
+  .animate-from-right,
+  .animate-scale-in,
+  .float-y,
+  .float-slow,
+  .pulse-glow,
+  .spin-slow,
+  .blob-float,
+  .gradient-text-animated,
+  .card-hover-lift,
+  .shimmer,
+  .number-pop,
+  .heading-underline::after,
+  .step-badge-animated,
+  .fade-in-blur,
+  .hero-title-word,
+  .testimonial-card-animate,
+  .decorative-blob {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
   }
 }

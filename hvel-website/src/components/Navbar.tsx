@@ -83,12 +83,12 @@ export default function Navbar() {
                   style={{
                     fontSize: 14,
                     fontWeight: isActive(href) ? 700 : 600,
-                    color: isActive(href) ? '#2563EB' : '#64748B',
+                    color: isActive(href) ? '#007A5E' : '#64748B',
                     textDecoration: 'none',
                     transition: 'color 0.15s',
                     position: 'relative',
                     paddingBottom: 2,
-                    borderBottom: isActive(href) ? '2px solid #2563EB' : '2px solid transparent',
+                    borderBottom: isActive(href) ? '2px solid #007A5E' : '2px solid transparent',
                   }}
                 >
                   {label}
