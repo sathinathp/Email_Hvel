@@ -12,16 +12,73 @@ interface MousePoint {
 }
 
 export default function Home() {
-  // Load premium typography fonts
+  // Load premium typography fonts & Tabler Icons
   useEffect(() => {
     const link = document.createElement('link');
     link.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
+
+    const iconsLink = document.createElement('link');
+    iconsLink.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
+    iconsLink.rel = 'stylesheet';
+    document.head.appendChild(iconsLink);
+
     return () => {
       document.head.removeChild(link);
+      document.head.removeChild(iconsLink);
     };
   }, []);
+
+  // Scenario Tab State
+  const [activeScenario, setActiveScenario] = useState('ceo');
+
+  // Testimonial Carousel State
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTestimonial((prev) => (prev + 1) % 5);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Typewriter & Backspacing Animation for Hero Headline ("Email" -> "Message" -> "Communication")
+  const words = ['Email', 'Message', 'Reply'];
+  const [wordIndex, setWordIndex] = useState(0);
+  const [displayText, setDisplayText] = useState(words[0]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const currentWord = words[wordIndex];
+
+    if (!isDeleting) {
+      // Typing character-by-character
+      if (displayText.length < currentWord.length) {
+        timer = setTimeout(() => {
+          setDisplayText(currentWord.substring(0, displayText.length + 1));
+        }, 100); // Typing speed
+      } else {
+        // Pause at the complete word before starting deletion
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 2200);
+      }
+    } else {
+      // Deleting character-by-character (backspacing)
+      if (displayText.length > 0) {
+        timer = setTimeout(() => {
+          setDisplayText(currentWord.substring(0, displayText.length - 1));
+        }, 50); // Deleting speed (faster than typing)
+      } else {
+        setIsDeleting(false);
+        setWordIndex((prev) => (prev + 1) % words.length);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [displayText, isDeleting, wordIndex]);
 
   // Sandbox State
   const [points, setPoints] = useState<MousePoint[]>([]);
@@ -43,6 +100,22 @@ export default function Home() {
       setWorkflowStep((prev) => (prev + 1) % 4);
     }, 4500);
     return () => clearInterval(timer);
+  }, []);
+
+  // Step 3 animation state (transitioning from verifying to verified badge)
+  const [step3Verified, setStep3Verified] = useState(false);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    const runCycle = () => {
+      setStep3Verified(false);
+      timeoutId = setTimeout(() => {
+        setStep3Verified(true);
+        timeoutId = setTimeout(runCycle, 4500);
+      }, 2500);
+    };
+    runCycle();
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -466,7 +539,25 @@ export default function Home() {
                 margin: 0
               }}>
                 Prove a Real Human <br />
-                Sent Every Email <br />
+                Sent Every{' '}
+                <span style={{
+                  color: '#007A5E',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: '1.2em',
+                  verticalAlign: 'bottom'
+                }}>
+                  {displayText}
+                  <span className="typewriter-cursor" style={{
+                    marginLeft: 2,
+                    display: 'inline-block',
+                    width: 3,
+                    background: '#007A5E',
+                    height: '0.85em'
+                  }} />
+                </span>{' '}
+                <br />
                 in the <span style={{ fontStyle: 'italic', color: '#007A5E' }}>Era of AI</span>.
               </h1>
 
@@ -1504,6 +1595,13 @@ export default function Home() {
             .attest-spinner-animate {
               animation: spin 1.2s linear infinite;
             }
+            @keyframes blink-caret {
+              from, to { opacity: 0; }
+              50% { opacity: 1; }
+            }
+            .typewriter-cursor {
+              animation: blink-caret 0.75s step-end infinite;
+            }
           `}</style>
 
           {/* Top Pill Badge */}
@@ -1520,7 +1618,7 @@ export default function Home() {
           <div className="animate-on-scroll" style={{ textAlign: 'center', marginBottom: 64 }}>
             <h3 style={{ fontSize: 'clamp(32px, 4.2vw, 48px)', fontWeight: 950, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 20 }}>
               Proving a Real Human Sent It <br />
-              Takes Just <span style={{ color: '#007A5E', fontStyle: 'italic' }}>5 Steps</span>
+              Takes Just <span style={{ color: '#007A5E', fontStyle: 'italic' }}>4 Steps</span>
             </h3>
 
             <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: '0 auto 6px auto', maxWidth: 700 }}>
@@ -1531,10 +1629,10 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 5-Card Step Layout */}
+          {/* 4-Card Step Layout */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(4, minmax(180px, 1fr))',
             gap: 20,
             marginTop: 28,
             paddingTop: 20,
@@ -1710,7 +1808,7 @@ export default function Home() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 7.5 }}>
                   <div style={{ alignSelf: 'flex-start', background: '#FCE7F3', color: '#DB2777', padding: '2px 6px', borderRadius: 4, fontWeight: 800 }}>Compose ▾</div>
                   <div style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: 2, color: '#4B5563', fontWeight: 500 }}>
-                    <span style={{ color: '#9CA3AF' }}>To</span> client@company.com
+                    <span style={{ color: '#9CA3AF' }}>To</span> john.smith@company.com
                   </div>
                   <div style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: 2, color: '#4B5563', fontWeight: 500 }}>
                     <span style={{ color: '#9CA3AF' }}>Subject</span> Project Update
@@ -1721,7 +1819,7 @@ export default function Home() {
                   The final design files are attached. Please review them before Friday.<br />
                   Let me know your feedback.<br />
                   Regards,<br />
-                  John
+                  PetaBytz Technologies Inc
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: 4 }}>
                   <button style={{
@@ -1762,17 +1860,20 @@ export default function Home() {
               </div>
             </div>
 
-            {/* STEP 3: Verify Human Activity */}
+            {/* STEP 3: Verify & Sign (Mixed from Steps 3 & 4) */}
             <div style={{
-              background: 'linear-gradient(180deg, #F5F3FF 0%, #EEF2FF 100%)',
-              border: '1px solid #DDD6FE',
+              background: step3Verified
+                ? 'linear-gradient(180deg, #F0FDF4 0%, #E6FDF0 100%)'
+                : 'linear-gradient(180deg, #F5F3FF 0%, #EEF2FF 100%)',
+              border: step3Verified ? '1px solid #DCFCE7' : '1px solid #DDD6FE',
               borderRadius: 24,
               padding: '36px 16px 24px 16px',
               display: 'flex',
               flexDirection: 'column',
               gap: 20,
               position: 'relative',
-              boxShadow: '0 8px 30px rgba(124, 58, 237, 0.02)'
+              boxShadow: step3Verified ? '0 8px 30px rgba(16, 185, 129, 0.02)' : '0 8px 30px rgba(124, 58, 237, 0.02)',
+              transition: 'all 0.5s ease-in-out'
             }}>
               {/* Floating Step Number */}
               <div style={{
@@ -1781,8 +1882,8 @@ export default function Home() {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 background: '#ffffff',
-                border: '1px solid #C7D2FE',
-                color: '#6366F1',
+                border: step3Verified ? '1px solid #A7F3D0' : '1px solid #C7D2FE',
+                color: step3Verified ? '#007A5E' : '#6366F1',
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
@@ -1791,10 +1892,11 @@ export default function Home() {
                 justifyContent: 'center',
                 fontSize: 12,
                 fontWeight: 900,
-                boxShadow: '0 4px 10px rgba(99, 102, 241, 0.08)'
+                boxShadow: step3Verified ? '0 4px 10px rgba(5, 150, 105, 0.08)' : '0 4px 10px rgba(99, 102, 241, 0.08)',
+                transition: 'all 0.5s ease'
               }}>03</div>
 
-              {/* Inside Mockup: Attest verification screen */}
+              {/* Inside Mockup: Dynamic Attest verification screen */}
               <div style={{
                 background: '#ffffff',
                 border: '1px solid #F1F5F9',
@@ -1805,168 +1907,91 @@ export default function Home() {
                 gap: 8,
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.01)',
                 height: 230,
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                transition: 'all 0.5s ease-in-out'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#007A5E' }}>
                     <span>A</span>
                     <span style={{ color: '#1F2937' }}>Attest</span>
                   </div>
-                  <span style={{ color: '#9CA3AF', fontSize: 9 }}>✕</span>
+                  {step3Verified ? (
+                    <span style={{ background: '#D1FAE5', color: '#007A5E', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 3, transition: 'all 0.3s ease' }}>Added</span>
+                  ) : (
+                    <span style={{ color: '#9CA3AF', fontSize: 9 }}>✕</span>
+                  )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6, margin: '8px 0' }}>
-                  <div className="attest-spinner-animate" style={{
-                    width: 24,
-                    height: 24,
-                    border: '2.5px solid #E2E8F0',
-                    borderTop: '2.5px solid #6366F1',
-                    borderRadius: '50%'
-                  }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1F2937' }}>Verifying human sender...</span>
-                    <span style={{ fontSize: 7, color: '#6B7280', fontWeight: 550 }}>Analyzing before email is sent</span>
+
+                {!step3Verified ? (
+                  /* Verifying State */
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8, margin: 'auto 0', transition: 'all 0.3s ease' }}>
+                    <div className="attest-spinner-animate" style={{
+                      width: 28,
+                      height: 28,
+                      border: '3px solid #E2E8F0',
+                      borderTop: '3px solid #6366F1',
+                      borderRadius: '50%'
+                    }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1F2937' }}>Verifying human sender...</span>
+                      <span style={{ fontSize: 7.5, color: '#6B7280', fontWeight: 550 }}>Analyzing before email is sent</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Verified State */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, transition: 'all 0.3s ease' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>🛡️</div>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: '#007A5E' }}>Verification Added</span>
+                      <span style={{ fontSize: 7, color: '#6B7280', fontWeight: 550, lineHeight: 1.2 }}>
+                        A trusted human-authenticated signature is securely attached.
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #F1F5F9', paddingTop: 6, fontSize: 7 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Signature ID</span>
+                        <span style={{ color: '#1F2937', fontWeight: 800 }}>ATT-847291</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Timestamp</span>
+                        <span style={{ color: '#1F2937', fontWeight: 700 }}>Jun 09, 2026</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Trust Score</span>
+                        <span style={{ color: '#007A5E', fontWeight: 900 }}>100%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Below Mockup */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
                 <div style={{
-                  background: '#F5F3FF',
-                  border: '1px solid #DDD6FE',
-                  borderRadius: 10,
-                  padding: '6px 8px',
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: step3Verified ? '#D1FAE5' : '#E0E7FF',
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 3
+                  justifyContent: 'center',
+                  fontSize: 12,
+                  transition: 'all 0.5s ease'
                 }}>
-                  <div style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    background: '#C4B5FD',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <span style={{ color: '#7C3AED', fontSize: 7, fontWeight: 900 }}>✓</span>
-                  </div>
-                  <span style={{ fontSize: 8, fontWeight: 800, color: '#1F2937' }}>Human sender verified</span>
-                  <span style={{ fontSize: 6.5, color: '#7C3AED', fontWeight: 700 }}>Real human activity detected</span>
+                  {step3Verified ? '💚' : '🔍'}
                 </div>
-              </div>
-
-              {/* Below Mockup */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
-                <div style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  background: '#E0E7FF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12
-                }}>🔍</div>
-                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0 }}>Verify Human Activity</h4>
-                <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0, fontWeight: 550 }}>
-                  Attest quietly verifies that a real human is behind every email you send.
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0, transition: 'all 0.5s ease' }}>
+                  {step3Verified ? 'Verification Added' : 'Verify Human Activity'}
+                </h4>
+                <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0, fontWeight: 550, transition: 'all 0.5s ease' }}>
+                  {step3Verified
+                    ? 'A tamper-proof signature is attached without changing your workflow.'
+                    : 'Attest quietly verifies that a real human is behind every email you send.'}
                 </p>
               </div>
             </div>
 
-            {/* STEP 4: Verification Added */}
-            <div style={{
-              background: 'linear-gradient(180deg, #F0FDF4 0%, #E6FDF0 100%)',
-              border: '1px solid #DCFCE7',
-              borderRadius: 24,
-              padding: '36px 16px 24px 16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
-              position: 'relative',
-              boxShadow: '0 8px 30px rgba(16, 185, 129, 0.02)'
-            }}>
-              {/* Floating Step Number */}
-              <div style={{
-                position: 'absolute',
-                top: -16,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: '#ffffff',
-                border: '1px solid #A7F3D0',
-                color: '#007A5E',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 900,
-                boxShadow: '0 4px 10px rgba(5, 150, 105, 0.08)'
-              }}>04</div>
-
-              {/* Inside Mockup: Attest verification confirmation */}
-              <div style={{
-                background: '#ffffff',
-                border: '1px solid #F1F5F9',
-                borderRadius: 16,
-                padding: '12px 10px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.01)',
-                height: 230,
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#007A5E' }}>
-                    <span>A</span>
-                    <span style={{ color: '#1F2937' }}>Attest</span>
-                  </div>
-                  <span style={{ background: '#D1FAE5', color: '#007A5E', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 3 }}>Added</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>🛡️</div>
-                  <span style={{ fontSize: 9, fontWeight: 800, color: '#007A5E' }}>Verification Added</span>
-                  <span style={{ fontSize: 7, color: '#6B7280', fontWeight: 550, lineHeight: 1.2 }}>
-                    A trusted human-authenticated signature is securely attached.
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #F1F5F9', paddingTop: 6, fontSize: 7 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Signature ID</span>
-                    <span style={{ color: '#1F2937', fontWeight: 800 }}>ATT-847291</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Timestamp</span>
-                    <span style={{ color: '#1F2937', fontWeight: 700 }}>May 15, 2025</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Trust Score</span>
-                    <span style={{ color: '#007A5E', fontWeight: 900 }}>100%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Below Mockup */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
-                <div style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  background: '#D1FAE5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12
-                }}>💚</div>
-                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0 }}>Verification Added</h4>
-                <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0, fontWeight: 550 }}>
-                  A tamper-proof signature is attached without changing your workflow.
-                </p>
-              </div>
-            </div>
-
-            {/* STEP 5: Recipient Sees the Trust Badge */}
+            {/* STEP 4: Recipient Sees the Trust Badge */}
             <div style={{
               background: 'linear-gradient(180deg, #F0FDF4 0%, #E6FDF0 100%)',
               border: '1px solid #DCFCE7',
@@ -1996,7 +2021,7 @@ export default function Home() {
                 fontSize: 12,
                 fontWeight: 900,
                 boxShadow: '0 4px 10px rgba(5, 150, 105, 0.08)'
-              }}>05</div>
+              }}>04</div>
 
               {/* Inside Mockup: Gmail email view + Trust Badge popover overlay */}
               <div style={{
@@ -2033,15 +2058,19 @@ export default function Home() {
                     <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7 }}>👤</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 6.5 }}>
-                        <span style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>John Smith</span>
+                        <span style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>PetaBytz Technologies Inc</span>
                         <span style={{ color: '#9CA3AF' }}>10:44 AM</span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: 7, color: '#4B5563', lineHeight: 1.2, fontWeight: 500, flex: 1, marginTop: 2 }}>
+                {/* Email Body matches Step 2 content perfectly */}
+                <div style={{ fontSize: 7.5, color: '#4B5563', lineHeight: 1.25, fontWeight: 550, flex: 1, marginTop: 2 }}>
                   Hi Sarah,<br />
-                  The final design files are attached.
+                  The final design files are attached. Please review them before Friday.<br />
+                  Let me know your feedback.<br />
+                  Regards,<br />
+                  PetaBytz Technologies Inc
                 </div>
 
                 {/* Overlaid Floating Trust Badge */}
@@ -2254,678 +2283,736 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── THE THREAT & SAFEGUARD SPLIT MATRIX (REDESIGNED TO FLOWCHART) ── */}
-      <section style={{ padding: '96px 24px', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+      {/* ── DIGITAL COMMUNICATION TRUST SECTION ── */}
+      <section className="attest-trust-section">
         <style dangerouslySetInnerHTML={{
           __html: `
-          .flowchart-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-            margin-bottom: 32px;
-          }
-          .flowchart-headers {
-            display: none;
-          }
-          @media (min-width: 768px) {
-            .flowchart-grid {
-              grid-template-columns: 1.1fr 40px 1.3fr 1.2fr 1.4fr;
+            .attest-trust-section {
+              background-color: #ffffff;
+              color: #0f172a;
+              padding: 60px 24px;
+              border-bottom: 1px solid #e2e8f0;
+              font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              --color-text-primary: #0f172a;
+              --color-text-secondary: #4b5563;
+              --color-text-tertiary: #64748b;
+              --color-background-primary: #ffffff;
+              --color-background-secondary: #f8fafc;
+              --color-border-tertiary: #dadce0;
+              --border-radius-lg: 20px;
+              --border-radius-md: 10px;
+            }
+            .attest-trust-section * { box-sizing: border-box; margin: 0; padding: 0; }
+            
+            /* Hide screen reader only element visually */
+            .attest-trust-section .sr-only {
+              position: absolute;
+              width: 1px;
+              height: 1px;
+              padding: 0;
+              margin: -1px;
+              overflow: hidden;
+              clip: rect(0, 0, 0, 0);
+              white-space: nowrap;
+              border-width: 0;
+            }
+
+            .attest-trust-section .hero { padding: 1rem 0 1.5rem; text-align: center; max-width: 720px; margin: 0 auto; }
+            .attest-trust-section .eyebrow { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #007A5E; margin-bottom: 0.75rem; font-weight: 800; }
+            .attest-trust-section .hero-title { font-size: clamp(28px, 3.8vw, 42px); font-weight: 950; line-height: 1.15; color: var(--color-text-primary); margin-bottom: 1rem; letter-spacing: -0.03em; }
+            .attest-trust-section .hero-title span { color: #007A5E; }
+            .attest-trust-section .hero-sub { font-size: 15px; color: var(--color-text-tertiary); max-width: 580px; margin: 0 auto 1.25rem; line-height: 1.55; font-weight: 500; }
+            
+            .attest-trust-section .badge { display: inline-flex; align-items: center; gap: 6px; background: #E6FDF0; color: #007A5E; border: 1px solid #DCFCE7; border-radius: 9999px; padding: 5px 14px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+            .attest-trust-section .badge i { font-size: 13px; }
+
+            .attest-trust-section .section-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #007A5E; margin-bottom: 1rem; font-weight: 800; text-align: center; }
+
+            .attest-trust-section .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 1.5rem 0; }
+            .attest-trust-section .card { background: var(--color-background-primary); border: 1px solid #f1f5f9; border-radius: var(--border-radius-lg); padding: 24px 20px; text-align: left; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.015); transition: all 0.3s ease; }
+            .attest-trust-section .card:hover { border-color: rgba(0, 122, 94, 0.2); transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0, 122, 94, 0.04); }
+            .attest-trust-section .card-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 18px; }
+            
+            .attest-trust-section .card-icon.teal { background: #E6FDF0; color: #007A5E; }
+            .attest-trust-section .card-icon.red { background: #FEE2E2; color: #EF4444; }
+            .attest-trust-section .card-icon.blue { background: #DBEAFE; color: #3B82F6; }
+            .attest-trust-section .card-icon.amber { background: #FEF3C7; color: #F59E0B; }
+            
+            .attest-trust-section .card h3 { font-size: 16px; font-weight: 800; color: var(--color-text-primary); margin-bottom: 6px; }
+            .attest-trust-section .card p { font-size: 13px; color: var(--color-text-secondary); line-height: 1.45; font-weight: 550; }
+
+            .attest-trust-section .divider { border: none; border-top: 1px solid #f1f5f9; margin: 2rem 0; }
+
+            .attest-trust-section .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 1.5rem 0; }
+            .attest-trust-section .compare-col { border-radius: var(--border-radius-lg); padding: 24px; text-align: left; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.015); transition: all 0.3s ease; }
+            
+            .attest-trust-section .compare-col.without { background: #f8fafc; border: 1px solid #e2e8f0; }
+            .attest-trust-section .compare-col.with { background: #e6fdf0; border: 1px solid #c2e7cd; }
+            
+            .attest-trust-section .compare-col h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+            .attest-trust-section .compare-col.without h4 { color: #64748b; }
+            .attest-trust-section .compare-col.with h4 { color: #007A5E; }
+            
+            .attest-trust-section .compare-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 13.5px; line-height: 1.45; font-weight: 550; }
+            .attest-trust-section .compare-row i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+            
+            .attest-trust-section .compare-col.without .compare-row i { color: #ef4444; }
+            .attest-trust-section .compare-col.with .compare-row i { color: #007A5E; }
+            .attest-trust-section .compare-col.without .compare-row span { color: #4b5563; }
+            .attest-trust-section .compare-col.with .compare-row span { color: #004d3b; }
+
+            .attest-trust-section .scenario-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.5rem; justify-content: center; }
+            .attest-trust-section .tab { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 100px; padding: 8px 18px; font-size: 13px; color: #64748b; cursor: pointer; transition: all 0.2s; font-weight: 700; }
+            .attest-trust-section .tab.active { background: #007A5E; border-color: #007A5E; color: #ffffff; box-shadow: 0 4px 10px rgba(0, 122, 94, 0.15); }
+            .attest-trust-section .tab:hover:not(.active) { border-color: #007A5E; color: #007A5E; }
+
+            .attest-trust-section .scenario { display: none; }
+            .attest-trust-section .scenario.active { display: block; }
+
+            /* Gmail Theme Email UI Mock */
+            .attest-trust-section .gmail-theme {
+              background: #ffffff;
+              border: 1px solid var(--color-border-tertiary);
+              border-radius: 8px;
+              padding: 16px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+              font-family: Roboto, Arial, sans-serif;
+              font-size: 14px;
+              color: #202124;
+              text-align: left;
+            }
+            .attest-trust-section .gmail-subject-row {
+              display: flex;
               align-items: center;
-              gap: 16px;
+              gap: 8px;
+              margin-bottom: 12px;
             }
-            .flowchart-headers {
-              display: grid !important;
+            .attest-trust-section .gmail-subject {
+              font-size: 18px;
+              font-weight: 400;
+              color: #202124;
+              margin: 0;
+              flex: 1;
             }
-            .gmail-span-2 {
-              grid-column: span 2;
+            .attest-trust-section .gmail-inbox-tag {
+              background: #f1f3f4;
+              color: #5f6368;
+              font-size: 11px;
+              font-weight: 500;
+              padding: 2px 6px;
+              border-radius: 4px;
             }
-          }
-          .gmail-mock-card {
-            background: #FFFFFF;
-            border: 1.5px solid #E2E8F0;
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.015);
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-          .problem-card {
-            background: #FFFFFF;
-            border: 1.5px solid #FEE2E2;
-            border-radius: 16px;
-            padding: 20px;
-            display: flex;
-            gap: 16px;
-            align-items: flex-start;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.01);
-            min-height: 180px;
-          }
-          .solution-card {
-            background: #FFFFFF;
-            border: 1.5px solid #DCFCE7;
-            border-radius: 16px;
-            padding: 20px;
-            display: flex;
-            gap: 16px;
-            align-items: flex-start;
-            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.01);
-            min-height: 180px;
-          }
-          .flowchart-arrow {
-            display: none;
-          }
-          @media (min-width: 768px) {
-            .flowchart-arrow {
+            .attest-trust-section .gmail-sender-row {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 8px;
+            }
+            .attest-trust-section .gmail-avatar {
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: #b80606;
+              color: #ffffff;
               display: flex;
               align-items: center;
               justify-content: center;
+              font-weight: 500;
+              font-size: 15px;
             }
-          }
-          .features-footer-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 20px;
-            padding: 24px;
-            margin-top: 64px;
-          }
-          @media (min-width: 768px) {
-            .features-footer-grid {
-              grid-template-columns: repeat(2, 1fr);
+            .attest-trust-section .gmail-avatar.legal {
+              background: #1a73e8;
             }
-          }
-          @media (min-width: 1024px) {
-            .features-footer-grid {
-              grid-template-columns: repeat(4, 1fr);
+            .attest-trust-section .gmail-sender-info {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
             }
-          }
-          .features-footer-item {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 12px;
-          }
-          @media (min-width: 1024px) {
-            .features-footer-item:not(:last-child) {
-              border-right: 1px solid #E2E8F0;
+            .attest-trust-section .gmail-sender-name {
+              font-size: 13px;
+              color: #202124;
             }
-          }
-        `}} />
+            .attest-trust-section .gmail-sender-name strong {
+              font-weight: 700;
+            }
+            .attest-trust-section .gmail-email {
+              color: #5f6368;
+              font-size: 12px;
+            }
+            .attest-trust-section .gmail-to-me {
+              color: #5f6368;
+              font-size: 12px;
+              margin-top: 2px;
+            }
+            .attest-trust-section .gmail-meta-right {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+            }
+            .attest-trust-section .gmail-time {
+              color: #5f6368;
+              font-size: 12px;
+            }
+            .attest-trust-section .gmail-actions {
+              display: flex;
+              gap: 10px;
+              color: #5f6368;
+              font-size: 16px;
+            }
+            .attest-trust-section .gmail-actions i {
+              cursor: pointer;
+            }
+            .attest-trust-section .gmail-body {
+              margin-left: 44px;
+              border-top: 1px solid #f1f3f4;
+              padding-top: 12px;
+              color: #3c4043;
+              line-height: 1.5;
+              font-size: 13.5px;
+            }
+            .attest-trust-section .gmail-banner {
+              margin-top: 16px;
+              margin-left: 44px;
+              display: flex;
+              gap: 12px;
+              padding: 12px 16px;
+              border-radius: 8px;
+              align-items: flex-start;
+            }
+            .attest-trust-section .gmail-banner.unverified {
+              background: #fdf4f5;
+              border: 1px solid #fad2e1;
+              color: #c00c0c;
+            }
+            .attest-trust-section .gmail-banner.verified {
+              background: #e6f4ea;
+              border: 1px solid #c2e7cd;
+              color: #137333;
+            }
+            .attest-trust-section .gmail-banner i {
+              font-size: 18px;
+              margin-top: 2px;
+            }
+            .attest-trust-section .banner-content {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+              font-size: 12px;
+              line-height: 1.4;
+            }
+            .attest-trust-section .banner-content strong {
+              font-size: 13px;
+              font-weight: 700;
+            }
+            .attest-trust-section .banner-content span {
+              opacity: 0.95;
+            }
 
-        <div className="container-custom">
+            /* Gmail Inbox List UI Mock */
+            .attest-trust-section .gmail-inbox-list {
+              padding: 0;
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            .attest-trust-section .gmail-inbox-header {
+              display: flex;
+              background: #f8fafc;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .attest-trust-section .gmail-inbox-tab {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding: 12px 20px;
+              font-size: 13px;
+              color: #5f6368;
+              font-weight: 550;
+              border-bottom: 3px solid transparent;
+              cursor: pointer;
+            }
+            .attest-trust-section .gmail-inbox-tab.active {
+              color: #1a73e8;
+              border-bottom-color: #1a73e8;
+              background: #e8f0fe;
+            }
+            .attest-trust-section .gmail-inbox-rows {
+              display: flex;
+              flex-direction: column;
+            }
+            .attest-trust-section .gmail-inbox-row {
+              display: flex;
+              align-items: center;
+              padding: 10px 16px;
+              border-bottom: 1px solid #f1f3f4;
+              font-size: 13px;
+              color: #5f6368;
+              background: #ffffff;
+              transition: background 0.15s;
+            }
+            .attest-trust-section .gmail-inbox-row:hover {
+              background: #f8fafc;
+              box-shadow: inset 1px 0 0 #dadce0;
+            }
+            .attest-trust-section .gmail-inbox-row.unread {
+              color: #202124;
+              background: #ffffff;
+            }
+            .attest-trust-section .gmail-inbox-row.attested {
+              background: #e6fdf0;
+            }
+            .attest-trust-section .gmail-inbox-row.attested:hover {
+              background: #dbfae9;
+            }
+            .attest-trust-section .gmail-row-left {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              width: 140px;
+              flex-shrink: 0;
+            }
+            .attest-trust-section .gmail-row-left i {
+              color: #c4c7c5;
+              cursor: pointer;
+            }
+            .attest-trust-section .gmail-row-sender {
+              font-weight: 500;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .attest-trust-section .gmail-inbox-row.unread .gmail-row-sender {
+              font-weight: 700;
+            }
+            .attest-trust-section .gmail-row-content {
+              flex: 1;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              padding-right: 12px;
+            }
+            .attest-trust-section .gmail-row-subject {
+              font-weight: 500;
+            }
+            .attest-trust-section .gmail-inbox-row.unread .gmail-row-subject {
+              font-weight: 700;
+            }
+            .attest-trust-section .gmail-row-snippet {
+              color: #5f6368;
+            }
+            .attest-trust-section .gmail-row-right {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              flex-shrink: 0;
+            }
+            .attest-trust-section .gmail-row-badge {
+              font-size: 10px;
+              padding: 2px 8px;
+              border-radius: 100px;
+              font-weight: 700;
+            }
+            .attest-trust-section .gmail-row-badge.ai {
+              background: #f1f3f4;
+              color: #5f6368;
+              border: 1px solid #dadce0;
+            }
+            .attest-trust-section .gmail-row-badge.human {
+              background: #ffffff;
+              color: #007A5E;
+              border: 1px solid #a7f3d0;
+            }
+            .attest-trust-section .gmail-row-badge.human i {
+              font-size: 11px;
+              vertical-align: -1px;
+              margin-right: 1px;
+            }
+            .attest-trust-section .gmail-row-date {
+              font-size: 11px;
+              color: #5f6368;
+              min-width: 50px;
+              text-align: right;
+            }
+            .attest-trust-section .gmail-inbox-row.unread .gmail-row-date {
+              font-weight: 700;
+              color: #202124;
+            }
 
-          {/* Header Title */}
-          <div className="animate-on-scroll" style={{ textAlign: 'center', marginBottom: 64 }}>
-            <h2 style={{ fontSize: 'clamp(32px, 4.2vw, 48px)', fontWeight: 950, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 16 }}>
-              Digital communication is <span style={{ color: '#007A5E' }}>losing trust.</span>
-            </h2>
-            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 550, margin: '0 auto', maxWidth: 800 }}>
-              Attest brings back trust with human verification at every step.
-            </p>
+            /* Animated Scope Box Styling */
+            @keyframes pulseBorder {
+              0% { border-color: #e2e8f0; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01); }
+              50% { border-color: rgba(217, 119, 6, 0.35); box-shadow: 0 4px 20px rgba(217, 119, 6, 0.04); }
+              100% { border-color: #e2e8f0; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01); }
+            }
+            .attest-trust-section .scope-box {
+              background: #fafaf9;
+              border: 1px solid #e7e5e4;
+              border-radius: var(--border-radius-lg);
+              padding: 24px;
+              margin-top: 2rem;
+              text-align: left;
+              transition: all 0.3s ease;
+            }
+            .attest-trust-section .scope-box.animated-attention {
+              animation: pulseBorder 4s infinite ease-in-out;
+            }
+
+            .attest-trust-section .tagline-block { text-align: center; padding: 1.5rem 1rem 0; max-width: 640px; margin: 0 auto; }
+            .attest-trust-section .tagline-block .line1 { font-size: 14px; color: #64748b; margin-bottom: 4px; font-weight: 500; }
+            .attest-trust-section .tagline-block .line2 { font-size: 1.35rem; font-weight: 950; color: #0f172a; letter-spacing: -0.03em; }
+            .attest-trust-section .tagline-block .line2 span { color: #007A5E; }
+
+            .attest-trust-section .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+            @media (max-width: 1024px) {
+              .attest-trust-section .cards { grid-template-columns: repeat(2, 1fr); }
+            }
+
+            @media (max-width: 768px) {
+              .attest-trust-section .two-col { grid-template-columns: 1fr; }
+              .attest-trust-section .compare { grid-template-columns: 1fr; }
+            }
+
+            @media (max-width: 500px) {
+              .attest-trust-section .cards { grid-template-columns: 1fr; }
+              .attest-trust-section .hero-title { font-size: 1.8rem; }
+            }
+          `
+        }} />
+
+        <div className="container-custom" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 className="sr-only">Attest — proof of human intent for digital communications</h2>
+
+          <div className="hero">
+            <p className="eyebrow">Attest</p>
+            <h1 className="hero-title">In the AI era,<br />trust needs <span>proof.</span></h1>
+            <p className="hero-sub">AI can write any message. AI can send any message. But AI cannot prove a human was actually behind it.</p>
+            <div className="badge"><i className="ti ti-shield-check" aria-hidden="true"></i> Human verified</div>
           </div>
 
-          {/* Desktop Headers (Fixed class name to flowchart-headers) */}
-          <div className="flowchart-headers" style={{
-            gridTemplateColumns: '1.1fr 40px 1.3fr 1.2fr 1.4fr',
-            gap: '16px',
-            marginBottom: '24px',
-            textAlign: 'center'
-          }}>
-            <div style={{ gridColumn: 'span 3', display: 'flex', justifyContent: 'center' }}>
-              <span style={{ border: '1.5px solid #FCA5A5', color: '#DC2626', background: '#FFFFFF', borderRadius: 9999, padding: '4px 16px', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em' }}>
-                THE PROBLEM
-              </span>
+          <hr className="divider" />
+
+          <p className="section-label">The problem</p>
+          <div className="cards">
+            <div className="card">
+              <div className="card-icon red"><i className="ti ti-robot" aria-hidden="true"></i></div>
+              <h3>Any email can be faked</h3>
+              <p>AI writes perfect emails in seconds. Even from your CEO's account.</p>
             </div>
-            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'center' }}>
-              <span style={{ border: '1.5px solid #86EFAC', color: '#007A5E', background: '#FFFFFF', borderRadius: 9999, padding: '4px 16px', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em' }}>
-                THE SOLUTION WITH ATTEST
-              </span>
+            <div className="card">
+              <div className="card-icon amber"><i className="ti ti-inbox" aria-hidden="true"></i></div>
+              <h3>Your inbox can't tell</h3>
+              <p>Soon 90% of messages will be AI-generated. Which ones deserve your attention?</p>
             </div>
-          </div>
-
-          {/* Grid rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* ROW 1: 5 Columns (Problem, Arrow, Unverified Gmail, Solution, Verified Gmail) */}
-            <div className="flowchart-grid">
-
-              {/* Problem 1 */}
-              <div className="problem-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#EF4444', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>1</div>
-                  <div style={{ background: '#FEF2F2', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>AI-generated emails</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>AI-generated emails flood inboxes with convincing but fake content.</p>
-                </div>
-              </div>
-
-              {/* Arrow */}
-              <div className="flowchart-arrow">
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #E2E8F0', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#94A3B8', fontWeight: 'bold' }}>
-                  →
-                </div>
-              </div>
-
-              {/* Gmail Mockup 1 (Unverified) */}
-              <div className="gmail-mock-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335" />
-                    <path d="M22 6l-10 6L2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#F1F5F9" />
-                    <path d="M2 6v12h4V8l6 4 6-4v10h4V6l-10 7L2 6z" fill="#4285F4" />
-                  </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#475569' }}>Gmail</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1E293B', marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Urgent: Invoice Approval Needed</span>
-                  <span style={{ background: '#E2E8F0', color: '#475569', fontSize: 6.5, padding: '1px 3px', borderRadius: 2, fontWeight: 700, marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inbox x</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>billing@invoice-service.co</span>
-                    <span style={{ fontSize: 7.5, color: '#94A3B8' }}>to me ▾</span>
-                  </div>
-                  <span style={{ fontSize: 8, color: '#94A3B8', marginLeft: 'auto', flexShrink: 0 }}>10:43 AM</span>
-                </div>
-
-                <div style={{ fontSize: 9.5, color: '#475569', lineHeight: 1.45, marginTop: 4 }}>
-                  Hi,<br />
-                  Please approve the attached invoice for $9,850. This is urgent and needs to be processed today.
-                </div>
-              </div>
-
-              {/* Solution Concept 1 */}
-              <div className="solution-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#007A5E', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>1</div>
-                  <div style={{ background: '#E6FDF0', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Human activity verification</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Attest verifies real human activity before the email is sent.</p>
-                </div>
-              </div>
-
-              {/* Gmail Mockup 1 (Verified) */}
-              <div className="gmail-mock-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335" />
-                    <path d="M22 6l-10 6L2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#F1F5F9" />
-                    <path d="M2 6v12h4V8l6 4 6-4v10h4V6l-10 7L2 6z" fill="#4285F4" />
-                  </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#475569' }}>Gmail</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1E293B', marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Urgent: Invoice Approval Needed</span>
-                  <span style={{ background: '#E2E8F0', color: '#475569', fontSize: 6.5, padding: '1px 3px', borderRadius: 2, fontWeight: 700, marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inbox x</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>billing@invoice-service.co</span>
-                    <span style={{ fontSize: 7.5, color: '#94A3B8' }}>to me ▾</span>
-                  </div>
-                  <span style={{ fontSize: 8, color: '#94A3B8', marginLeft: 'auto', flexShrink: 0 }}>10:43 AM</span>
-                </div>
-
-                <div style={{ fontSize: 9.5, color: '#475569', lineHeight: 1.45, marginTop: 4 }}>
-                  Hi,<br />
-                  Please approve the attached invoice for $9,850. This is urgent and needs to be processed today.
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
-                  <div style={{
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
-                    color: '#16A34A',
-                    fontSize: 8.5,
-                    fontWeight: 800,
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <span>✓ Human Verified</span>
-                  </div>
-                </div>
-              </div>
-
+            <div className="card">
+              <div className="card-icon blue"><i className="ti ti-server" aria-hidden="true"></i></div>
+              <h3>Servers ≠ people</h3>
+              <p>SPF, DKIM, DMARC prove a server sent it. They say nothing about a human.</p>
             </div>
-
-            {/* ROW 2: 4 Columns (Problem, Arrow, Solution, Verified Gmail spanning 2 columns) */}
-            <div className="flowchart-grid">
-
-              {/* Problem 2 */}
-              <div className="problem-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#EF4444', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>2</div>
-                  <div style={{ background: '#FEF2F2', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5">
-                      <path d="M12 2a5 5 0 0 0-5 5v3a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z" />
-                      <path d="M17 14h-1a6 6 0 0 0-8 0H7a3 3 0 0 0-3 3v2h16v-2a3 3 0 0 0-3-3z" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Impersonation & spoofed senders</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Attackers impersonate trusted senders to steal money or sensitive data.</p>
-                </div>
-              </div>
-
-              {/* Arrow */}
-              <div className="flowchart-arrow">
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #E2E8F0', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#94A3B8', fontWeight: 'bold' }}>
-                  →
-                </div>
-              </div>
-
-              {/* Solution Concept 2 */}
-              <div className="solution-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#007A5E', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>2</div>
-                  <div style={{ background: '#E6FDF0', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Human-attested signature layer</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Every email includes a tamper-proof signature from a verified human.</p>
-                </div>
-              </div>
-
-              {/* Gmail Mockup 2 */}
-              <div className="gmail-mock-card gmail-span-2 card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335" />
-                    <path d="M22 6l-10 6L2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#F1F5F9" />
-                    <path d="M2 6v12h4V8l6 4 6-4v10h4V6l-10 7L2 6z" fill="#4285F4" />
-                  </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#475569' }}>Gmail</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1E293B', marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Action Required: Update Payment Details</span>
-                  <span style={{ background: '#E2E8F0', color: '#475569', fontSize: 6.5, padding: '1px 3px', borderRadius: 2, fontWeight: 700, marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inbox x</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>ceo@company.co</span>
-                    <span style={{ fontSize: 7.5, color: '#94A3B8' }}>to Finance Team ▾</span>
-                  </div>
-                  <span style={{ fontSize: 8, color: '#94A3B8', marginLeft: 'auto', flexShrink: 0 }}>9:18 AM</span>
-                </div>
-
-                <div style={{ fontSize: 9.5, color: '#475569', lineHeight: 1.45, marginTop: 4 }}>
-                  Hi Team,<br />
-                  Please transfer $25,000 to the new vendor account immediately and confirm once done.<br />
-                  Thanks,<br />
-                  CEO
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
-                  <div style={{
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
-                    color: '#16A34A',
-                    fontSize: 8.5,
-                    fontWeight: 800,
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <span>✓ Attest Signature Attached</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* ROW 3: 4 Columns (Problem, Arrow, Solution, Verified Gmail spanning 2 columns) */}
-            <div className="flowchart-grid">
-
-              {/* Problem 3 */}
-              <div className="problem-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#EF4444', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>3</div>
-                  <div style={{ background: '#FEF2F2', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="2" y1="12" x2="22" y2="12" />
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Authentication verifies domains, not humans</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>SPF, DKIM, and DMARC protect domains — not against human impersonators.</p>
-                </div>
-              </div>
-
-              {/* Arrow */}
-              <div className="flowchart-arrow">
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #E2E8F0', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#94A3B8', fontWeight: 'bold' }}>
-                  →
-                </div>
-              </div>
-
-              {/* Solution Concept 3 */}
-              <div className="solution-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#007A5E', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>3</div>
-                  <div style={{ background: '#E6FDF0', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                      <path d="M2 12a10 10 0 0 1 20 0" />
-                      <path d="M5 12a7 7 0 0 1 14 0" />
-                      <path d="M8 12a4 4 0 0 1 8 0" />
-                      <path d="M11 12a1 1 0 0 1 2 0" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Verified intent proof layer</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Attest confirms the real human intent behind every email.</p>
-                </div>
-              </div>
-
-              {/* Gmail Mockup 3 */}
-              <div className="gmail-mock-card gmail-span-2 card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335" />
-                    <path d="M22 6l-10 6L2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#F1F5F9" />
-                    <path d="M2 6v12h4V8l6 4 6-4v10h4V6l-10 7L2 6z" fill="#4285F4" />
-                  </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#475569' }}>Gmail</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1E293B', marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Quarterly Report</span>
-                  <span style={{ background: '#E2E8F0', color: '#475569', fontSize: 6.5, padding: '1px 3px', borderRadius: 2, fontWeight: 700, marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inbox x</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>reports@company.com</span>
-                    <span style={{ fontSize: 7.5, color: '#94A3B8' }}>to me ▾</span>
-                  </div>
-                  <span style={{ fontSize: 8, color: '#94A3B8', marginLeft: 'auto', flexShrink: 0 }}>8:32 AM</span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                  <div style={{
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
-                    color: '#16A34A',
-                    fontSize: 8.5,
-                    fontWeight: 800,
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    alignSelf: 'flex-start'
-                  }}>
-                    <span>✓ Human Intent Verified</span>
-                  </div>
-                  <div style={{ fontSize: 9.5, color: '#475569', lineHeight: 1.45 }}>
-                    Real human intent confirmed before sending.
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* ROW 4: 4 Columns (Problem, Arrow, Solution, Verified Gmail spanning 2 columns) */}
-            <div className="flowchart-grid">
-
-              {/* Problem 4 */}
-              <div className="problem-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#EF4444', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>4</div>
-                  <div style={{ background: '#FEF2F2', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <line x1="19" y1="8" x2="19" y2="14" />
-                      <line x1="19" y1="18" x2="19.01" y2="18" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Billing & payment invoice fraud</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Fake invoices and payment requests lead to financial losses every day.</p>
-                </div>
-              </div>
-
-              {/* Arrow */}
-              <div className="flowchart-arrow">
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #E2E8F0', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#94A3B8', fontWeight: 'bold' }}>
-                  →
-                </div>
-              </div>
-
-              {/* Solution Concept 4 */}
-              <div className="solution-card card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <div style={{ background: '#007A5E', color: '#FFFFFF', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900 }}>4</div>
-                  <div style={{ background: '#E6FDF0', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', margin: '0 0 6px 0' }}>Verifiable approval trail</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 550 }}>Every approval, payment request, and attachment is human-verified.</p>
-                </div>
-              </div>
-
-              {/* Gmail Mockup 4 */}
-              <div className="gmail-mock-card gmail-span-2 card-hover-lift animate-on-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" fill="#EA4335" />
-                    <path d="M22 6l-10 6L2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#F1F5F9" />
-                    <path d="M2 6v12h4V8l6 4 6-4v10h4V6l-10 7L2 6z" fill="#4285F4" />
-                  </svg>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#475569' }}>Gmail</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1E293B', marginLeft: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Payment Overdue</span>
-                  <span style={{ background: '#E2E8F0', color: '#475569', fontSize: 6.5, padding: '1px 3px', borderRadius: 2, fontWeight: 700, marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inbox x</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, flexShrink: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>billing@pay-services.net</span>
-                    <span style={{ fontSize: 7.5, color: '#94A3B8' }}>to me ▾</span>
-                  </div>
-                  <span style={{ fontSize: 8, color: '#94A3B8', marginLeft: 'auto', flexShrink: 0 }}>Yesterday</span>
-                </div>
-
-                <div style={{ fontSize: 9.5, color: '#475569', lineHeight: 1.45, marginTop: 4 }}>
-                  Your payment of $4,200 is overdue. Please make the payment using the link below.<br />
-                  <span style={{ color: '#2563EB', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Pay Now</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-                  {/* PDF Attachment card */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    border: '1px solid #E2E8F0',
-                    borderRadius: 4,
-                    padding: '2px 6px',
-                    background: '#F8FAFC',
-                    width: 120
-                  }}>
-                    <span style={{ background: '#EF4444', color: '#FFFFFF', fontSize: 6.5, fontWeight: 900, borderRadius: 2, padding: '1px 2.5px' }}>PDF</span>
-                    <span style={{ fontSize: 7.5, fontWeight: 700, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Invoice_4200.pdf</span>
-                  </div>
-
-                  {/* Verification Pill */}
-                  <div style={{
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
-                    color: '#16A34A',
-                    fontSize: 8.5,
-                    fontWeight: 800,
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <span>✓ Human Verified</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* BOTTOM GRID BAR: 4 Feature cards */}
-          <div className="features-footer-grid stagger-children">
-            <div className="features-footer-item animate-on-scroll">
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: '#F0FDF4',
-                border: '1.5px solid #DCFCE7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Zero-trust security</span>
-                <span style={{ fontSize: 12, color: '#64748B', fontWeight: 550 }}>Tamper-proof assurance.</span>
-              </div>
-            </div>
-
-            <div className="features-footer-item animate-on-scroll">
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: '#F0FDF4',
-                border: '1.5px solid #DCFCE7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Sub-second latency</span>
-                <span style={{ fontSize: 12, color: '#64748B', fontWeight: 550 }}>Zero workflow disruption.</span>
-              </div>
-            </div>
-
-            <div className="features-footer-item animate-on-scroll">
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: '#F0FDF4',
-                border: '1.5px solid #DCFCE7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Built for everyone</span>
-                <span style={{ fontSize: 12, color: '#64748B', fontWeight: 550 }}>No complex onboarding.</span>
-              </div>
-            </div>
-
-            <div className="features-footer-item animate-on-scroll">
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: '#F0FDF4',
-                border: '1.5px solid #DCFCE7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.5">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                  <line x1="8" y1="21" x2="16" y2="21" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Enterprise ready</span>
-                <span style={{ fontSize: 12, color: '#64748B', fontWeight: 550 }}>Works across workflows.</span>
-              </div>
+            <div className="card">
+              <div className="card-icon teal"><i className="ti ti-edit" aria-hidden="true"></i></div>
+              <h3>Accountability gaps</h3>
+              <p>Payments, contracts, decisions — who actually reviewed and approved this?</p>
             </div>
           </div>
 
+          <hr className="divider" />
+
+          <p className="section-label">See the difference</p>
+
+          <div className="scenario-tabs">
+            <button className={`tab ${activeScenario === 'ceo' ? 'active' : ''}`} onClick={() => setActiveScenario('ceo')}>CEO wire transfer</button>
+            <button className={`tab ${activeScenario === 'legal' ? 'active' : ''}`} onClick={() => setActiveScenario('legal')}>Legal contract</button>
+            <button className={`tab ${activeScenario === '2028' ? 'active' : ''}`} onClick={() => setActiveScenario('2028')}>Your inbox in 2028</button>
+          </div>
+
+          {activeScenario === 'ceo' && (
+            <div id="ceo" className="scenario active animate-fadeIn">
+              <div className="two-col">
+                <div>
+                  <p className="section-label" style={{ marginBottom: '8px', textAlign: 'left' }}>Without Attest</p>
+                  <div className="gmail-theme">
+                    <div className="gmail-subject-row">
+                      <h3 className="gmail-subject">Urgent: Transfer $250,000 today</h3>
+                      <span className="gmail-inbox-tag">Inbox</span>
+                    </div>
+                    <div className="gmail-sender-row">
+                      <div className="gmail-avatar">C</div>
+                      <div className="gmail-sender-info">
+                        <div className="gmail-sender-name">
+                          <strong>CEO</strong> <span className="gmail-email">&lt;ceo@company.com&gt;</span>
+                        </div>
+                        <div className="gmail-to-me">to me ▾</div>
+                      </div>
+                      <div className="gmail-meta-right">
+                        <span className="gmail-time">10:24 AM (1 hour ago)</span>
+                        <span className="gmail-actions">
+                          <i className="ti ti-star" aria-hidden="true"></i>
+                          <i className="ti ti-share-3" aria-hidden="true"></i>
+                          <i className="ti ti-dots-vertical" aria-hidden="true"></i>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="gmail-body">
+                      <p>Please transfer $250,000 to this vendor immediately. This is time-sensitive.</p>
+                      <p style={{ marginTop: '12px' }}>— CEO</p>
+                    </div>
+                    <div className="gmail-banner unverified">
+                      <i className="ti ti-alert-triangle" aria-hidden="true"></i>
+                      <div className="banner-content">
+                        <strong>Unverified Communication</strong>
+                        <span>Attest signature missing. We couldn't verify a human was behind this email.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="section-label" style={{ marginBottom: '8px', textAlign: 'left' }}>With Attest</p>
+                  <div className="gmail-theme">
+                    <div className="gmail-subject-row">
+                      <h3 className="gmail-subject">Urgent: Transfer $250,000 today</h3>
+                      <span className="gmail-inbox-tag">Inbox</span>
+                    </div>
+                    <div className="gmail-sender-row">
+                      <div className="gmail-avatar">C</div>
+                      <div className="gmail-sender-info">
+                        <div className="gmail-sender-name">
+                          <strong>CEO</strong> <span className="gmail-email">&lt;ceo@company.com&gt;</span>
+                        </div>
+                        <div className="gmail-to-me">to me ▾</div>
+                      </div>
+                      <div className="gmail-meta-right">
+                        <span className="gmail-time">10:24 AM (1 hour ago)</span>
+                        <span className="gmail-actions">
+                          <i className="ti ti-star" aria-hidden="true"></i>
+                          <i className="ti ti-share-3" aria-hidden="true"></i>
+                          <i className="ti ti-dots-vertical" aria-hidden="true"></i>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="gmail-body">
+                      <p>Please transfer $250,000 to this vendor immediately. This is time-sensitive.</p>
+                      <p style={{ marginTop: '12px' }}>— CEO</p>
+                    </div>
+                    <div className="gmail-banner verified">
+                      <i className="ti ti-shield-check" aria-hidden="true"></i>
+                      <div className="banner-content">
+                        <strong>Human Attested</strong>
+                        <span>CEO verified intent. Attest confirmed this message was sent by a physical human session.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeScenario === 'legal' && (
+            <div id="legal" className="scenario active animate-fadeIn">
+              <div className="two-col">
+                <div>
+                  <p className="section-label" style={{ marginBottom: '8px', textAlign: 'left' }}>Without Attest</p>
+                  <div className="gmail-theme">
+                    <div className="gmail-subject-row">
+                      <h3 className="gmail-subject">Final contract attached</h3>
+                      <span className="gmail-inbox-tag">Inbox</span>
+                    </div>
+                    <div className="gmail-sender-row">
+                      <div className="gmail-avatar legal">L</div>
+                      <div className="gmail-sender-info">
+                        <div className="gmail-sender-name">
+                          <strong>Law Firm</strong> <span className="gmail-email">&lt;firm@lawco.com&gt;</span>
+                        </div>
+                        <div className="gmail-to-me">to me ▾</div>
+                      </div>
+                      <div className="gmail-meta-right">
+                        <span className="gmail-time">11:15 AM (45 mins ago)</span>
+                        <span className="gmail-actions">
+                          <i className="ti ti-star" aria-hidden="true"></i>
+                          <i className="ti ti-share-3" aria-hidden="true"></i>
+                          <i className="ti ti-dots-vertical" aria-hidden="true"></i>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="gmail-body">
+                      <p>Please find the signed contract attached for your records.</p>
+                    </div>
+                    <div className="gmail-banner unverified">
+                      <i className="ti ti-alert-triangle" aria-hidden="true"></i>
+                      <div className="banner-content">
+                        <strong>Unverified Communication</strong>
+                        <span>Attest signature missing. We couldn't verify a human was behind this email.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="section-label" style={{ marginBottom: '8px', textAlign: 'left' }}>With Attest</p>
+                  <div className="gmail-theme">
+                    <div className="gmail-subject-row">
+                      <h3 className="gmail-subject">Final contract attached</h3>
+                      <span className="gmail-inbox-tag">Inbox</span>
+                    </div>
+                    <div className="gmail-sender-row">
+                      <div className="gmail-avatar legal">L</div>
+                      <div className="gmail-sender-info">
+                        <div className="gmail-sender-name">
+                          <strong>Law Firm</strong> <span className="gmail-email">&lt;firm@lawco.com&gt;</span>
+                        </div>
+                        <div className="gmail-to-me">to me ▾</div>
+                      </div>
+                      <div className="gmail-meta-right">
+                        <span className="gmail-time">11:15 AM (45 mins ago)</span>
+                        <span className="gmail-actions">
+                          <i className="ti ti-star" aria-hidden="true"></i>
+                          <i className="ti ti-share-3" aria-hidden="true"></i>
+                          <i className="ti ti-dots-vertical" aria-hidden="true"></i>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="gmail-body">
+                      <p>Please find the signed contract attached for your records.</p>
+                    </div>
+                    <div className="gmail-banner verified">
+                      <i className="ti ti-shield-check" aria-hidden="true"></i>
+                      <div className="banner-content">
+                        <strong>Human Attested</strong>
+                        <span>Lawyer reviewed & human sent. Attest confirmed this message was sent by a physical human session.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeScenario === '2028' && (
+            <div id="2028" className="scenario active animate-fadeIn" style={{ maxWidth: '840px', margin: '0 auto' }}>
+              <div className="gmail-theme gmail-inbox-list">
+                <div className="gmail-inbox-header">
+                  <div className="gmail-inbox-tab active"><i className="ti ti-inbox" aria-hidden="true"></i> Primary</div>
+                  <div className="gmail-inbox-tab"><i className="ti ti-tag" aria-hidden="true"></i> Promotions</div>
+                  <div className="gmail-inbox-tab"><i className="ti ti-users" aria-hidden="true"></i> Social</div>
+                </div>
+                <div className="gmail-inbox-rows">
+                  <div className="gmail-inbox-row unread">
+                    <div className="gmail-row-left">
+                      <i className="ti ti-square" aria-hidden="true" style={{ marginRight: '6px' }}></i>
+                      <i className="ti ti-star" aria-hidden="true" style={{ marginRight: '10px' }}></i>
+                      <span className="gmail-row-sender">Copilot Agent</span>
+                    </div>
+                    <div className="gmail-row-content">
+                      <span className="gmail-row-subject">Meeting recap from agent</span>
+                      <span className="gmail-row-snippet"> — Here is the summary of the design discussion...</span>
+                    </div>
+                    <div className="gmail-row-right">
+                      <span className="gmail-row-badge ai">AI generated</span>
+                      <span className="gmail-row-date">9:41 AM</span>
+                    </div>
+                  </div>
+                  <div className="gmail-inbox-row unread">
+                    <div className="gmail-row-left">
+                      <i className="ti ti-square" aria-hidden="true" style={{ marginRight: '6px' }}></i>
+                      <i className="ti ti-star" aria-hidden="true" style={{ marginRight: '10px' }}></i>
+                      <span className="gmail-row-sender">Reports Bot</span>
+                    </div>
+                    <div className="gmail-row-content">
+                      <span className="gmail-row-subject">Quarterly report summary</span>
+                      <span className="gmail-row-snippet"> — Weekly metrics are ready for review...</span>
+                    </div>
+                    <div className="gmail-row-right">
+                      <span className="gmail-row-badge ai">AI generated</span>
+                      <span className="gmail-row-date">8:15 AM</span>
+                    </div>
+                  </div>
+                  <div className="gmail-inbox-row unread attested">
+                    <div className="gmail-row-left">
+                      <i className="ti ti-square" aria-hidden="true" style={{ marginRight: '6px' }}></i>
+                      <i className="ti ti-star" aria-hidden="true" style={{ color: '#f4b400', marginRight: '10px' }}></i>
+                      <span className="gmail-row-sender">CEO</span>
+                    </div>
+                    <div className="gmail-row-content">
+                      <span className="gmail-row-subject">Contract approval needed</span>
+                      <span className="gmail-row-snippet"> — Please review this agreement before the call...</span>
+                    </div>
+                    <div className="gmail-row-right">
+                      <span className="gmail-row-badge human"><i className="ti ti-shield-check" aria-hidden="true"></i> Human attested</span>
+                      <span className="gmail-row-date">7:30 AM</span>
+                    </div>
+                  </div>
+                  <div className="gmail-inbox-row">
+                    <div className="gmail-row-left">
+                      <i className="ti ti-square" aria-hidden="true" style={{ marginRight: '6px' }}></i>
+                      <i className="ti ti-star" aria-hidden="true" style={{ marginRight: '10px' }}></i>
+                      <span className="gmail-row-sender">Vendor System</span>
+                    </div>
+                    <div className="gmail-row-content">
+                      <span className="gmail-row-subject">Auto-reply from vendor bot</span>
+                      <span className="gmail-row-snippet"> — Thank you for contacting customer support...</span>
+                    </div>
+                    <div className="gmail-row-right">
+                      <span className="gmail-row-badge ai">AI generated</span>
+                      <span className="gmail-row-date">Yesterday</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', marginTop: '14px', lineHeight: 1.5, textAlign: 'center', fontWeight: 550 }}>The Attest badge becomes your priority filter. You know instantly which messages had a real human behind them.</p>
+            </div>
+          )}
+
+          <hr className="divider" />
+
+          <p className="section-label">What Attest proves</p>
+          <div className="compare">
+            <div className="compare-col without">
+              <h4>Today's email security</h4>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Sent from a valid domain</span></div>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Server is authenticated</span></div>
+              <div className="compare-row"><i className="ti ti-circle-x" aria-hidden="true"></i><span>Human reviewed it</span></div>
+              <div className="compare-row"><i className="ti ti-circle-x" aria-hidden="true"></i><span>Human approved it</span></div>
+              <div className="compare-row"><i className="ti ti-circle-x" aria-hidden="true"></i><span>Human intentionally sent it</span></div>
+            </div>
+            <div className="compare-col with">
+              <h4>With Attest</h4>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Sent from a valid domain</span></div>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Server is authenticated</span></div>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Human reviewed it</span></div>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Human approved it</span></div>
+              <div className="compare-row"><i className="ti ti-circle-check" aria-hidden="true"></i><span>Human intentionally sent it</span></div>
+            </div>
+          </div>
+
+          <hr className="divider" />
+
+          <div className="tagline-block">
+            <p className="line1">SSL proved a website was authentic.</p>
+            <p className="line2">Attest proves a <span>communication was human.</span></p>
+          </div>
+
+          <div className="scope-box animated-attention">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <i className="ti ti-info-circle" style={{ color: '#d97706', fontSize: '18px' }} aria-hidden="true"></i>
+              <strong style={{ fontSize: '14px', color: '#1c1917', fontWeight: 800 }}>Important Scope Notice</strong>
+            </div>
+            <div className="two-col" style={{ gap: '20px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#007A5E', fontWeight: 700, fontSize: '13px' }}>
+                  <i className="ti ti-circle-check" aria-hidden="true"></i> What We Do
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#4b5563', lineHeight: 1.5, fontWeight: 550 }}>
+                  We guarantee <strong>human presence</strong> at the exact moment of sending. We stop AI-automated mail, bot-driven spam, and synthetic scripts from polluting your priority inbox.
+                </p>
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#d97706', fontWeight: 700, fontSize: '13px' }}>
+                  <i className="ti ti-alert-triangle" aria-hidden="true"></i> What We Don't Do
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#4b5563', lineHeight: 1.5, fontWeight: 550 }}>
+                  We are not a moral filter. Attest does <strong>not prevent human-driven fraud</strong> or scams. If a real human manually writes a fraudulent invoice or contract, it will still verify as human-sent.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       {/* ── TRUST & SCENARIO WORKFLOWS (Fully Open!) ── */}
@@ -3111,6 +3198,94 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── ROADMAP & FUTURE INTEGRATIONS ── */}
+      <section style={{ padding: '96px 24px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="container-custom">
+
+          {/* Top Pill Badge */}
+          <div className="animate-on-scroll" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+            <div style={{ background: '#E6FDF0', border: '1px solid #DCFCE7', color: '#007A5E', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 9999, fontSize: 12, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+              ROADMAP
+            </div>
+          </div>
+
+          <div className="animate-on-scroll" style={{ textAlign: 'center', marginBottom: 56 }}>
+            <h3 style={{ fontSize: 'clamp(32px, 4.2vw, 48px)', fontWeight: 950, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 20 }}>
+              Future Integrations & <span style={{ color: '#007A5E' }}>Enterprise Paths</span>
+            </h3>
+            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: '0 auto', maxWidth: 650 }}>
+              Attest is expanding beyond browser extensions to secure every device, input, and high-value corporate workflow.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 24,
+            maxWidth: 1000,
+            margin: '0 auto'
+          }}>
+            {[
+              {
+                title: 'Mobile Attest Keyboard',
+                desc: 'A secure, custom keyboard for iOS & Android that detects physical touch/typing dynamics and injects verified signatures inside any chat app (WhatsApp, Slack, iMessage).',
+                status: 'Coming Soon'
+              },
+              {
+                title: 'Attest Enterprise SDK',
+                desc: 'Easily integrate Attest into proprietary enterprise applications, internal approval tools, banking platforms, and HR systems to secure critical workflows.',
+                status: 'Coming Soon'
+              },
+              {
+                title: 'Gmail & Outlook Add-ins',
+                desc: 'Secure cross-platform and mobile email clients through official platform add-ins, offering native, one-click human verification without OS limitations.',
+                status: 'Coming Soon'
+              }
+            ].map((item, idx) => (
+              <div key={idx} style={{
+                background: '#ffffff',
+                border: '1px solid #E2E8F0',
+                borderRadius: 20,
+                padding: '32px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 20,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)',
+                position: 'relative',
+                transition: 'all 0.3s ease'
+              }}
+                className="premium-shadow card-hover-lift"
+              >
+                <div>
+                  <div style={{
+                    display: 'inline-flex',
+                    background: '#E6FDF0',
+                    color: '#007A5E',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: '4px 10px',
+                    borderRadius: 9999,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: 16
+                  }}>
+                    {item.status}
+                  </div>
+                  <h4 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>
+                    {item.title}
+                  </h4>
+                  <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
       {/* ── TESTIMONIALS & CASE STUDIES (Loved by SEO Professionals style) ── */}
       <section style={{ padding: '96px 24px', background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
@@ -3124,66 +3299,183 @@ export default function Home() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-            {[
-              {
-                quote: "Attest successfully blocked a critical session-hijacking attempt targeting our billing team. The attacker stole active browser session tokens, but without the physical mouse trajectory tracing, their invoice email commands failed instantly.",
-                name: 'Sarah Jenkins',
-                role: 'VP of Security, FinTech Global',
-                rating: 5
-              },
-              {
-                quote: "In the era of perfectly formulated AI phishing attempts, Attest is the missing authentication shield. Standard security processes verify DNS server configurations — but only Attest verifies actual physical human action.",
-                name: 'Marcus Vance',
-                role: 'Chief Information Security Officer',
-                rating: 5
-              },
-              {
-                quote: "Our administrative staff loves the zero-barrier integration. The calibration check takes less than 5 seconds at dispatch, yet provides our entire enterprise complete assurance that outbox actions remain 100% verified.",
-                name: 'Alisha Patel',
-                role: 'Founder, LeadScale',
-                rating: 5
-              }
-            ].map((t, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: 20,
-                  padding: 32,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: 20
-                }}
-                className="premium-shadow"
-              >
-                <div>
-                  {/* Star Rating */}
-                  <div style={{ display: 'flex', gap: 4, color: '#F59E0B', fontSize: 18, marginBottom: 16 }}>
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <span key={i}>★</span>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: 14.5, color: '#475569', lineHeight: 1.6, margin: 0, fontWeight: 500, fontStyle: 'italic' }}>
-                    "{t.quote}"
-                  </p>
-                </div>
+          {/* Testimonial Carousel */}
+          <div style={{
+            position: 'relative',
+            maxWidth: 800,
+            margin: '0 auto',
+            overflow: 'hidden',
+            padding: '20px 10px 40px 10px'
+          }}>
+            <div style={{
+              display: 'flex',
+              transform: `translateX(-${activeTestimonial * 20}%)`,
+              transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+              width: '500%' // 5 slides * 100%
+            }}>
+              {[
+                {
+                  quote: "As businesses adopt more automation and AI-driven tools, trust becomes increasingly important. Attest creates a reliable way to validate genuine human actions without disrupting productivity.",
+                  name: "Suresh Mani",
+                  role: "Director of Business Development, BlueBix",
+                  rating: 5
+                },
+                {
+                  quote: "Attest has introduced a new level of trust into our operational workflows. Knowing that critical actions can be linked to verified human interaction helps us reduce risk while maintaining efficiency.",
+                  name: "Venkata Poosapati",
+                  role: "Director of Operations & Delivery",
+                  rating: 5
+                },
+                {
+                  quote: "Client communication and internal approvals require absolute accountability. Attest provides a simple yet powerful verification layer that strengthens confidence across our organization.",
+                  name: "Sadhana",
+                  role: "Account Manager, Softstandards",
+                  rating: 5
+                },
+                {
+                  quote: "Recruitment teams handle sensitive candidate and employee communications every day. Attest helps ensure that important HR actions are supported by verified human intent.",
+                  name: "Rajashekar Reddy",
+                  role: "HR Manager, Petabytz",
+                  rating: 5
+                },
+                {
+                  quote: "Operational excellence depends on transparency and accountability. Attest gives our teams greater confidence that critical approvals, communications, and workflows originate from verified human activity.",
+                  name: "Ganesh Lekhani",
+                  role: "Operations Manager",
+                  rating: 5
+                }
+              ].map((t, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    width: '20%', // 100% / 5 slides
+                    flexShrink: 0,
+                    padding: '0 12px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: 24,
+                      padding: '40px 32px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: 24,
+                      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.02)',
+                      minHeight: 220
+                    }}
+                    className="premium-shadow"
+                  >
+                    <div>
+                      {/* Star Rating */}
+                      <div style={{ display: 'flex', gap: 4, color: '#F59E0B', fontSize: 18, marginBottom: 16 }}>
+                        {Array.from({ length: t.rating }).map((_, i) => (
+                          <span key={i}>★</span>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: 16, color: '#475569', lineHeight: 1.6, margin: 0, fontWeight: 500, fontStyle: 'italic' }}>
+                        "{t.quote}"
+                      </p>
+                    </div>
 
-                {/* Author Block */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
-                  {/* Decorative avatar block */}
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E6FDF0', color: '#007A5E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>
-                    {t.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', margin: 0 }}>{t.name}</h4>
-                    <p style={{ fontSize: 12, color: '#64748B', margin: 0, fontWeight: 600 }}>{t.role}</p>
+                    {/* Author Block */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
+                      {/* Decorative avatar block */}
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#E6FDF0', color: '#007A5E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                        {t.name.split(' ').map(n => n ? n[0] : '').join('')}
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>{t.name}</h4>
+                        <p style={{ fontSize: 13, color: '#64748B', margin: 0, fontWeight: 600 }}>{t.role}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {/* Left and Right navigation buttons */}
+            <button
+              onClick={() => setActiveTestimonial((prev) => (prev - 1 + 5) % 5)}
+              style={{
+                position: 'absolute',
+                top: 'calc(50% - 20px)',
+                left: 0,
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#ffffff',
+                border: '1px solid #E2E8F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                color: '#64748B',
+                fontSize: 16,
+                fontWeight: 'bold',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#007A5E'; e.currentTarget.style.color = '#007A5E'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#64748B'; }}
+            >
+              ←
+            </button>
+            <button
+              onClick={() => setActiveTestimonial((prev) => (prev + 1) % 5)}
+              style={{
+                position: 'absolute',
+                top: 'calc(50% - 20px)',
+                right: 0,
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#ffffff',
+                border: '1px solid #E2E8F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                color: '#64748B',
+                fontSize: 16,
+                fontWeight: 'bold',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#007A5E'; e.currentTarget.style.color = '#007A5E'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#64748B'; }}
+            >
+              →
+            </button>
+
+            {/* Pagination Dots */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 24
+            }}>
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveTestimonial(idx)}
+                  style={{
+                    width: idx === activeTestimonial ? 20 : 8,
+                    height: 8,
+                    borderRadius: 9999,
+                    background: idx === activeTestimonial ? '#007A5E' : '#CBD5E1',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+              ))}
+            </div>
           </div>
 
         </div>
