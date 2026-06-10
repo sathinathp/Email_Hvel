@@ -43,6 +43,38 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Step 2 Typewriter State
+  const [typedCharCount, setTypedCharCount] = useState(0);
+  const [step2State, setStep2State] = useState<'typing' | 'verifying' | 'verified'>('typing');
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const fullText = "Hi Sarah,\nThe final design files are attached. Please review them before Friday.\nLet me know your feedback.\nRegards,\nPetaBytz Technologies Inc";
+
+    if (step2State === 'typing') {
+      if (typedCharCount < fullText.length) {
+        timer = setTimeout(() => {
+          setTypedCharCount((prev) => prev + 1);
+        }, 30);
+      } else {
+        timer = setTimeout(() => {
+          setStep2State('verifying');
+        }, 1200);
+      }
+    } else if (step2State === 'verifying') {
+      timer = setTimeout(() => {
+        setStep2State('verified');
+      }, 1800);
+    } else if (step2State === 'verified') {
+      timer = setTimeout(() => {
+        setTypedCharCount(0);
+        setStep2State('typing');
+      }, 4000);
+    }
+
+    return () => clearTimeout(timer);
+  }, [typedCharCount, step2State]);
+
   // Typewriter & Backspacing Animation for Hero Headline ("Email" -> "Message" -> "Communication")
   const words = ['Email', 'Message', 'Reply'];
   const [wordIndex, setWordIndex] = useState(0);
@@ -1618,7 +1650,7 @@ export default function Home() {
           <div className="animate-on-scroll" style={{ textAlign: 'center', marginBottom: 64 }}>
             <h3 style={{ fontSize: 'clamp(32px, 4.2vw, 48px)', fontWeight: 950, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 20 }}>
               Proving a Real Human Sent It <br />
-              Takes Just <span style={{ color: '#007A5E', fontStyle: 'italic' }}>4 Steps</span>
+              Takes Just <span style={{ color: '#007A5E', fontStyle: 'italic' }}>3 Steps</span>
             </h3>
 
             <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500, margin: '0 auto 6px auto', maxWidth: 700 }}>
@@ -1629,10 +1661,10 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 4-Card Step Layout */}
+          {/* 3-Card Step Layout */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))',
             gap: 20,
             marginTop: 28,
             paddingTop: 20,
@@ -1792,7 +1824,8 @@ export default function Home() {
                 gap: 6,
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.01)',
                 height: 230,
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                position: 'relative'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F1F5F9', paddingBottom: 4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8.5, fontWeight: 700, color: '#1F2937' }}>
@@ -1814,24 +1847,97 @@ export default function Home() {
                     <span style={{ color: '#9CA3AF' }}>Subject</span> Project Update
                   </div>
                 </div>
-                <div style={{ fontSize: 7.5, color: '#4B5563', lineHeight: 1.25, fontWeight: 500, flex: 1, marginTop: 4 }}>
-                  Hi Sarah,<br />
-                  The final design files are attached. Please review them before Friday.<br />
-                  Let me know your feedback.<br />
-                  Regards,<br />
-                  PetaBytz Technologies Inc
+                <div style={{ fontSize: 7.5, color: '#4B5563', lineHeight: 1.25, fontWeight: 550, flex: 1, marginTop: 4, whiteSpace: 'pre-line', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    {"Hi Sarah,\nThe final design files are attached. Please review them before Friday.\nLet me know your feedback.\nRegards,\nPetaBytz Technologies Inc".slice(0, typedCharCount)}
+                    {step2State === 'typing' && (
+                      <span className="typewriter-cursor" style={{
+                        display: 'inline-block',
+                        width: 2,
+                        height: 8,
+                        background: '#DB2777',
+                        marginLeft: 1,
+                        verticalAlign: 'middle'
+                      }} />
+                    )}
+                  </div>
+
+                  {/* Stamp Overlay */}
+                  {step2State === 'verified' && (
+                    <div style={{
+                      fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                      display: 'inline-block',
+                      marginTop: 8,
+                      alignSelf: 'flex-start',
+                      animation: 'fadeIn 0.3s ease-out'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: 9999,
+                        padding: '3px 8px',
+                        gap: 5,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#10b981',
+                          color: 'white',
+                          borderRadius: '50%',
+                          width: 10,
+                          height: 10
+                        }}>
+                          <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        </div>
+                        <span style={{ color: '#065f46', fontSize: 6.5, fontWeight: 700, letterSpacing: '-0.01em' }}>Human Verified</span>
+                        <div style={{ width: 1, height: 8, background: '#d1fae5' }}></div>
+                        <span style={{ color: '#059669', fontSize: 5.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <span>Trust Record</span>
+                          <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                          </svg>
+                        </span>
+                      </div>
+                      <div style={{ marginTop: 3, fontSize: 5.5, color: '#94a3b8', display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span>Hash: 9e107d9d372bb10f...</span>
+                        <span style={{ color: '#6366f1', textDecoration: 'underline' }}>Verify on HVEL Portal</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: 4 }}>
-                  <button style={{
-                    background: '#DB2777',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '2px 8px',
-                    fontSize: 8,
-                    fontWeight: 800,
-                    cursor: 'pointer'
-                  }}>Send</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button style={{
+                      background: '#DB2777',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '2px 8px',
+                      fontSize: 8,
+                      fontWeight: 800,
+                      cursor: 'pointer'
+                    }}>Send</button>
+                    {step2State === 'verifying' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, animation: 'fadeIn 0.2s' }}>
+                        <div className="attest-spinner-animate" style={{ width: 6, height: 6, border: '1.5px solid #F3F4F6', borderTop: '1.5px solid #D97706', borderRadius: '50%' }} />
+                        <span style={{ fontSize: 6.5, color: '#D97706', fontWeight: 700 }}>Verifying human...</span>
+                      </div>
+                    )}
+                    {step2State === 'verified' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, animation: 'fadeIn 0.2s' }}>
+                        <span style={{ color: '#007A5E', fontSize: 8, fontWeight: 900 }}>✓</span>
+                        <span style={{ fontSize: 6.5, color: '#007A5E', fontWeight: 800 }}>Verified</span>
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: 5, color: '#9CA3AF', fontSize: 8 }}>
                     <span>📎</span>
                     <span>🔗</span>
@@ -1852,146 +1958,15 @@ export default function Home() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 12
-                }}>💗</div>
-                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0 }}>Communicate Normally</h4>
+                }}>✍️</div>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0 }}>Type &amp; Verify</h4>
                 <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0, fontWeight: 550 }}>
-                  Continue using your existing email workflows as usual. No changes needed.
+                  Type your email normally; human verification and stamp are attached automatically.
                 </p>
               </div>
             </div>
 
-            {/* STEP 3: Verify & Sign (Mixed from Steps 3 & 4) */}
-            <div style={{
-              background: step3Verified
-                ? 'linear-gradient(180deg, #F0FDF4 0%, #E6FDF0 100%)'
-                : 'linear-gradient(180deg, #F5F3FF 0%, #EEF2FF 100%)',
-              border: step3Verified ? '1px solid #DCFCE7' : '1px solid #DDD6FE',
-              borderRadius: 24,
-              padding: '36px 16px 24px 16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
-              position: 'relative',
-              boxShadow: step3Verified ? '0 8px 30px rgba(16, 185, 129, 0.02)' : '0 8px 30px rgba(124, 58, 237, 0.02)',
-              transition: 'all 0.5s ease-in-out'
-            }}>
-              {/* Floating Step Number */}
-              <div style={{
-                position: 'absolute',
-                top: -16,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: '#ffffff',
-                border: step3Verified ? '1px solid #A7F3D0' : '1px solid #C7D2FE',
-                color: step3Verified ? '#007A5E' : '#6366F1',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 900,
-                boxShadow: step3Verified ? '0 4px 10px rgba(5, 150, 105, 0.08)' : '0 4px 10px rgba(99, 102, 241, 0.08)',
-                transition: 'all 0.5s ease'
-              }}>03</div>
-
-              {/* Inside Mockup: Dynamic Attest verification screen */}
-              <div style={{
-                background: '#ffffff',
-                border: '1px solid #F1F5F9',
-                borderRadius: 16,
-                padding: '12px 10px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.01)',
-                height: 230,
-                justifyContent: 'space-between',
-                transition: 'all 0.5s ease-in-out'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#007A5E' }}>
-                    <span>A</span>
-                    <span style={{ color: '#1F2937' }}>Attest</span>
-                  </div>
-                  {step3Verified ? (
-                    <span style={{ background: '#D1FAE5', color: '#007A5E', fontSize: 7, fontWeight: 800, padding: '1px 4px', borderRadius: 3, transition: 'all 0.3s ease' }}>Added</span>
-                  ) : (
-                    <span style={{ color: '#9CA3AF', fontSize: 9 }}>✕</span>
-                  )}
-                </div>
-
-                {!step3Verified ? (
-                  /* Verifying State */
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8, margin: 'auto 0', transition: 'all 0.3s ease' }}>
-                    <div className="attest-spinner-animate" style={{
-                      width: 28,
-                      height: 28,
-                      border: '3px solid #E2E8F0',
-                      borderTop: '3px solid #6366F1',
-                      borderRadius: '50%'
-                    }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#1F2937' }}>Verifying human sender...</span>
-                      <span style={{ fontSize: 7.5, color: '#6B7280', fontWeight: 550 }}>Analyzing before email is sent</span>
-                    </div>
-                  </div>
-                ) : (
-                  /* Verified State */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, transition: 'all 0.3s ease' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>🛡️</div>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#007A5E' }}>Verification Added</span>
-                      <span style={{ fontSize: 7, color: '#6B7280', fontWeight: 550, lineHeight: 1.2 }}>
-                        A trusted human-authenticated signature is securely attached.
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #F1F5F9', paddingTop: 6, fontSize: 7 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Signature ID</span>
-                        <span style={{ color: '#1F2937', fontWeight: 800 }}>ATT-847291</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Timestamp</span>
-                        <span style={{ color: '#1F2937', fontWeight: 700 }}>Jun 09, 2026</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Trust Score</span>
-                        <span style={{ color: '#007A5E', fontWeight: 900 }}>100%</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Below Mockup */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
-                <div style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  background: step3Verified ? '#D1FAE5' : '#E0E7FF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  transition: 'all 0.5s ease'
-                }}>
-                  {step3Verified ? '💚' : '🔍'}
-                </div>
-                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1F2937', margin: 0, transition: 'all 0.5s ease' }}>
-                  {step3Verified ? 'Verification Added' : 'Verify Human Activity'}
-                </h4>
-                <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4, margin: 0, fontWeight: 550, transition: 'all 0.5s ease' }}>
-                  {step3Verified
-                    ? 'A tamper-proof signature is attached without changing your workflow.'
-                    : 'Attest quietly verifies that a real human is behind every email you send.'}
-                </p>
-              </div>
-            </div>
-
-            {/* STEP 4: Recipient Sees the Trust Badge */}
+            {/* STEP 3: Recipient Sees the Trust Badge */}
             <div style={{
               background: 'linear-gradient(180deg, #F0FDF4 0%, #E6FDF0 100%)',
               border: '1px solid #DCFCE7',
@@ -2021,7 +1996,7 @@ export default function Home() {
                 fontSize: 12,
                 fontWeight: 900,
                 boxShadow: '0 4px 10px rgba(5, 150, 105, 0.08)'
-              }}>04</div>
+              }}>03</div>
 
               {/* Inside Mockup: Gmail email view + Trust Badge popover overlay */}
               <div style={{
@@ -2065,43 +2040,64 @@ export default function Home() {
                   </div>
                 </div>
                 {/* Email Body matches Step 2 content perfectly */}
-                <div style={{ fontSize: 7.5, color: '#4B5563', lineHeight: 1.25, fontWeight: 550, flex: 1, marginTop: 2 }}>
-                  Hi Sarah,<br />
-                  The final design files are attached. Please review them before Friday.<br />
-                  Let me know your feedback.<br />
-                  Regards,<br />
-                  PetaBytz Technologies Inc
+                <div style={{ fontSize: 7.5, color: '#4B5563', lineHeight: 1.25, fontWeight: 550, flex: 1, marginTop: 2, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    Hi Sarah,<br />
+                    The final design files are attached. Please review them before Friday.<br />
+                    Let me know your feedback.<br />
+                    Regards,<br />
+                    PetaBytz Technologies Inc
+                  </div>
+                  
+                  {/* Exact Stamp from Chrome Extension */}
+                  <div style={{
+                    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    display: 'inline-block',
+                    marginTop: 6,
+                    alignSelf: 'flex-start'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 9999,
+                      padding: '3px 8px',
+                      gap: 5,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#10b981',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: 10,
+                        height: 10
+                      }}>
+                        <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <span style={{ color: '#065f46', fontSize: 6.5, fontWeight: 700, letterSpacing: '-0.01em' }}>Human Verified</span>
+                      <div style={{ width: 1, height: 8, background: '#d1fae5' }}></div>
+                      <span style={{ color: '#059669', fontSize: 5.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <span>Trust Record</span>
+                        <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 3, fontSize: 5.5, color: '#94a3b8', display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span>Hash: 9e107d9d372bb10f...</span>
+                      <span style={{ color: '#6366f1', textDecoration: 'underline' }}>Verify on HVEL Portal</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Overlaid Floating Trust Badge */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 4,
-                  right: 4,
-                  background: '#ffffff',
-                  border: '1px solid #DCFCE7',
-                  borderRadius: 10,
-                  padding: '6px 8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
-                  width: '82%',
-                  zIndex: 10
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <span style={{ fontSize: 9 }}>🛡️</span>
-                    <span style={{ fontSize: 7.5, fontWeight: 800, color: '#007A5E' }}>Attest Verified</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <span style={{ fontSize: 7, fontWeight: 800, color: '#1F2937' }}>Human Verified</span>
-                    <span style={{ fontSize: 5.5, color: '#6B7280', fontWeight: 550 }}>Sent by a real person.</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 6.5, fontWeight: 800, borderTop: '1px solid #F1F5F9', paddingTop: 3 }}>
-                    <span style={{ color: '#4B5563' }}>Score</span>
-                    <span style={{ color: '#007A5E' }}>100%</span>
-                  </div>
-                </div>
               </div>
 
               {/* Below Mockup */}
@@ -3012,68 +3008,6 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-      {/* ── TRUST & SCENARIO WORKFLOWS (Fully Open!) ── */}
-      <section style={{ padding: '96px 24px', background: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
-        <div className="container-custom">
-          <div className="animate-on-scroll" style={{ maxWidth: 640, marginBottom: 48 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#007A5E', display: 'block', marginBottom: 12 }}>
-              CONVERSATIONAL SEGMENTS
-            </span>
-            <h3 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 12 }}>
-              Trust and Protection for Everyone in the Conversation
-            </h3>
-            <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.6, fontWeight: 500 }}>
-              Whether you are sending emails or receiving them, Attest helps identify human-verified communication and warns users when emails come from unverified senders.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 32 }}>
-
-            {/* Scenario 1 */}
-            <div className="card-hover-lift animate-from-left premium-shadow" style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                <span style={{ fontSize: 24 }}>📬</span>
-                <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 1 — Recipient Does Not Have Extension</h4>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {[
-                  { t: '1️⃣ See Trust Badge', d: 'Verified emails display a visible trust badge if sender has extension.' },
-                  { t: '2️⃣ Recognize Trusted Emails', d: 'Know which emails came from verified humans.' },
-                  { t: '3️⃣ Spot Unverified Senders', d: 'Emails without badges appear less trustworthy.' },
-                  { t: '4️⃣ Stay Protected Automatically', d: 'No install needed to benefit from verification.' }
-                ].map((item, idx) => (
-                  <div key={idx} style={{ borderLeft: '3px solid #007A5E', paddingLeft: 16 }}>
-                    <span style={{ fontWeight: 800, fontSize: 14, color: '#007A5E', display: 'block', marginBottom: 4 }}>{item.t}</span>
-                    <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Scenario 2 */}
-            <div className="card-hover-lift animate-from-right premium-shadow" style={{ background: '#ffffff', padding: 36, borderRadius: 20, border: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                <span style={{ fontSize: 24 }}>🔍</span>
-                <h4 style={{ fontSize: 17, fontWeight: 900, margin: 0, color: '#0F172A' }}>Scenario 2 — Sender Does Not has Extension</h4>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {[
-                  { t: '1️⃣ Scan Incoming Emails', d: 'Extension checks sender verification automatically if receiver has the extension' },
-                  { t: '2️⃣ Detect Missing Verification', d: 'Unverified emails are clearly highlighted.' },
-                  { t: '3️⃣ Get Risk Warnings', d: 'Potential AI-generated emails become easier to spot.' },
-                  { t: '4️⃣ Encourage Sender Verification', d: 'Prompt senders to become human-verified.' }
-                ].map((item, idx) => (
-                  <div key={idx} style={{ borderLeft: '3px solid #007A5E', paddingLeft: 16 }}>
-                    <span style={{ fontWeight: 800, fontSize: 14, color: '#007A5E', display: 'block', marginBottom: 4 }}>{item.t}</span>
-                    <span style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500, display: 'block' }}>{item.d}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
           </div>
         </div>
       </section>
