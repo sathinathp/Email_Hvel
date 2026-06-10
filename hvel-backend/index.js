@@ -51,8 +51,149 @@ const pool = new Pool({
   ssl: false
 });
 
+// ─── PLAN DEFINITIONS ───────────────────────────────────────────────────────
+const PLANS = {
+  free: {
+    name: 'Free',
+    totp_daily_limit: Infinity, // ⚠️ TEMP: Unlimited until payment integrated — revert to 3 after Lemon Squeezy setup
+    gmail_accounts_limit: 1,    // 1 Gmail account
+    webauthn_enabled: false,    // No biometric
+    audit_dashboard: false,     // Basic log only
+    trust_badges: false,
+  },
+  professional: {
+    name: 'Professional',
+    totp_daily_limit: Infinity, // Unlimited
+    gmail_accounts_limit: 5,   // Up to 5 Gmail accounts
+    webauthn_enabled: true,
+    audit_dashboard: true,
+    trust_badges: true,
+  }
+};
+
+// ─── PLAN GUARD MIDDLEWARE ───────────────────────────────────────────────────
+async function planGuard(feature, req, res, next) {
+  const email = (req.body?.email || req.query?.email || '').toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Email required for plan check' });
+
+  try {
+    // Ensure user row exists (auto-create as free)
+    await pool.query(
+      `INSERT INTO users (email, plan) VALUES ($1, 'free')
+       ON CONFLICT (email) DO NOTHING`,
+      [email]
+    );
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [email]);
+    const user = userRes.rows[0];
+    const plan = PLANS[user.plan] || PLANS.free;
+
+    // ── Feature-specific quota checks ──────────────────────────────────────
+    if (feature === 'totp_verify') {
+      const today = new Date().toISOString().split('T')[0];
+      const quotaRes = await pool.query(
+        `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
+        [email, today]
+      );
+      const used = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
+      if (used >= plan.totp_daily_limit) {
+        console.log(`[PLAN GUARD] 🚫 TOTP limit reached for ${email} (${used}/${plan.totp_daily_limit}) — Plan: ${user.plan}`);
+        return res.status(403).json({
+          error: 'PLAN_LIMIT_REACHED',
+          feature: 'totp_verify',
+          plan: user.plan,
+          used,
+          limit: plan.totp_daily_limit,
+          message: `You've used all ${plan.totp_daily_limit} free TOTP verifications for today.`,
+          upgrade_url: 'https://hvel.io/pricing'
+        });
+      }
+    }
+
+    if (feature === 'webauthn') {
+      if (!plan.webauthn_enabled) {
+        console.log(`[PLAN GUARD] 🚫 WebAuthn blocked for ${email} — Plan: ${user.plan}`);
+        return res.status(403).json({
+          error: 'PLAN_LIMIT_REACHED',
+          feature: 'webauthn',
+          plan: user.plan,
+          message: 'Biometric/WebAuthn authentication requires the Professional plan.',
+          upgrade_url: 'https://hvel.io/pricing'
+        });
+      }
+    }
+
+    if (feature === 'gmail_account') {
+      const currentCount = parseInt(user.gmail_accounts_count) || 0;
+      if (currentCount >= plan.gmail_accounts_limit) {
+        console.log(`[PLAN GUARD] 🚫 Gmail account limit for ${email} (${currentCount}/${plan.gmail_accounts_limit}) — Plan: ${user.plan}`);
+        return res.status(403).json({
+          error: 'PLAN_LIMIT_REACHED',
+          feature: 'gmail_account',
+          plan: user.plan,
+          used: currentCount,
+          limit: plan.gmail_accounts_limit,
+          message: `Your ${user.plan} plan allows up to ${plan.gmail_accounts_limit} Gmail account(s). Upgrade to add more.`,
+          upgrade_url: 'https://hvel.io/pricing'
+        });
+      }
+    }
+
+    if (feature === 'audit_dashboard') {
+      if (!plan.audit_dashboard) {
+        return res.status(403).json({
+          error: 'PLAN_LIMIT_REACHED',
+          feature: 'audit_dashboard',
+          plan: user.plan,
+          message: 'Advanced audit dashboard requires the Professional plan.',
+          upgrade_url: 'https://hvel.io/pricing'
+        });
+      }
+    }
+
+    // Attach user + plan info to request for downstream use
+    req.hvelUser = user;
+    req.hvelPlan = plan;
+    next();
+  } catch (err) {
+    console.error('[PLAN GUARD] Error:', err);
+    res.status(500).json({ error: 'Plan check failed' });
+  }
+}
+
+// Helper: increment quota counter for a feature
+async function incrementQuota(email, feature) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    await pool.query(
+      `INSERT INTO plan_quota_log (email, feature, log_date, count)
+       VALUES ($1, $2, $3, 1)
+       ON CONFLICT (email, feature, log_date)
+       DO UPDATE SET count = plan_quota_log.count + 1`,
+      [email, feature, today]
+    );
+  } catch (err) {
+    console.error('[QUOTA] Increment error:', err);
+  }
+}
+
 async function initDB() {
   const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+      email VARCHAR(255) PRIMARY KEY,
+      plan VARCHAR(50) DEFAULT 'free' NOT NULL,
+      gmail_accounts_count INTEGER DEFAULT 1,
+      stripe_customer_id VARCHAR(255),
+      plan_expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS plan_quota_log (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      feature VARCHAR(100) NOT NULL,
+      log_date DATE NOT NULL,
+      count INTEGER DEFAULT 1,
+      UNIQUE(email, feature, log_date)
+    );
     CREATE TABLE IF NOT EXISTS verifications (
       id VARCHAR(50) PRIMARY KEY,
       sender_email VARCHAR(255) NOT NULL,
@@ -123,7 +264,7 @@ async function initDB() {
     if (colCheck.rows.length === 0) {
       await pool.query('ALTER TABLE verifications ADD COLUMN recipient_email VARCHAR(255)');
     }
-    console.log("Database tables ensured.");
+    console.log("✅ Database tables ensured (including plan system).");
   } catch (err) {
     console.error("Error creating tables:", err);
   }
@@ -238,20 +379,28 @@ app.post('/api/totp-setup', async (req, res) => {
   } catch (err) { console.error('[HVEL API] Error setting up TOTP:', err); res.status(500).json({ success: false, error: err.message }); }
 });
 
-app.post('/api/totp-verify', async (req, res) => {
+// TOTP verify — plan-guarded: checks daily quota BEFORE verifying
+app.post('/api/totp-verify', (req, res, next) => planGuard('totp_verify', req, res, next), async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
   try {
     const result = await pool.query('SELECT secret FROM totp_secrets WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'TOTP not set up' });
     const isValid = speakeasy.totp.verify({ secret: result.rows[0].secret, encoding: 'base32', token: code, window: 1 });
-    if (isValid) { await pool.query('UPDATE totp_secrets SET is_verified = TRUE WHERE email = $1', [email]); res.json({ success: true }); }
-    else res.status(401).json({ success: false, error: 'Invalid authenticator code' });
+    if (isValid) {
+      await pool.query('UPDATE totp_secrets SET is_verified = TRUE WHERE email = $1', [email]);
+      // Increment daily quota counter only on successful verification
+      await incrementQuota(email.toLowerCase(), 'totp_verify');
+      console.log(`[QUOTA] ✅ TOTP quota incremented for ${email}`);
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ success: false, error: 'Invalid authenticator code' });
+    }
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Passkey endpoints
-app.post('/api/passkey/register-options', async (req, res) => {
+// Passkey endpoints — WebAuthn is a Professional-only feature
+app.post('/api/passkey/register-options', (req, res, next) => planGuard('webauthn', req, res, next), async (req, res) => {
   const email = req.body.email?.toLowerCase();
   if (!email) return res.status(400).json({ error: 'Email is required' });
   try {
@@ -968,6 +1117,178 @@ app.post('/api/contact', async (req, res) => {
   } catch (err) {
     console.error('[CONTACT] ❌ Failed to send contact email:', err);
     res.status(500).json({ success: false, error: 'Failed to send message. Please try again or email us directly.' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAN MANAGEMENT ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/plan/status — returns current plan, usage, and limits for a user
+app.get('/api/plan/status', async (req, res) => {
+  const email = (req.query.email || '').toLowerCase();
+  if (!email) return res.status(400).json({ error: 'email query param required' });
+
+  try {
+    // Auto-create user as free if not exists
+    await pool.query(
+      `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
+      [email]
+    );
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count, plan_expires_at FROM users WHERE email = $1', [email]);
+    const user = userRes.rows[0];
+    const planKey = user.plan || 'free';
+    const plan = PLANS[planKey] || PLANS.free;
+
+    // Get today's TOTP usage
+    const today = new Date().toISOString().split('T')[0];
+    const quotaRes = await pool.query(
+      `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
+      [email, today]
+    );
+    const totpUsedToday = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
+
+    console.log(`[PLAN API] 📊 Status check — ${email} | Plan: ${planKey} | TOTP today: ${totpUsedToday}/${plan.totp_daily_limit}`);
+
+    res.json({
+      success: true,
+      email,
+      plan: planKey,
+      planDetails: {
+        name: plan.name,
+        totp_daily_limit: plan.totp_daily_limit === Infinity ? 'unlimited' : plan.totp_daily_limit,
+        gmail_accounts_limit: plan.gmail_accounts_limit,
+        webauthn_enabled: plan.webauthn_enabled,
+        audit_dashboard: plan.audit_dashboard,
+        trust_badges: plan.trust_badges,
+      },
+      usage: {
+        totp_used_today: totpUsedToday,
+        totp_remaining_today: plan.totp_daily_limit === Infinity ? 'unlimited' : Math.max(0, plan.totp_daily_limit - totpUsedToday),
+        gmail_accounts_count: parseInt(user.gmail_accounts_count) || 1,
+      },
+      plan_expires_at: user.plan_expires_at || null,
+      upgrade_url: planKey === 'free' ? 'https://hvel.io/pricing' : null
+    });
+  } catch (err) {
+    console.error('[PLAN API] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/plan/check-quota — lightweight pre-check before performing an action
+app.post('/api/plan/check-quota', async (req, res) => {
+  const { email, feature } = req.body;
+  if (!email || !feature) return res.status(400).json({ error: 'email and feature required' });
+  const emailLower = email.toLowerCase();
+
+  try {
+    await pool.query(
+      `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
+      [emailLower]
+    );
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [emailLower]);
+    const user = userRes.rows[0];
+    const plan = PLANS[user.plan] || PLANS.free;
+
+    let allowed = true;
+    let reason = null;
+    let used = 0;
+    let limit = null;
+
+    if (feature === 'totp_verify') {
+      const today = new Date().toISOString().split('T')[0];
+      const quotaRes = await pool.query(
+        `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
+        [emailLower, today]
+      );
+      used = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
+      limit = plan.totp_daily_limit;
+      if (used >= limit) {
+        allowed = false;
+        reason = `You've used all ${limit} free TOTP verifications for today. Resets at midnight UTC.`;
+      }
+    } else if (feature === 'webauthn') {
+      if (!plan.webauthn_enabled) {
+        allowed = false;
+        reason = 'Biometric authentication requires the Professional plan.';
+      }
+    } else if (feature === 'gmail_account') {
+      used = parseInt(user.gmail_accounts_count) || 1;
+      limit = plan.gmail_accounts_limit;
+      if (used >= limit) {
+        allowed = false;
+        reason = `Your plan allows up to ${limit} Gmail account(s).`;
+      }
+    }
+
+    res.json({
+      success: true,
+      allowed,
+      feature,
+      plan: user.plan,
+      used: used || 0,
+      limit: limit === Infinity ? 'unlimited' : limit,
+      reason: allowed ? null : reason,
+      upgrade_url: allowed ? null : 'https://hvel.io/pricing'
+    });
+  } catch (err) {
+    console.error('[PLAN QUOTA CHECK] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/plan/upgrade — called by Stripe webhook or manually to upgrade a user
+app.post('/api/plan/upgrade', async (req, res) => {
+  const { email, plan, stripe_customer_id } = req.body;
+  if (!email || !plan) return res.status(400).json({ error: 'email and plan required' });
+  if (!PLANS[plan]) return res.status(400).json({ error: `Unknown plan: ${plan}. Valid: ${Object.keys(PLANS).join(', ')}` });
+
+  try {
+    const expiresAt = plan === 'free' ? null : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000); // 31 days
+    await pool.query(
+      `INSERT INTO users (email, plan, stripe_customer_id, plan_expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email) DO UPDATE
+       SET plan = $2, stripe_customer_id = COALESCE($3, users.stripe_customer_id), plan_expires_at = $4`,
+      [email.toLowerCase(), plan, stripe_customer_id || null, expiresAt]
+    );
+    console.log(`[PLAN API] ⬆️  Plan upgraded: ${email} → ${plan}`);
+    res.json({ success: true, email, plan, plan_expires_at: expiresAt });
+  } catch (err) {
+    console.error('[PLAN API] Upgrade error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/plan/downgrade — called when subscription lapses
+app.post('/api/plan/downgrade', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+  try {
+    await pool.query(
+      `UPDATE users SET plan = 'free', plan_expires_at = NULL WHERE email = $1`,
+      [email.toLowerCase()]
+    );
+    console.log(`[PLAN API] ⬇️  Plan downgraded to free: ${email}`);
+    res.json({ success: true, email, plan: 'free' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/plan/quota-log — admin: view quota usage per user per day
+app.get('/api/plan/quota-log', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT email, feature, log_date, count
+       FROM plan_quota_log
+       ORDER BY log_date DESC, count DESC
+       LIMIT 100`
+    );
+    res.json({ success: true, total: result.rows.length, records: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

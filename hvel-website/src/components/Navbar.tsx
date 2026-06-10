@@ -62,9 +62,9 @@ export default function Navbar() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
             <Link href="/" onClick={() => setActiveHash('#protocol')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
               <img 
-                src="/logo.png" 
+                src="/icon-symbol.png" 
                 alt="Attest Logo" 
-                style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} 
+                style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} 
               />
               <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
                 Attest

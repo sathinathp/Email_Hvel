@@ -453,15 +453,13 @@ body {
   right: 0;
   width: 100%;
   z-index: 999;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff;
+  border-bottom: 1px solid #E2E8F0;
   height: var(--nav-h);
   display: flex;
   align-items: center;
   padding: 0 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
 
 .nav-full .container-custom {

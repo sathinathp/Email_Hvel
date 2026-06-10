@@ -1727,18 +1727,7 @@ export default function Home() {
                   <span>⋮</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
-                  <div style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 8,
-                    background: '#007A5E',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    fontSize: 18,
-                    fontWeight: 900
-                  }}>A</div>
+                  <img src="/icon-symbol.png" alt="Attest" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
                   <span style={{ fontSize: 11, fontWeight: 800, color: '#1F2937' }}>Attest for Gmail</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 8 }}>
                     <span style={{ color: '#F59E0B' }}>★★★★★</span>

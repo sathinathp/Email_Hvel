@@ -3,15 +3,19 @@
   "name": "HVEL - Human Verified Email Layer",
   "version": "1.0.0",
   "description": "Add a visible trust signal to your emails. Verify as Human, AI Assisted, or Automated.",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "192": "icon-192.png",
+    "512": "icon-512.png"
+  },
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
     "https://mail.google.com/*",
-    "https://api.humanattest.com/*",
-    "http://localhost:5000/*",
-    "http://127.0.0.1:5000/*"
+    "https://api.humanattest.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.humanattest.com http://localhost:5000 http://127.0.0.1:5000;"
@@ -21,13 +25,25 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://mail.google.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_end"
     }
   ],
   "action": {
-    "default_title": "HVEL Settings"
+    "default_title": "HVEL Settings",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "192": "icon-192.png"
+    }
   }
 }

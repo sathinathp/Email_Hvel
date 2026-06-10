@@ -32,7 +32,7 @@ export default function Footer() {
           {/* Brand column */}
           <div style={{ ...col, gap:16 }} className="footer-brand">
             <Link href="/" style={{ display:'inline-flex', alignItems:'center', gap:10, textDecoration:'none' }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#007A5E,#005A44)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:900, fontSize:16, boxShadow:'0 4px 12px rgba(0,122,94,0.4)', flexShrink:0 }}>H</div>
+              <img src="/icon-symbol.png" alt="Attest" style={{ width:32, height:32, objectFit:'contain', flexShrink:0 }} />
               <span style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.04em', color:'white' }}>Attest</span>
             </Link>
 

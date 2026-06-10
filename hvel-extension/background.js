@@ -1,5 +1,24 @@
 const API_BASE_URL = 'https://api.humanattest.com';
 
+// ─── PLAN STATUS: fetch on startup and cache for 10 mins ───────────────────────
+function fetchAndCachePlanStatus(email) {
+  if (!email) return;
+  fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        chrome.storage.local.set({
+          hvel_plan: data.plan,
+          hvel_plan_details: data.planDetails,
+          hvel_usage: data.usage,
+          hvel_plan_cached_at: Date.now()
+        });
+        console.log(`[HVEL BG] 📊 Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
+      }
+    })
+    .catch(() => {});
+}
+
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'heartbeat') {
@@ -185,6 +204,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         reason: request.reason
       })
     }).catch(() => {});
+    return false;
+  }
+
+  // ─── PLAN: get current plan status + usage for the current user ──────────────
+  if (request.action === 'getPlanStatus') {
+    const email = request.email;
+    if (!email) { sendResponse({ success: false, error: 'No email' }); return false; }
+    // Fetch fresh from server (bypass cache for explicit status requests)
+    fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          chrome.storage.local.set({
+            hvel_plan: data.plan,
+            hvel_plan_details: data.planDetails,
+            hvel_usage: data.usage,
+            hvel_plan_cached_at: Date.now()
+          });
+        }
+        sendResponse(data);
+      })
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // ─── PLAN: lightweight pre-check before an action ────────────────────────
+  if (request.action === 'checkPlanQuota') {
+    fetch(`${API_BASE_URL}/api/plan/check-quota`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: request.email, feature: request.feature })
+    })
+    .then(r => r.json())
+    .then(data => sendResponse(data))
+    .catch(err => sendResponse({ success: false, allowed: true, error: err.message })); // fail open
+    return true;
+  }
+
+  // ─── PLAN: trigger fetch + cache on profile sync ────────────────────────
+  if (request.action === 'syncPlan') {
+    fetchAndCachePlanStatus(request.email);
     return false;
   }
 });
