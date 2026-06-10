@@ -61,7 +61,7 @@ export default function Pricing() {
               <span style={{ fontSize: 15, color: '#94A3B8', fontWeight: 600 }}>/month</span>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: 12, flexGrow: 1 }}>
-              {['Basic TOTP Verification', 'Native Gmail Send Hook', '1 Active Gmail Account', 'Verification Audit Log', 'Zero email data stored', 'Community support'].map(f => (
+              {['Basic Behavioral Verification', 'Native Gmail Send Hook', '1 Active Gmail Account', 'Verification Audit Log', 'Zero email data stored', 'Community support'].map(f => (
                 <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#475569', fontWeight: 500 }}>
                   <CheckIcon /> {f}
                 </li>
@@ -99,7 +99,7 @@ export default function Pricing() {
               </div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: 12, flexGrow: 1 }}>
-              {['Unlimited TOTP Verifications', 'WebAuthn Biometric Support', 'Up to 5 Gmail Accounts', 'Security Trust-Nudge Badges', 'Priority email support', 'Advanced Audit Dashboard', 'Zero email data stored', 'GDPR & CCPA compliant'].map(f => (
+              {['Unlimited Behavioral Verifications', 'WebAuthn Biometric Support', 'Up to 5 Gmail Accounts', 'Security Trust-Nudge Badges', 'Priority email support', 'Advanced Audit Dashboard', 'Zero email data stored', 'GDPR & CCPA compliant'].map(f => (
                 <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#475569', fontWeight: 500 }}>
                   <CheckIcon /> {f}
                 </li>

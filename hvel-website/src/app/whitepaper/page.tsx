@@ -37,7 +37,7 @@ export default function Whitepaper() {
               Business Email Compromise (BEC) caused over $2.9 billion in losses in 2023 (FBI IC3).
               The root cause is not weak passwords — it is the absence of verification that a real
               human sent the email. Attest introduces a mandatory out-of-band verification step
-              that proves a real human sent the email, using FIDO2 WebAuthn or TOTP,
+              that proves a real human sent the email, using frictionless behavioral dynamics (mouse movement patterns),
               without ever accessing email content.
             </p>
           </div>
@@ -47,7 +47,7 @@ export default function Whitepaper() {
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:16 }}>Attest is designed to defend against:</p>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                ['Session Hijacking','Attacker steals browser session cookie and sends emails from victim\'s account. Attest blocks this — the attacker cannot pass the biometric/TOTP check without the victim\'s physical device.'],
+                ['Session Hijacking','Attacker steals browser session cookie and sends emails from victim\'s account. Attest blocks this — the attacker cannot mimic the victim\'s physical human interaction dynamics.'],
                 ['AI-Generated Phishing','AI writes convincing emails from compromised accounts. Attest ensures every sent email has cryptographic proof of being sent by a real human.'],
                 ['Malware-Driven Sending','Malware on the victim\'s machine attempts to send emails silently. The extension intercepts all send actions, including programmatic ones.'],
                 ['Insider Threats','An employee sends unauthorized emails. The audit log provides a timestamped, cryptographically signed record of every verified send action.'],
@@ -68,8 +68,8 @@ export default function Whitepaper() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:14 }}>
               {[
                 { label:'Hash Function', value:'SHA-256 (NIST FIPS 180-4)' },
-                { label:'WebAuthn', value:'FIDO2 / W3C Level 2' },
-                { label:'TOTP', value:'RFC 6238 (HMAC-SHA1, 30s window)' },
+                { label:'Behavioral Dynamics', value:'Local mouse movement & click vector analysis' },
+                { label:'Verification Log', value:'Secure backend verification & Trust Record' },
                 { label:'Transport', value:'TLS 1.3' },
                 { label:'Storage Encryption', value:'AES-256-GCM' },
                 { label:'Key Exchange', value:'ECDH P-256' },

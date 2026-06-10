@@ -74,7 +74,7 @@ export default function Footer() {
           <div style={col}>
             <p style={heading}>Verification</p>
             <FooterLink href="/webauthn">WebAuthn / FIDO2</FooterLink>
-            <FooterLink href="/totp">TOTP Verification</FooterLink>
+            <FooterLink href="/totp">Frictionless Verification</FooterLink>
             <FooterLink href="/gmail-hook">Gmail Send Hook</FooterLink>
             <FooterLink href="/audit-engine">Audit Engine</FooterLink>
             <FooterLink href="/verify">Verify a Hash</FooterLink>

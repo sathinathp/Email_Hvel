@@ -49,56 +49,56 @@ const DOCS_CONTENT = {
   introduction: {
     title: 'Introduction to Attest',
     subsections: [
-      { id:'mission',      title:'Mission & Vision' },
-      { id:'how-it-works', title:'How it Works' },
-      { id:'why-hvel',     title:'Why Attest?' },
+      { id:'why-attest',    title:'Why Do We Need This?' },
+      { id:'how-it-works',  title:'How It Works' },
+      { id:'benefits',      title:'Key Benefits' },
     ],
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Attest (HVEL — Human Verified Email Layer) is a browser extension + verification
-          backend that proves a real human sent an email — without ever reading,
-          storing, or transmitting your email content.
+          Attest (HVEL — Human Verified Email Layer) is a smart browser extension and verification system. 
+          It proves that a real, physical human actually clicked the "Send" button on an email, rather than a malicious script, 
+          an automated bot, or an AI. Best of all, it does this without ever reading, storing, or sending your email content anywhere.
         </p>
 
-        <section id="mission" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>Mission &amp; Vision</h3>
+        <section id="why-attest" style={{ scrollMarginTop:96, marginBottom:40 }}>
+          <h3 style={S.h3}>Why Do We Need This?</h3>
           <p style={S.p}>
-            AI can now write emails indistinguishable from humans. Session hijacking lets attackers
-            send emails from your account without your knowledge. Traditional spam filters and 2FA
-            protect your <em>login</em> — but nothing protects your <em>send action</em>.
+            With modern AI, bots can write and send emails that look exactly like they were written by humans. 
+            Additionally, hackers use session hijacking to take control of active browser sessions. Once they do, they can send 
+            emails directly from your real account without you knowing. 
+          </p>
+          <p style={S.p}>
+            Standard security (like passwords and 2FA) only protects your <em>login</em>. Once a session is hijacked, those protections 
+            don't help. Attest is different: it protects the actual <strong>send action</strong> itself.
           </p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:16, marginTop:20 }}>
             <div style={{ padding:20, background:'rgba(66,133,244,0.05)', border:'1px solid rgba(66,133,244,0.12)', borderRadius:14 }}>
-              <div style={S.tag('#4285F4')}>The Problem</div>
+              <div style={S.tag('#4285F4')}>The Hidden Threat</div>
               <p style={{ ...S.p, marginBottom:0, fontSize:14 }}>
-                Bots and hijacked sessions can send emails from your account. Recipients have no way
-                to know if a human actually pressed send.
+                If a hacker steals your browser cookies, they can send unauthorized emails from your account. Spam filters won't catch it because it's coming from your real address.
               </p>
             </div>
             <div style={{ padding:20, background:'rgba(52,168,83,0.05)', border:'1px solid rgba(52,168,83,0.12)', borderRadius:14 }}>
-              <div style={S.tag('#34A853')}>The Solution</div>
+              <div style={S.tag('#34A853')}>The Attest Shield</div>
               <p style={{ ...S.p, marginBottom:0, fontSize:14 }}>
-                Attest requires a physical biometric or TOTP verification for every send action.
-                No verification = no email sent. Simple.
+                Attest verifies that a physical human is interacting with the screen when the email is sent. If there's no human behavior, the email doesn't go out.
               </p>
             </div>
           </div>
         </section>
 
         <section id="how-it-works" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>How it Works</h3>
+          <h3 style={S.h3}>How It Works</h3>
           <p style={S.p}>
-            The Chrome extension hooks into Gmail&apos;s send button at the DOM level. When you click
-            send, the extension pauses the action and opens a verification challenge. Only after you
-            pass the challenge (biometric or TOTP) does the email actually send.
+            The Chrome extension runs quietly in your browser. The moment you click the "Send" button in Gmail, Attest temporarily pauses the action to perform a split-second check.
           </p>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              ['01','Send Intercepted','Extension detects the Gmail send click and pauses it. Your email stays in the browser.'],
-              ['02','Challenge Issued','A TOTP code or WebAuthn biometric prompt appears. You verify your physical presence.'],
-              ['03','Hash Logged','A SHA-256 hash of the send-action metadata is logged to our server. No email content is sent.'],
-              ['04','Email Released','The send action is released and your email goes out normally through Gmail.'],
+              ['01','Intent Captured','When you press Send, Attest intercepts the click event. Your email stays safely in your browser.'],
+              ['02','Frictionless Check','The extension analyzes mouse movement dynamics (speed, curvature, and timing) to distinguish human physical behavior from automated bot activity.'],
+              ['03','Secure Hash Logged','A SHA-256 cryptographic fingerprint of the email metadata is sent to our verification server. No email body content is ever shared.'],
+              ['04','Trust Badge Appended','A verified stamp is added to the footer of the email with a link to its verification record, and Gmail sends it out normally.'],
             ].map(([step, title, desc]) => (
               <div key={step} style={{ display:'flex', gap:16, alignItems:'flex-start', padding:'16px 20px', background:'#F8FAFC', borderRadius:12, border:'1px solid #E2E8F0' }}>
                 <div style={{ width:36, height:36, background:'#EFF6FF', color:'#2563EB', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:13, flexShrink:0 }}>{step}</div>
@@ -111,17 +111,15 @@ const DOCS_CONTENT = {
           </div>
         </section>
 
-        <section id="why-hvel" style={{ scrollMarginTop:96 }}>
-          <h3 style={S.h3}>Why Attest?</h3>
+        <section id="benefits" style={{ scrollMarginTop:96 }}>
+          <h3 style={S.h3}>Key Benefits</h3>
           <p style={S.p}>
-            Standard 2FA protects your <strong>login</strong>. Attest protects your <strong>actions</strong>.
-            Even if an attacker has your session cookie, they cannot send an email without your physical device.
+            Traditional security works at the front door. Attest stays with you to make sure your identity is verified at the exact moment of transaction.
           </p>
           <div style={S.callout('#4285F4')}>
-            <strong style={{ color:'#1D4ED8' }}>Key insight:</strong>{' '}
+            <strong style={{ color:'#1D4ED8' }}>Zero Friction:</strong>{' '}
             <span style={{ color:'#475569', fontSize:14 }}>
-              Session hijacking is the #1 vector for business email compromise (BEC). Attest is
-              the only tool that blocks it at the send layer — not the login layer.
+              You don't need to copy 6-digit codes or solve puzzles. The mouse dynamics engine works silently in the background. Write and send your email just like you always do.
             </span>
           </div>
         </section>
@@ -132,17 +130,16 @@ const DOCS_CONTENT = {
   privacy: {
     title: 'Privacy & Zero-Risk Policy',
     subsections: [
-      { id:'no-email-read',  title:'We Never Read Emails' },
-      { id:'what-we-store',  title:'What Is Stored' },
-      { id:'what-not-stored',title:'What Is Never Stored' },
-      { id:'legality',       title:'Global Legality' },
+      { id:'no-email-read',  title:'We Never Read Your Emails' },
+      { id:'what-we-store',  title:'What We Store' },
+      { id:'what-not-stored',title:'What We Never Store' },
+      { id:'legality',       title:'Security & Compliance' },
     ],
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Privacy is not a feature — it is the foundation of Attest. Our architecture is
-          designed so that it is <strong>technically impossible</strong> for us to read your emails,
-          even if we wanted to.
+          Privacy is the core foundation of Attest. Our architecture is deliberately designed so that it is 
+          <strong> technically impossible </strong> for us to read your emails, even if we wanted to.
         </p>
 
         <section id="no-email-read" style={{ scrollMarginTop:96, marginBottom:40 }}>
@@ -152,32 +149,28 @@ const DOCS_CONTENT = {
               🚫 Zero Email Access — Guaranteed
             </strong>
             <p style={{ ...S.p, marginBottom:0, fontSize:14 }}>
-              The Attest Chrome extension does <strong>NOT</strong> request the{' '}
-              <code style={S.code}>gmail.readonly</code> or any Gmail content permission.
-              It only hooks the send button click event. Your email body, subject, recipients,
-              and attachments are <strong>never accessible</strong> to our extension or servers.
+              The Attest extension does <strong>not</strong> request read permissions for your inbox. 
+              It cannot read your email drafts, see your inbox, or access messages you receive. 
+              It only interacts with the Send button event to trigger the human verification process.
             </p>
           </div>
           <p style={S.p}>
-            You can verify this yourself by inspecting the extension&apos;s{' '}
-            <code style={S.code}>manifest.json</code> — the permissions list contains only{' '}
-            <code style={S.code}>activeTab</code> and <code style={S.code}>storage</code>.
-            No Gmail API scopes. No OAuth email access.
+            You can verify this by checking the extension’s permissions in <code style={S.code}>manifest.json</code>. 
+            There are no Gmail API scopes, no OAuth email access requests, and no server-side ingestion of your messages.
           </p>
         </section>
 
         <section id="what-we-store" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>What Is Stored</h3>
+          <h3 style={S.h3}>What We Store</h3>
           <p style={S.p}>
-            When you successfully verify a send action, we log exactly four fields to our
-            encrypted PostgreSQL database:
+            When a verification is successfully completed, we log only the following metadata to our encrypted database:
           </p>
           <div style={{ background:'rgba(22,163,74,0.06)', border:'1px solid rgba(22,163,74,0.15)', borderRadius:14, padding:24, marginBottom:16 }}>
             {[
-              ['SHA-256 hash of the send-action event','A one-way cryptographic fingerprint. Cannot be reversed to reveal email content.'],
-              ['Verification timestamp (UTC)','When the human verification occurred.'],
-              ['Your registered full name','Used only for the recipient-facing verified badge.'],
-              ['TOTP/WebAuthn result','Pass or fail. No biometric data is transmitted — verification happens locally.'],
+              ['SHA-256 hash of the send-action event','A one-way cryptographic signature. It is physically impossible to reverse-engineer this to read the original email text.'],
+              ['Verification timestamp','The exact date and time the email was verified.'],
+              ['Sender\'s registered name','Used strictly to show your verified name on the badge to recipients.'],
+              ['Verification status','Whether the action was verified as a physical human or flagged as automated.'],
             ].map(([field, note]) => (
               <div key={field} style={{ display:'flex', gap:12, marginBottom:16, paddingBottom:16, borderBottom:'1px solid rgba(22,163,74,0.1)' }}>
                 <span style={{ color:'#16A34A', fontWeight:700, flexShrink:0, marginTop:2 }}>✓</span>
@@ -188,25 +181,18 @@ const DOCS_CONTENT = {
               </div>
             ))}
           </div>
-          <p style={{ ...S.p, fontSize:13 }}>
-            All stored data is encrypted at rest using AES-256. You can request deletion of your
-            records at any time by contacting support.
-          </p>
         </section>
 
         <section id="what-not-stored" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>What Is Never Stored</h3>
+          <h3 style={S.h3}>What We Never Store</h3>
           <div style={{ background:'rgba(220,38,38,0.05)', border:'1px solid rgba(220,38,38,0.12)', borderRadius:14, padding:24 }}>
             {[
-              'Your Gmail address or Google account ID',
-              'Email subject line',
-              'Email body or message content',
-              'Recipient email addresses (To / CC / BCC)',
-              'Attachments or file names',
-              'Draft folder contents',
-              'Any Google OAuth tokens or session cookies',
-              'Browser history or tab URLs',
-              'Biometric data (fingerprint, face scan)',
+              'Your Gmail password, Google credentials, or session cookies',
+              'The body content or subject line of your email',
+              'Recipient email addresses (To, CC, BCC)',
+              'Email attachments or filenames',
+              'Biometric data (our mouse dynamics analysis is mathematical, not biometric-identifying)',
+              'Your browsing history or other tabs',
             ].map((item) => (
               <div key={item} style={S.li}>
                 <span style={S.cross}>✕</span>
@@ -217,26 +203,10 @@ const DOCS_CONTENT = {
         </section>
 
         <section id="legality" style={{ scrollMarginTop:96 }}>
-          <h3 style={S.h3}>Global Legality</h3>
+          <h3 style={S.h3}>Security &amp; Compliance</h3>
           <p style={S.p}>
-            Attest is <strong style={{ color:'#16A34A' }}>legal in all countries</strong>.
-            It functions as a security enhancement tool — similar to a hardware security key —
-            and does not intercept, store, or process personal communications.
+            Since Attest does not read, store, or process personal data from your emails, it is completely compatible with global privacy laws, including GDPR and CCPA. It operates as a local client assistant rather than a data interceptor.
           </p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
-            {[
-              { law:'GDPR', region:'European Union', status:'Compliant' },
-              { law:'CCPA', region:'California, USA', status:'Compliant' },
-              { law:'PIPEDA', region:'Canada', status:'Compliant' },
-              { law:'PDPA', region:'Thailand / Singapore', status:'Compliant' },
-            ].map((r) => (
-              <div key={r.law} style={{ padding:'14px 18px', background:'rgba(22,163,74,0.06)', border:'1px solid rgba(22,163,74,0.15)', borderRadius:12 }}>
-                <p style={{ fontWeight:900, color:'#0F172A', fontSize:15, marginBottom:2 }}>{r.law}</p>
-                <p style={{ fontSize:12, color:'#64748B', marginBottom:6 }}>{r.region}</p>
-                <span style={{ fontSize:11, fontWeight:700, color:'#16A34A', background:'rgba(22,163,74,0.1)', padding:'2px 8px', borderRadius:9999 }}>✓ {r.status}</span>
-              </div>
-            ))}
-          </div>
         </section>
       </div>
     ),
@@ -246,23 +216,22 @@ const DOCS_CONTENT = {
     title: 'Installation Guide',
     subsections: [
       { id:'requirements',  title:'Requirements' },
-      { id:'extension',     title:'Chrome Extension' },
-      { id:'registration',  title:'Account Registration' },
-      { id:'test-send',     title:'Test Your First Send' },
+      { id:'extension',     title:'Installing the Extension' },
+      { id:'setup',         title:'Account Setup' },
     ],
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Get Attest running in under 5 minutes. No server setup required for individual use.
+          Set up Attest in under 3 minutes.
         </p>
 
         <section id="requirements" style={{ scrollMarginTop:96, marginBottom:40 }}>
           <h3 style={S.h3}>Requirements</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {[
-              'Google Chrome 110+ (or any Chromium-based browser)',
-              'A Gmail account (personal or Google Workspace)',
-              'A smartphone with an authenticator app (Google Authenticator, Authy, etc.)',
+              'Google Chrome (or any Chromium browser like Brave, Edge, or Opera)',
+              'A standard Gmail or Google Workspace account',
+              'An Attest user account'
             ].map((r) => (
               <div key={r} style={S.li}>
                 <span style={S.check}>✓</span><span>{r}</span>
@@ -272,14 +241,14 @@ const DOCS_CONTENT = {
         </section>
 
         <section id="extension" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>Install the Chrome Extension</h3>
+          <h3 style={S.h3}>Installing the Extension</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              ['1','Download the extension','Click the Download Extension button on the homepage to get the <code>.zip</code> file.'],
-              ['2','Open Chrome Extensions','Navigate to <code>chrome://extensions</code> in your browser.'],
-              ['3','Enable Developer Mode','Toggle the "Developer mode" switch in the top-right corner.'],
-              ['4','Load Unpacked','Click "Load unpacked" and select the extracted extension folder.'],
-              ['5','Pin the extension','Click the puzzle icon in Chrome toolbar and pin Attest for easy access.'],
+              ['1','Download the extension package','Download the extension <code>.zip</code> file directly from our portal.'],
+              ['2','Open Extensions Management','Type <code>chrome://extensions</code> in your browser address bar.'],
+              ['3','Turn on Developer Mode','Toggle the "Developer mode" switch on the top right corner.'],
+              ['4','Load Unpacked','Unzip the file, click the "Load unpacked" button, and select the unzipped extension folder.'],
+              ['5','Pin the Icon','Click the puzzle piece icon on your Chrome toolbar and pin Attest so you can see your status.'],
             ].map(([num, title, desc]) => (
               <div key={num} style={{ display:'flex', gap:16, padding:'16px 20px', background:'#F8FAFC', borderRadius:12, border:'1px solid #E2E8F0' }}>
                 <div style={{ width:32, height:32, background:'#2563EB', color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:13, flexShrink:0 }}>{num}</div>
@@ -292,29 +261,11 @@ const DOCS_CONTENT = {
           </div>
         </section>
 
-        <section id="registration" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>Account Registration</h3>
+        <section id="setup" style={{ scrollMarginTop:96 }}>
+          <h3 style={S.h3}>Account Setup</h3>
           <p style={S.p}>
-            Visit the Attest portal and register with your full name and email. You will receive
-            a QR code to scan with your authenticator app. This sets up your TOTP secret — stored
-            only on your device.
-          </p>
-          <div style={S.callout('#4285F4')}>
-            <strong style={{ color:'#1D4ED8' }}>Note:</strong>{' '}
-            <span style={{ fontSize:14, color:'#475569' }}>
-              We register your <strong>full name</strong> only — not your Gmail address.
-              Your name is used solely to display the verified sender badge to recipients.
-            </span>
-          </div>
-        </section>
-
-        <section id="test-send" style={{ scrollMarginTop:96 }}>
-          <h3 style={S.h3}>Test Your First Send</h3>
-          <p style={S.p}>
-            Open Gmail, compose a test email to yourself, and click Send. The Attest overlay
-            will appear asking for your 6-digit TOTP code. Enter it and the email will send normally.
-            Check the <a href="/verify" style={{ color:'#2563EB', fontWeight:600 }}>Verify page</a> to
-            confirm the hash was logged.
+            Once the extension is loaded, click on the Attest toolbar icon. Sign in or register with your name. 
+            This name will be displayed on the green badge to tell recipients who verified the email.
           </p>
         </section>
       </div>
@@ -322,33 +273,36 @@ const DOCS_CONTENT = {
   },
 
   quickstart: {
-    title: 'Quickstart Guide',
+    title: 'Quickstart & Daily Use',
     subsections: [
       { id:'daily-use',    title:'Daily Use' },
-      { id:'verify-email', title:'Verifying an Email' },
+      { id:'verification', title:'Verifying Received Emails' },
       { id:'faq',          title:'FAQ' },
     ],
     content: (
       <div>
         <p style={{ ...S.p, fontSize:17 }}>
-          Once installed, Attest runs silently in the background. You only see it when you
-          click Send in Gmail.
+          Attest is designed to be invisible. You don't have to change the way you use email.
         </p>
 
         <section id="daily-use" style={{ scrollMarginTop:96, marginBottom:40 }}>
           <h3 style={S.h3}>Daily Use</h3>
           <p style={S.p}>
-            Compose your email as normal. When you click Send, a small overlay appears with a
-            6-digit TOTP field. Open your authenticator app, enter the code, and your email sends.
-            The whole process takes under 5 seconds.
+            Open Gmail and compose your email as normal. When you click the <strong>Send</strong> button:
           </p>
+          <ol style={{ paddingLeft: 20, color: '#64748B', lineHeight: 1.75, marginBottom: 20 }}>
+            <li style={{ marginBottom: 8 }}>The Send button briefly changes to <span style={{ color: ACCENT, fontWeight: 700 }}>"Verifying..."</span> with a small spinner.</li>
+            <li style={{ marginBottom: 8 }}>Our background engine checks your mouse dynamics to verify you're a real human. This takes less than a second.</li>
+            <li style={{ marginBottom: 8 }}>A beautiful, green "Human Verified" badge is automatically inserted at the bottom of your email.</li>
+            <li style={{ marginBottom: 8 }}>The email is sent out.</li>
+          </ol>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12, marginTop:16 }}>
             {[
               { icon:'✍️', label:'Compose email normally' },
               { icon:'📤', label:'Click Send in Gmail' },
-              { icon:'📱', label:'Open authenticator app' },
-              { icon:'🔢', label:'Enter 6-digit code' },
-              { icon:'✅', label:'Email sent & verified' },
+              { icon:'🧠', label:'Silent human check' },
+              { icon:'🛡️', label:'Badge automatically added' },
+              { icon:'✅', label:'Email sent & logged' },
             ].map((s) => (
               <div key={s.label} style={{ padding:'16px 14px', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:12, textAlign:'center' }}>
                 <div style={{ fontSize:24, marginBottom:8 }}>{s.icon}</div>
@@ -358,13 +312,15 @@ const DOCS_CONTENT = {
           </div>
         </section>
 
-        <section id="verify-email" style={{ scrollMarginTop:96, marginBottom:40 }}>
-          <h3 style={S.h3}>Verifying an Email You Received</h3>
+        <section id="verification" style={{ scrollMarginTop:96, marginBottom:40 }}>
+          <h3 style={S.h3}>Verifying Received Emails</h3>
           <p style={S.p}>
-            If you receive an email with an Attest verification badge, you can confirm it is
-            genuine. Copy the SHA-256 hash from the email header (or the badge tooltip) and paste
-            it into the <a href="/verify" style={{ color:'#2563EB', fontWeight:600 }}>Verify page</a>.
-            The result will show the sender&apos;s registered name and the exact timestamp of verification.
+            When someone receives an email you sent with Attest, they will see a clean green badge. 
+            They can click the <strong>"Trust Record"</strong> link directly in the badge to view the cryptographic proof on our verification portal.
+          </p>
+          <p style={S.p}>
+            Alternatively, anyone can copy the SHA-256 fingerprint from the badge and paste it into the 
+            <a href="/verify" style={{ color:'#2563EB', fontWeight:600 }}> Verify page</a> on our website to verify the timestamp and sender identity.
           </p>
         </section>
 
@@ -372,11 +328,11 @@ const DOCS_CONTENT = {
           <h3 style={S.h3}>Frequently Asked Questions</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {[
-              ['Does Attest read my emails?','No. The extension has no Gmail read permission. It only intercepts the send button click. Your email content is never accessible to us.'],
-              ['Does it store my Gmail address?','No. We never store your Gmail address or any Google account identifier. Registration only requires your full name.'],
-              ['What if I lose my phone?','You can reset your TOTP secret from the portal using your registered email. Contact support for account recovery.'],
-              ['Does it work with Google Workspace?','Yes. Attest works with any Gmail interface — personal accounts and Google Workspace (G Suite) accounts.'],
-              ['Is it free?','The Individual plan is free forever. See the Pricing page for team and enterprise options.'],
+              ['Do I need to type in a 6-digit authenticator code every time?','No! The old manual TOTP step has been completely replaced with a frictionless behavior check. You write and send emails exactly as you did before.'],
+              ['What if the verification server is down or I am offline?','Attest will fail open to ensure you never lose an email. If the server is offline or cannot be reached, the extension stamps the email with a neutral "Unverified Sender (Offline)" badge and sends it anyway.'],
+              ['Does Attest read my email content?','Never. The extension only calculates a cryptographic fingerprint (SHA-256 hash) of the message locally in your browser. We never see or store the contents of your messages.'],
+              ['Does it work with Google Workspace accounts?','Yes. Attest works seamlessly on standard consumer Gmail accounts and corporate Google Workspace (G Suite) accounts.'],
+              ['Is it free?','Yes, the basic plan is free forever. For high-volume teams and advanced options, check out our Pricing page.'],
             ].map(([q, a]) => (
               <div key={q} style={{ padding:'18px 20px', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:12 }}>
                 <p style={{ fontWeight:700, color:'#0F172A', fontSize:14, marginBottom:6 }}>{q}</p>
