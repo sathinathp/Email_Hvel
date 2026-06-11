@@ -522,7 +522,7 @@ app.post('/api/verify', async (req, res) => {
             <div style="padding:28px 30px;">
               <p style="margin:0 0 16px;font-size:15px;">Hello,</p>
               <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">You have just received an email from <strong>${senderEmail}</strong> that has been <strong>Human Verified</strong> via the HVEL Security Layer.</p>
-              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">HVEL ensures the sender completed a 2FA identity check and that the message content has not been tampered with by AI bots or malicious scripts.</p>
+              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">HVEL automatically verifies real-time physical human intent (via mouse dynamics and natural composition patterns) during sending, confirming the email was sent by a physical human rather than an AI bot or automated script. It also secures the message fingerprint to prevent content tampering.</p>
               <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
                 <p style="margin:0;font-size:13px;font-weight:600;color:#065f46;">Why did you receive this?</p>
                 <p style="margin:6px 0 0;font-size:13px;color:#047857;line-height:1.5;">The sender is using HVEL to protect your inbox from AI spam and phishing.</p>
@@ -681,12 +681,12 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
               <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://humanattest.com/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
             </div>
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Activate Your Identity</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Load the extension in Chrome and complete the 2FA setup.</p>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Link Your Account</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Click the HVEL toolbar icon and sign in with your email to link your account.</p>
             </div>
             <div style="background:#ecfdf5;padding:16px;border:1px solid #d1fae5;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#059669;">3. Verify in Gmail</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">Look for the <strong>"Verify"</strong> button in your Gmail compose window before sending.</p>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#059669;">3. Seamless Background Verification</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">HVEL automatically verifies your human intent in the background as you type. Simply click "Send" as normal to append your trust stamp.</p>
             </div>
           </div>
 

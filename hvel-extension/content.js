@@ -265,7 +265,7 @@ document.addEventListener('click', async (e) => {
                             used:    quotaRes.used,
                             limit:   quotaRes.limit,
                             plan:    quotaRes.plan,
-                            message: quotaRes.reason || `You've used all ${quotaRes.limit} free TOTP verifications for today.`
+                            message: quotaRes.reason || `You've used all ${quotaRes.limit} free human verifications for today.`
                         });
                         return; // Stop — do NOT send the email
                     }
@@ -536,7 +536,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
     if (existing) existing.remove();
 
     const FEATURE_LABELS = {
-        totp_verify:   { icon: '🔐', title: 'Daily Verification Limit Reached', color: '#f59e0b' },
+        totp_verify:   { icon: '🛡️', title: 'Daily Verification Limit Reached', color: '#f59e0b' },
         webauthn:      { icon: '👂', title: 'Biometric is a Pro Feature',       color: '#8b5cf6' },
         gmail_account: { icon: '📧', title: 'Gmail Account Limit Reached',      color: '#3b82f6' },
         audit_dashboard:{ icon: '📊', title: 'Advanced Audit is a Pro Feature', color: '#10b981' },
@@ -551,7 +551,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
     const usageBar = (featureKey === 'totp_verify' && typeof used === 'number' && limit)
         ? `<div style="margin:12px 0 0;">
             <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:4px;">
-                <span>Daily TOTP verifications</span><span>${used} / ${limit}</span>
+                <span>Daily verifications</span><span>${used} / ${limit}</span>
             </div>
             <div style="background:#1e293b;border-radius:9999px;height:6px;overflow:hidden;">
                 <div style="background:linear-gradient(90deg,#f59e0b,#ef4444);height:100%;width:100%;border-radius:9999px;"></div>
@@ -614,7 +614,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
             <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">Professional plan includes</p>
             <div style="display:grid;gap:6px;margin-bottom:20px;">
                 ${[
-                    '♾️ Unlimited TOTP verifications',
+                    '♾️ Unlimited human verifications',
                     '👂 WebAuthn biometric support',
                     '📧 Up to 5 Gmail accounts',
                     '📊 Advanced audit dashboard',
@@ -673,50 +673,31 @@ function showVerificationSuccessToast(message) {
         position: fixed;
         top: 24px;
         right: 24px;
-        background: rgba(15, 23, 42, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(16, 185, 129, 0.35);
-        border-radius: 16px;
-        padding: 16px 20px;
-        color: white;
+        background: #ffffff;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: #15803d;
         z-index: 10000000;
         display: flex;
         align-items: center;
-        gap: 14px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        max-width: 380px;
-        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        animation: hvel-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     `;
     toast.innerHTML = `
-        <div style="
-            width: 36px; height: 36px; border-radius: 10px; 
-            background: rgba(16, 185, 129, 0.2); 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; flex-shrink: 0;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        ">✅</div>
-        <div style="flex: 1; text-align: left;">
-            <div style="font-size: 13px; font-weight: 700; color: #a7f3d0; margin-bottom: 2px;">Identity Verified</div>
-            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
-        </div>
-        <button style="
-            background: transparent; border: none; color: #94a3b8; 
-            font-size: 18px; cursor: pointer; padding: 0 4px;
-            font-weight: 700; transition: color 0.2s;
-        " id="hvel-toast-close">×</button>
+        <span style="font-size: 16px; display: inline-flex; align-items: center; user-select: none;">✅</span>
+        <span style="font-size: 13px; font-weight: 600; color: #166534; font-family: inherit;">Human Verified</span>
     `;
     document.body.appendChild(toast);
-
-    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
     
     setTimeout(() => {
         if (toast.parentElement) {
-            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
-            setTimeout(() => toast.remove(), 400);
+            toast.style.animation = 'hvel-toast-fade 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
         }
-    }, 4000);
+    }, 3000);
 }
 
 // Show premium warning toast notification for robotic or offline conditions
@@ -730,48 +711,43 @@ function showVerificationWarningToast(title, message) {
         position: fixed;
         top: 24px;
         right: 24px;
-        background: rgba(15, 23, 42, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(245, 158, 11, 0.35);
-        border-radius: 16px;
-        padding: 16px 20px;
-        color: white;
+        background: #ffffff;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: #9a3412;
         z-index: 10000000;
         display: flex;
         align-items: center;
-        gap: 14px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        max-width: 380px;
-        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        gap: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        max-width: 320px;
+        animation: hvel-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     `;
     toast.innerHTML = `
-        <div style="
-            width: 36px; height: 36px; border-radius: 10px; 
-            background: rgba(245, 158, 11, 0.2); 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; flex-shrink: 0;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-        ">⚠️</div>
+        <span style="font-size: 16px; display: inline-flex; align-items: center; user-select: none;">⚠️</span>
         <div style="flex: 1; text-align: left;">
-            <div style="font-size: 13px; font-weight: 700; color: #fde047; margin-bottom: 2px;">${title}</div>
-            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
+            <div style="font-size: 13px; font-weight: 600; color: #c2410c; margin-bottom: 2px;">${title}</div>
+            <div style="font-size: 11px; color: #64748b; line-height: 1.4;">${message}</div>
         </div>
         <button style="
-            background: transparent; border: none; color: #94a3b8; 
-            font-size: 18px; cursor: pointer; padding: 0 4px;
+            background: transparent; border: none; color: #cbd5e1; 
+            font-size: 16px; cursor: pointer; padding: 0 2px;
             font-weight: 700; transition: color 0.2s;
         " id="hvel-toast-close">×</button>
     `;
     document.body.appendChild(toast);
 
-    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
+    const closeBtn = toast.querySelector('#hvel-toast-close');
+    closeBtn.onclick = () => toast.remove();
+    closeBtn.onmouseenter = () => closeBtn.style.color = '#64748b';
+    closeBtn.onmouseleave = () => closeBtn.style.color = '#cbd5e1';
     
     setTimeout(() => {
         if (toast.parentElement) {
-            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
-            setTimeout(() => toast.remove(), 400);
+            toast.style.animation = 'hvel-toast-fade 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
         }
     }, 5000);
 }
@@ -787,48 +763,43 @@ function showBotBlockedToast(message) {
         position: fixed;
         top: 24px;
         right: 24px;
-        background: rgba(15, 23, 42, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(239, 68, 68, 0.35);
-        border-radius: 16px;
-        padding: 16px 20px;
-        color: white;
+        background: #ffffff;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: #991b1b;
         z-index: 10000000;
         display: flex;
         align-items: center;
-        gap: 14px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        max-width: 380px;
-        animation: hvel-toast-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        gap: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        max-width: 320px;
+        animation: hvel-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     `;
     toast.innerHTML = `
-        <div style="
-            width: 36px; height: 36px; border-radius: 10px; 
-            background: rgba(239, 68, 68, 0.2); 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; flex-shrink: 0;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        ">🛡️</div>
+        <span style="font-size: 16px; display: inline-flex; align-items: center; user-select: none;">🛡️</span>
         <div style="flex: 1; text-align: left;">
-            <div style="font-size: 13px; font-weight: 700; color: #fca5a5; margin-bottom: 2px;">Verification Blocked</div>
-            <div style="font-size: 11px; color: #e2e8f0; line-height: 1.4;">${message}</div>
+            <div style="font-size: 13px; font-weight: 600; color: #b91c1c; margin-bottom: 2px;">Verification Blocked</div>
+            <div style="font-size: 11px; color: #64748b; line-height: 1.4;">${message}</div>
         </div>
         <button style="
-            background: transparent; border: none; color: #94a3b8; 
-            font-size: 18px; cursor: pointer; padding: 0 4px;
+            background: transparent; border: none; color: #cbd5e1; 
+            font-size: 16px; cursor: pointer; padding: 0 2px;
             font-weight: 700; transition: color 0.2s;
         " id="hvel-toast-close">×</button>
     `;
     document.body.appendChild(toast);
 
-    toast.querySelector('#hvel-toast-close').onclick = () => toast.remove();
+    const closeBtn = toast.querySelector('#hvel-toast-close');
+    closeBtn.onclick = () => toast.remove();
+    closeBtn.onmouseenter = () => closeBtn.style.color = '#64748b';
+    closeBtn.onmouseleave = () => closeBtn.style.color = '#cbd5e1';
     
     setTimeout(() => {
         if (toast.parentElement) {
-            toast.style.animation = 'hvel-toast-fade 0.4s ease forwards';
-            setTimeout(() => toast.remove(), 400);
+            toast.style.animation = 'hvel-toast-fade 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
         }
     }, 6000);
 }
