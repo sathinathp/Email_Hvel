@@ -14,19 +14,40 @@ function selectMode(mode) {
 function applyModeUI(mode) {
   const linkCard = document.getElementById('optionLink');
   const hashCard = document.getElementById('optionHash');
-  if (mode === 'with_link') {
-    linkCard.classList.add('active');
-    hashCard.classList.remove('active');
-  } else {
-    hashCard.classList.add('active');
-    linkCard.classList.remove('active');
+  if (linkCard && hashCard) {
+    if (mode === 'with_link') {
+      linkCard.classList.add('active');
+      hashCard.classList.remove('active');
+    } else {
+      hashCard.classList.add('active');
+      linkCard.classList.remove('active');
+    }
   }
 }
 
 function saveSettings() {
   chrome.storage.local.set({ hvel_stamp_mode: currentMode }, () => {
     const toast = document.getElementById('toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2000);
+    if (toast) {
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
   });
 }
+
+// Bind event listeners programmatically after DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  const linkCard = document.getElementById('optionLink');
+  const hashCard = document.getElementById('optionHash');
+  const saveBtn = document.getElementById('saveBtn');
+
+  if (linkCard) {
+    linkCard.addEventListener('click', () => selectMode('with_link'));
+  }
+  if (hashCard) {
+    hashCard.addEventListener('click', () => selectMode('hash_only'));
+  }
+  if (saveBtn) {
+    saveBtn.addEventListener('click', saveSettings);
+  }
+});
