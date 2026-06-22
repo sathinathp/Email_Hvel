@@ -9,7 +9,7 @@ const INQUIRY_TYPES = [
   'Technical Support', 'Partnership', 'Press / Media', 'Bug Report', 'Privacy / Data Request',
 ];
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://hvel-backend.onrender.com';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.page';
 
 const sharedStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
