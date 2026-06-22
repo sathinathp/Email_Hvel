@@ -36,7 +36,7 @@ export default function Verify() {
       const data = await response.json();
       if (data.success) setResult(data.data);
       else setError(data.message || 'Verification failed. Please check the hash.');
-    } catch { setError('Network error. Ensure the HVEL backend is running.'); }
+    } catch { setError('Network error. Ensure the Attest backend is running.'); }
     finally { setLoading(false); }
   };
 
@@ -144,12 +144,12 @@ export default function Verify() {
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 8, padding: '5px 14px' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#007A5E', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Verified Human</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#007A5E', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Attest Approved</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {[
-                    { label: 'Sender Name', value: result.full_name || 'HVEL Verified User', mono: false },
+                    { label: 'Sender Name', value: result.full_name || 'Attest Approved User', mono: false },
                     { label: 'Verified Email', value: result.sender_email, mono: true },
                     { label: 'Email Sent At', value: new Date(result.timestamp).toLocaleString(), mono: false },
                   ].map((row, i, arr) => (

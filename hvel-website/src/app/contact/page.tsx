@@ -89,7 +89,7 @@ export default function Contact() {
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#F0FDF4', border: '1px solid #DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📧</div>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>All Inquiries</p>
-                  <a href="mailto:info@humanattest.com" style={{ fontSize: 15, fontWeight: 700, color: '#007A5E', textDecoration: 'none' }}>info@humanattest.com</a>
+                  <a href="mailto:info@attest.page" style={{ fontSize: 15, fontWeight: 700, color: '#007A5E', textDecoration: 'none' }}>info@attest.page</a>
                   <p style={{ fontSize: 12, color: '#94A3B8', margin: '3px 0 0', fontWeight: 500 }}>General · Security · Legal · Sales</p>
                 </div>
               </div>

@@ -3423,7 +3423,7 @@ export default function Home() {
 
             <div style={{ position: 'relative', zIndex: 2, maxWidth: 720, margin: '0 auto' }}>
               <h2 style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 16 }}>
-                Bring Trust Back to Email Communication with HumanAttest.
+                Bring Trust Back to Email Communication with Attest.
               </h2>
               <p style={{ fontSize: 16, color: '#E6FDF0', lineHeight: 1.6, marginBottom: 36, fontWeight: 500 }}>
                 Deploy complete protection in under 15 seconds. Let Attest prove a real human sent every message.

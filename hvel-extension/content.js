@@ -18,11 +18,24 @@ style.textContent = `
     @keyframes hvel-toast-fade {
         to { opacity: 0; transform: translateY(-10px) scale(0.95); }
     }
+    @keyframes hvel-pop-in {
+        0% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+        70% { transform: translateY(4px) scale(1.03); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes hvel-ring-pulse {
+        0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+        70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
 `;
 document.head.appendChild(style);
 
 // Track in-flight requests to prevent spamming the server
 const pendingRequests = new Set();
+
+// Cache for checked email verification statuses to optimize API calls
+const checkedEmailsCache = new Map();
 
 // --- HEARTBEAT & PROFILE SYNC ---
 function sendHeartbeat() {
@@ -165,6 +178,118 @@ function flashComposeVerified(dialog) {
     setTimeout(() => indicator.remove(), 2000);
 }
 
+function updateOrAppendStamp(composeBody, badgeInnerHtml) {
+    if (!composeBody) return;
+    const existing = composeBody.querySelector('.hvel-badge-wrapper');
+    if (existing) {
+        existing.innerHTML = badgeInnerHtml;
+    } else {
+        const stampContainer = document.createElement('div');
+        stampContainer.className = 'hvel-badge-wrapper';
+        stampContainer.setAttribute('contenteditable', 'false');
+        stampContainer.style.cssText = "font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block; margin-top: 20px;";
+        stampContainer.innerHTML = badgeInnerHtml;
+        composeBody.appendChild(document.createElement('br'));
+        composeBody.appendChild(document.createElement('br'));
+        composeBody.appendChild(stampContainer);
+    }
+}
+
+let hashUpdateTimeout = null;
+async function updateComposeStampLive(composeBody) {
+    if (hashUpdateTimeout) clearTimeout(hashUpdateTimeout);
+    hashUpdateTimeout = setTimeout(async () => {
+        if (!composeBody || !document.body.contains(composeBody)) return;
+        
+        // Extract clean body text and compute the hash
+        const clone = composeBody.cloneNode(true);
+        clone.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+        const emailBodyText = clone.innerText || "";
+        const contentHash = await computeHash(emailBodyText);
+        
+        chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
+            const stampMode = prefs.hvel_stamp_mode || 'with_link';
+            
+            const existing = composeBody.querySelector('.hvel-badge-wrapper');
+            if (!existing) return;
+            
+            let badgeInnerHtml = '';
+            if (stampMode === 'hash_only') {
+                badgeInnerHtml = `
+                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
+                        <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
+                    </div>
+                `;
+            } else {
+                badgeInnerHtml = `
+                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                        <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
+                        <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
+                            <span>Trust Record</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        </a>
+                    </div>
+                `;
+            }
+            updateOrAppendStamp(composeBody, badgeInnerHtml);
+        });
+    }, 300);
+}
+
+async function injectComposeStamp(dialog) {
+    const composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+    if (!composeBody) return;
+    
+    // Prevent duplicate signature
+    if (composeBody.querySelector('.hvel-badge-wrapper')) return;
+    
+    const clone = composeBody.cloneNode(true);
+    clone.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+    const emailBodyText = clone.innerText || "";
+    const contentHash = await computeHash(emailBodyText);
+
+    chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
+        const stampMode = prefs.hvel_stamp_mode || 'with_link';
+        
+        let badgeInnerHtml = '';
+        if (stampMode === 'hash_only') {
+            badgeInnerHtml = `
+                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                </div>
+                <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
+                    <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
+                </div>
+            `;
+        } else {
+            badgeInnerHtml = `
+                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                    <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
+                    <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
+                        <span>Trust Record</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
+                </div>
+            `;
+        }
+        
+        updateOrAppendStamp(composeBody, badgeInnerHtml);
+        
+        // Add live typing/update listeners
+        composeBody.addEventListener('input', () => updateComposeStampLive(composeBody));
+        composeBody.addEventListener('keyup', () => updateComposeStampLive(composeBody));
+    });
+}
+
 // Watch for compose dialogs opening/closing
 const composeSessionObserver = new MutationObserver(() => {
     const dialogs = document.querySelectorAll('div[role="dialog"]');
@@ -174,6 +299,7 @@ const composeSessionObserver = new MutationObserver(() => {
             activeComposeDialog = dialog;
             composeMousePoints = []; // Fresh buffer per compose session
             injectComposeIndicator(dialog);
+            injectComposeStamp(dialog);
             console.log('[HVEL] 📝 Compose detected — focused tracking active');
         }
     });
@@ -297,7 +423,12 @@ document.addEventListener('click', async (e) => {
                             composeBody = dialog.querySelector('div[aria-label="Message Body"]');
                         }
                         
-                        const emailBodyText = composeBody ? composeBody.innerText : "";
+                        let emailBodyText = "";
+                        if (composeBody) {
+                            const clone = composeBody.cloneNode(true);
+                            clone.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+                            emailBodyText = clone.innerText;
+                        }
                         const contentHash = await computeHash(emailBodyText);
 
                         if (isNetworkError) {
@@ -306,21 +437,29 @@ document.addEventListener('click', async (e) => {
                             restoreSendButton(sendBtn);
 
                             if (composeBody) {
-                                const badgeHtml = `
-                                    <br/><br/>
-                                    <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                        <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                            <div style="display: flex; align-items: center; justify-content: center; background: #64748b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: bold;">
-                                                !
+                                chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
+                                    const stampMode = prefs.hvel_stamp_mode || 'with_link';
+                                    let badgeInnerHtml = '';
+                                    if (stampMode === 'hash_only') {
+                                        badgeInnerHtml = `
+                                            <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                             </div>
-                                            <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                        </div>
-                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                            <span>Verification Server Offline</span>
-                                        </div>
-                                    </div>
-                                `;
-                                composeBody.innerHTML += badgeHtml;
+                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                                <span>Hash: ${contentHash}</span>
+                                            </div>
+                                        `;
+                                    } else {
+                                        badgeInnerHtml = `
+                                            <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
+                                            </div>
+                                        `;
+                                    }
+                                    updateOrAppendStamp(composeBody, badgeInnerHtml);
+                                });
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
@@ -356,21 +495,29 @@ document.addEventListener('click', async (e) => {
 
                                 if (isVerifyNetworkErr) {
                                     if (composeBody) {
-                                        const badgeHtml = `
-                                            <br/><br/>
-                                            <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                                <div style="display: flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                    <div style="display: flex; align-items: center; justify-content: center; background: #64748b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: bold;">
-                                                        !
+                                        chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
+                                            const stampMode = prefs.hvel_stamp_mode || 'with_link';
+                                            let badgeInnerHtml = '';
+                                            if (stampMode === 'hash_only') {
+                                                badgeInnerHtml = `
+                                                    <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                                     </div>
-                                                    <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                                </div>
-                                                <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                    <span>Verification Server Offline</span>
-                                                </div>
-                                            </div>
-                                        `;
-                                        composeBody.innerHTML += badgeHtml;
+                                                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                                        <span>Hash: ${contentHash}</span>
+                                                    </div>
+                                                `;
+                                            } else {
+                                                badgeInnerHtml = `
+                                                    <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
+                                                    </div>
+                                                `;
+                                            }
+                                            updateOrAppendStamp(composeBody, badgeInnerHtml);
+                                        });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
@@ -380,92 +527,62 @@ document.addEventListener('click', async (e) => {
                                     return;
                                 }
 
-                                // If DB insert succeeded
-                                if (isVerifySuccess) {
-                                    // Read stamp mode pref, then build badge
+                                const finalizeSend = (recordUrl) => {
                                     chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                         const stampMode = prefs.hvel_stamp_mode || 'with_link';
 
                                         if (composeBody) {
-                                            let badgeHtml;
+                                            let badgeInnerHtml;
                                             if (isHuman) {
-                                                if (stampMode === 'hash_only') {
-                                                    badgeHtml = `
-                                                        <br/><br/>
-                                                        <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                                            <div style="display: flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                                <div style="display: flex; align-items: center; justify-content: center; background: #10b981; color: white; border-radius: 50%; width: 18px; height: 18px;">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                                </div>
-                                                                <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Human Verified</span>
-                                                            </div>
-                                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                                <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                                                            </div>
+                                                if (stampMode === 'hash_only' || !recordUrl) {
+                                                    badgeInnerHtml = `
+                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                                                        </div>
+                                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                                            <span>Hash: ${contentHash}</span>
                                                         </div>
                                                     `;
                                                 } else {
-                                                    badgeHtml = `
-                                                        <br/><br/>
-                                                        <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                                            <div style="display: flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                                <div style="display: flex; align-items: center; justify-content: center; background: #10b981; color: white; border-radius: 50%; width: 18px; height: 18px;">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                                </div>
-                                                                <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Human Verified</span>
-                                                                <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
-                                                                <a href="${verifyRes.url}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
-                                                                    <span>Trust Record</span>
-                                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                                </a>
-                                                            </div>
-                                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
-                                                                <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                                                                <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
-                                                            </div>
+                                                    badgeInnerHtml = `
+                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                                                            <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
+                                                            <a href="${recordUrl}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
+                                                                <span>Trust Record</span>
+                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                            </a>
                                                         </div>
                                                     `;
                                                 }
                                             } else {
-                                                if (stampMode === 'hash_only') {
-                                                    badgeHtml = `
-                                                        <br/><br/>
-                                                        <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                                            <div style="display: flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                                <div style="display: flex; align-items: center; justify-content: center; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px;">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                                                                </div>
-                                                                <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
-                                                            </div>
-                                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                                <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                                                            </div>
+                                                if (stampMode === 'hash_only' || !recordUrl) {
+                                                    badgeInnerHtml = `
+                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
+                                                        </div>
+                                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
+                                                            <span>Hash: ${contentHash}</span>
                                                         </div>
                                                     `;
                                                 } else {
-                                                    badgeHtml = `
-                                                        <br/><br/>
-                                                        <div class="hvel-badge-wrapper" style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: inline-block;" contenteditable="false">
-                                                            <div style="display: flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                                <div style="display: flex; align-items: center; justify-content: center; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px;">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                                                                </div>
-                                                                <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
-                                                                <div style="width: 1px; height: 12px; background: #fee2e2;"></div>
-                                                                <a href="${verifyRes.url}" target="_blank" style="color: #dc2626; font-size: 11px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 3px;">
-                                                                    <span>Trust Record</span>
-                                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                                </a>
-                                                            </div>
-                                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8; display: flex; gap: 10px; align-items: center;">
-                                                                <span>Hash: ${contentHash.substring(0, 16)}...</span>
-                                                                <a href="https://humanattest.com/verify" target="_blank" style="color: #6366f1; text-decoration: underline;">Verify on HVEL Portal</a>
-                                                            </div>
+                                                    badgeInnerHtml = `
+                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
+                                                            <div style="width: 1px; height: 12px; background: #fee2e2;"></div>
+                                                            <a href="${recordUrl}" target="_blank" style="color: #dc2626; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
+                                                                <span>Trust Record</span>
+                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                            </a>
                                                         </div>
                                                     `;
                                                 }
                                             }
-                                            composeBody.innerHTML += badgeHtml;
+                                            updateOrAppendStamp(composeBody, badgeInnerHtml);
                                         }
 
                                         // Flash compose indicator → Verified
@@ -484,13 +601,14 @@ document.addEventListener('click', async (e) => {
                                         sendBtn.setAttribute('data-hvel-verified', 'true');
                                         setTimeout(() => { sendBtn.click(); }, 800);
                                     });
+                                };
+
+                                if (isVerifySuccess) {
+                                    finalizeSend(verifyRes.url);
                                 } else {
                                     // DB save failed but it's not a network error
                                     showVerificationWarningToast("Verification Warning", "Failed to generate trust record, dispatching email.");
-                                    sendBtn.setAttribute('data-hvel-verified', 'true');
-                                    setTimeout(() => {
-                                        sendBtn.click();
-                                    }, 800);
+                                    finalizeSend(null);
                                 }
                             } catch (innerErr) {
                                 console.error("HVEL Inner Callback Error:", innerErr);
@@ -673,22 +791,28 @@ function showVerificationSuccessToast(message) {
         position: fixed;
         top: 24px;
         right: 24px;
-        background: #ffffff;
-        border: 1px solid #bbf7d0;
-        border-radius: 8px;
-        padding: 12px 16px;
-        color: #15803d;
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+        border: 1.5px solid #10b981;
+        border-radius: 12px;
+        padding: 14px 20px;
+        color: #065f46;
         z-index: 10000000;
         display: flex;
         align-items: center;
-        gap: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        animation: hvel-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        gap: 12px;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.15), 0 8px 10px -6px rgba(16, 185, 129, 0.15);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        animation: hvel-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     `;
+    
     toast.innerHTML = `
-        <span style="font-size: 16px; display: inline-flex; align-items: center; user-select: none;">✅</span>
-        <span style="font-size: 13px; font-weight: 600; color: #166534; font-family: inherit;">Human Verified</span>
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #e6fbf1; border-radius: 50%; border: 1px solid #a7f3d0; animation: hvel-ring-pulse 2s infinite; flex-shrink: 0;">
+            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest Approved</span>
+            <span style="font-size: 11px; color: #047857; font-weight: 500; opacity: 0.9;">Secure human intent verified</span>
+        </div>
     `;
     document.body.appendChild(toast);
     
@@ -697,7 +821,7 @@ function showVerificationSuccessToast(message) {
             toast.style.animation = 'hvel-toast-fade 0.3s ease forwards';
             setTimeout(() => toast.remove(), 300);
         }
-    }, 3000);
+    }, 3500);
 }
 
 // Show premium warning toast notification for robotic or offline conditions
@@ -814,10 +938,12 @@ function shakeElement(el) {
 
 // ─── PASSIVE INCOMING INBOX SCANNER ───
 async function scanIncomingMessages() {
-    const messages = document.querySelectorAll('.adn, .ads, div[role="listitem"]');
+    const messages = document.querySelectorAll('.adn, .ads');
 
     messages.forEach(async (msg) => {
         if (msg.hasAttribute('data-hvel-scanned')) return;
+        // Ignore autocomplete dropdown lists, compose dialogs, and suggestions popups
+        if (msg.closest('[role="listbox"]') || msg.closest('[role="dialog"]') || msg.closest('.am') || msg.closest('.aqj')) return;
         msg.setAttribute('data-hvel-scanned', 'true');
 
         const badgeLink = msg.querySelector('a[href*="/v/"]');
@@ -894,7 +1020,7 @@ async function scanIncomingMessages() {
             } else {
                 chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userStatus) => {
                     if (userStatus && userStatus.verified) {
-                        showTrustStatus(msg, 'verified', `Sender is now Human Verified (Legacy Message)`);
+                        showTrustStatus(msg, 'verified', `Sender is now Attest Approved (Legacy Message)`);
                     } else {
                         showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
                         
@@ -936,57 +1062,38 @@ function showTrustStatus(msgElement, status, text) {
     const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
     if (existingStamp) existingStamp.remove();
 
+    // Ensure we clean up any legacy background styling from previous sessions
+    msgElement.style.removeProperty('background-color');
+    msgElement.style.removeProperty('backgroundColor');
+
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
 
     if (status === 'verified') {
-        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534'; const icon = '✅';
+        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534';
         notice.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
                 border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
                 font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
                 border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <span style="font-size:16px;">${icon}</span>
+                <img src="https://attest.page/logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;" />
                 <span>${text}</span>
             </div>`;
     } else {
-        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b'; const icon = '🚫';
+        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b';
         const title = (status === 'tampered' || status === 'invalid') ? 'CRITICAL SECURITY ALERT: ID MISMATCH' : 'SECURITY ALERT: UNTRUSTED SENDER';
         
         notice.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:800;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 4px 12px rgba(220, 38, 38, 0.15);
-                border: 2px solid #dc2626; animation: hvel-pulse-red 2s infinite;">
-                <span style="font-size:18px;">${icon}</span>
+                border:1px solid #fee2e2;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+                <img src="https://attest.page/logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;filter: grayscale(50%) contrast(150%);" />
                 <div style="display:flex; flex-direction:column;">
-                    <span style="font-size:14px; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
+                    <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
                     <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
                 </div>
-            </div>
-            <style>
-                @keyframes hvel-pulse-red {
-                    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
-                }
-            </style>`;
-
-        const stamp = document.createElement('div');
-        stamp.className = 'hvel-untrusted-stamp';
-        stamp.style.cssText = `
-            position: absolute; top: 60px; right: 50px; border: 5px solid #dc2626;
-            color: #dc2626; padding: 10px 20px; font-size: 32px; font-weight: 900;
-            text-transform: uppercase; transform: rotate(-20deg); opacity: 0.15;
-            border-radius: 12px; z-index: 5; pointer-events: none;
-            font-family: 'Impact', 'Arial Black', sans-serif; letter-spacing: 2px;
-            user-select: none;
-        `;
-        stamp.innerText = (status === 'tampered' || status === 'invalid') ? 'TAMPERED' : 'UNTRUSTED';
-        msgElement.style.position = 'relative';
-        msgElement.style.backgroundColor = 'rgba(254, 242, 242, 0.5)';
-        msgElement.appendChild(stamp);
+            </div>`;
     }
 
     const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
@@ -1026,13 +1133,195 @@ function getRecipientEmail(sendBtn) {
 // Interval loops to catch dynamically loaded view changes
 function runHvelIntervals() {
     scanIncomingMessages();
+    scanAndStyleComposeRecipients();
 }
 
 setInterval(runHvelIntervals, 1500);
 
+let mutationTimeout = null;
 const observer = new MutationObserver(() => {
-    runHvelIntervals();
+    if (mutationTimeout) return;
+    mutationTimeout = setTimeout(() => {
+        runHvelIntervals();
+        mutationTimeout = null;
+    }, 150);
 });
 observer.observe(document.body, { childList: true, subtree: true });
 
 runHvelIntervals();
+
+// ─── RECIPIENT TYPING VERIFICATION & STYLE ENGINE ───
+
+function styleChip(chipElement, isVerified) {
+    if (isVerified) {
+        chipElement.style.setProperty('border', '1px solid #10b981', 'important');
+        chipElement.style.setProperty('background-color', '#f0fdf4', 'important');
+        chipElement.style.setProperty('background', '#f0fdf4', 'important');
+        chipElement.style.setProperty('color', '#065f46', 'important');
+        chipElement.querySelectorAll('*').forEach(el => {
+            el.style.setProperty('color', '#065f46', 'important');
+        });
+        chipElement.setAttribute('title', 'HVEL Approved Recipient');
+    } else {
+        chipElement.style.removeProperty('border');
+        chipElement.style.removeProperty('background-color');
+        chipElement.style.removeProperty('background');
+        chipElement.style.removeProperty('color');
+        chipElement.querySelectorAll('*').forEach(el => {
+            el.style.removeProperty('color');
+        });
+        chipElement.removeAttribute('title');
+    }
+}
+
+function styleInput(input, isVerified) {
+    if (isVerified) {
+        input.style.setProperty('color', '#059669', 'important');
+        input.style.setProperty('background-color', '#f0fdf4', 'important');
+    } else {
+        resetInputStyle(input);
+    }
+}
+
+function resetInputStyle(input) {
+    input.style.removeProperty('color');
+    input.style.removeProperty('background-color');
+}
+
+function getRecipientInputs(dialog) {
+    const found = [];
+    dialog.querySelectorAll('input, textarea').forEach(input => {
+        const role = input.getAttribute('role') || '';
+        const name = input.getAttribute('name') || '';
+        const label = input.getAttribute('aria-label') || '';
+        const className = input.className || '';
+        
+        if (role === 'combobox' || 
+            name === 'to' || 
+            label.toLowerCase().includes('to') || 
+            label.toLowerCase().includes('cc') || 
+            label.toLowerCase().includes('bcc') ||
+            className.includes('vO')) {
+            found.push(input);
+        }
+    });
+    return found;
+}
+
+function checkInputValue(input) {
+    const val = input.value.trim().toLowerCase();
+    const emailMatch = val.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) {
+        const email = emailMatch[0];
+        if (checkedEmailsCache.has(email)) {
+            const cached = checkedEmailsCache.get(email);
+            if (!cached.checking) {
+                styleInput(input, cached.verified);
+            }
+        } else {
+            checkedEmailsCache.set(email, { verified: false, checking: true });
+            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
+                const isVerified = !!(response && response.verified);
+                checkedEmailsCache.set(email, { verified: isVerified, checking: false });
+                styleInput(input, isVerified);
+            });
+        }
+    } else {
+        resetInputStyle(input);
+    }
+}
+
+function scanAndStyleComposeRecipients() {
+    const dialogs = document.querySelectorAll('div[role="dialog"]');
+    dialogs.forEach(dialog => {
+        // 1. Style existing recipient chips
+        const chips = dialog.querySelectorAll('div[role="listitem"], .vT');
+        let hasUnverified = false;
+        let hasVerified = false;
+
+        chips.forEach(chip => {
+            // Extract email
+            const emailSpan = chip.querySelector('[email]');
+            let email = emailSpan ? emailSpan.getAttribute('email') : null;
+            if (!email) {
+                email = chip.getAttribute('email');
+            }
+            if (!email) {
+                const match = chip.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                if (match) email = match[0];
+            }
+            
+            if (email) {
+                email = email.toLowerCase().trim();
+                if (checkedEmailsCache.has(email)) {
+                    const cached = checkedEmailsCache.get(email);
+                    if (!cached.checking) {
+                        styleChip(chip, cached.verified);
+                        if (cached.verified) hasVerified = true;
+                        else hasUnverified = true;
+                    }
+                } else {
+                    // Query and cache
+                    checkedEmailsCache.set(email, { verified: false, checking: true });
+                    chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
+                        const isVerified = !!(response && response.verified);
+                        checkedEmailsCache.set(email, { verified: isVerified, checking: false });
+                        styleChip(chip, isVerified);
+                    });
+                }
+            }
+        });
+        
+        // 2. Attach listeners to input fields for instant typing feedback
+        const inputs = getRecipientInputs(dialog);
+        inputs.forEach(input => {
+            if (input.getAttribute('data-hvel-listener') === 'true') {
+                checkInputValue(input);
+                return;
+            }
+            input.setAttribute('data-hvel-listener', 'true');
+            
+            const handler = () => {
+                checkInputValue(input);
+            };
+            input.addEventListener('input', handler);
+            input.addEventListener('keyup', handler);
+            input.addEventListener('blur', () => {
+                if (!input.value.trim()) {
+                    resetInputStyle(input);
+                }
+            });
+        });
+
+        // 3. Update the compose indicator based on verification status
+        const indicator = dialog.querySelector('#hvel-compose-indicator');
+        if (indicator) {
+            const currentState = indicator.getAttribute('data-hvel-state');
+            let newState = 'tracking';
+            if (hasVerified && !hasUnverified) newState = 'verified';
+
+            if (currentState !== newState) {
+                indicator.setAttribute('data-hvel-state', newState);
+                if (newState === 'verified') {
+                    indicator.innerHTML = `
+                        <span style="width:7px;height:7px;background:#10b981;border-radius:50%;
+                            display:inline-block;animation:hvel-pulse-dot 1.5s ease infinite;flex-shrink:0;"></span>
+                        <span>HVEL: Approved Recipient</span>
+                    `;
+                    indicator.style.setProperty('background', 'rgba(16,185,129,0.1)', 'important');
+                    indicator.style.setProperty('border-color', 'rgba(16,185,129,0.25)', 'important');
+                    indicator.style.setProperty('color', '#059669', 'important');
+                } else {
+                    indicator.innerHTML = `
+                        <span style="width:7px;height:7px;background:#10b981;border-radius:50%;
+                            display:inline-block;animation:hvel-pulse-dot 1.5s ease infinite;flex-shrink:0;"></span>
+                        <span>HVEL Tracking</span>
+                    `;
+                    indicator.style.setProperty('background', 'rgba(16,185,129,0.1)', 'important');
+                    indicator.style.setProperty('border-color', 'rgba(16,185,129,0.25)', 'important');
+                    indicator.style.setProperty('color', '#059669', 'important');
+                }
+            }
+        }
+    });
+}

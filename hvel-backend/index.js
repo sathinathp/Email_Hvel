@@ -498,7 +498,7 @@ app.post('/api/verify', async (req, res) => {
       `INSERT INTO verifications (id, sender_email, recipient_email, type, content_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [verificationId, senderEmail, recipientEmail || null, type, contentHash || null]
     );
-    const host = req.get('host') || 'api.humanattest.com';
+    const host = req.get('host') || 'api.attest.page';
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const verificationUrl = `${proto}://${host}/v/${verificationId}`;
 
@@ -529,7 +529,7 @@ app.post('/api/verify', async (req, res) => {
               </div>
               <p style="margin:0 0 12px;font-size:14px;line-height:1.6;">To verify your own emails and earn the <strong>✅ Human Verified</strong> trust badge, download the free HVEL Chrome extension:</p>
               <div style="text-align:center;margin:20px 0;">
-                <a href="https://humanattest.com/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
+                <a href="https://attest.page/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
               </div>
             </div>
             <div style="background:#f9fafb;padding:16px 30px;border-top:1px solid #e5e7eb;">
@@ -678,7 +678,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           <div style="display:grid;gap:12px;">
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download HVEL Extension</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://humanattest.com/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://attest.page/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
             </div>
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Link Your Account</p>
@@ -691,7 +691,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           </div>
 
           <div style="text-align:center;margin-top:32px;">
-            <a href="https://humanattest.com/verify" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
+            <a href="https://attest.page/verify" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
           </div>
         </div>
 
@@ -734,8 +734,8 @@ app.get('/v/:id', async (req, res) => {
     const record = result.rows[0];
     if (!record) return res.status(404).send('<h1>404 - Not found</h1>');
     const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#10b981';
-    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic / AI Sender' : 'Human Verified';
-    res.send(`<!DOCTYPE html><html><head><title>HVEL Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><img src="/logo.png" alt="HVEL" style="width:48px;"></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by HVEL.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div></div></body></html>`);
+    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic / AI Sender' : 'Attest Approved';
+    res.send(`<!DOCTYPE html><html><head><title>HVEL Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><a href="https://attest.page" target="_blank" style="text-decoration:none;"><img src="/icon-symbol.png" alt="HVEL" style="width:48px;border:none;"></a></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by HVEL.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;margin-bottom:25px;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div><div style="text-align:center;"><a href="https://attest.page" target="_blank" style="display:inline-block;background:${badgeColor};color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);transition:opacity 0.2s;">Verify Portal</a></div></div></body></html>`);
   } catch (err) { res.status(500).send('<h1>500 - Server Error</h1>'); }
 });
 
@@ -924,7 +924,7 @@ app.post('/api/report-security-alert', async (req, res) => {
             </table>
 
             <div style="margin-top:30px; text-align:center;">
-                <a href="https://humanattest.com/verify" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
+                <a href="https://attest.page/verify" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
             </div>
         </div>
       </div>
@@ -1063,14 +1063,14 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid email address.' });
   }
 
-  const subjectLine = subject || `[HumanAttest Contact] ${type || 'General Inquiry'} from ${name}`;
+  const subjectLine = subject || `[Attest Contact] ${type || 'General Inquiry'} from ${name}`;
   const receivedAt = new Date().toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'long' });
 
   const html = `
     <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #E2E8F0;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#2563EB 0%,#1D4ED8 100%);padding:32px 28px;">
         <h2 style="margin:0;color:white;font-size:20px;font-weight:800;letter-spacing:-0.02em;">📬 New Contact Form Submission</h2>
-        <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:13px;">HumanAttest Website — ${receivedAt}</p>
+        <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:13px;">Attest Website — ${receivedAt}</p>
       </div>
       <div style="padding:28px;">
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
@@ -1104,7 +1104,7 @@ app.post('/api/contact', async (req, res) => {
 
   try {
     await mainTransporter.sendMail({
-      from: `"HumanAttest Contact" <${process.env.EMAIL_USER}>`,
+      from: `"Attest Contact" <${process.env.EMAIL_USER}>`,
       to: 'noreply.hvel@gmail.com',
       replyTo: email,
       subject: subjectLine,

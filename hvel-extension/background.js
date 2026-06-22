@@ -1,4 +1,25 @@
-const API_BASE_URL = 'https://api.humanattest.com';
+let API_BASE_URL = 'https://api.attest.page';
+
+// Dynamically check if the local server is running on port 5000; if so, route requests to it first
+function checkBackendUrl() {
+  fetch('http://localhost:5000/health')
+    .then(() => {
+      if (API_BASE_URL !== 'http://localhost:5000') {
+        API_BASE_URL = 'http://localhost:5000';
+        console.log('[HVEL BG] 📡 Localhost backend detected! Routing API requests to: http://localhost:5000');
+      }
+    })
+    .catch(() => {
+      if (API_BASE_URL !== 'https://api.attest.page') {
+        API_BASE_URL = 'https://api.attest.page';
+        console.log('[HVEL BG] 📡 Localhost down. Falling back to production backend: https://api.attest.page');
+      }
+    });
+}
+
+// Run check immediately and periodically (every 10 seconds)
+checkBackendUrl();
+setInterval(checkBackendUrl, 10000);
 
 // ─── PLAN STATUS: fetch on startup and cache for 10 mins ───────────────────────
 function fetchAndCachePlanStatus(email) {
