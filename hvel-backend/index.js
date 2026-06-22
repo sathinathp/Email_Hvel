@@ -642,11 +642,11 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
 
     const nudgeHtml = `
       <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;max-width:600px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-        <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:40px 30px;text-align:center;color:white;">
+        <div style="background:linear-gradient(135deg,#007A5E,#059669);padding:40px 30px;text-align:center;color:white;">
           <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:12px;border-radius:12px;margin-bottom:16px;">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
           </div>
-          <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.025em;">HVEL Identity Report</h2>
+          <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.025em;">Attest Identity Report</h2>
           <p style="margin:8px 0 0;font-size:14px;opacity:0.9;font-weight:500;">Securing Your Communication with ${senderName}</p>
         </div>
         
@@ -664,41 +664,41 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
 
           <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">
             Hello,<br/><br/>
-            This is an automated notification from <strong>HVEL (Human Verified Email Layer)</strong>. 
+            This is an automated notification from <strong>Attest (Human Verified Email Layer)</strong>. 
             An email sent from your address to <strong>${senderName}</strong> was flagged because it lacked a valid human verification stamp.
           </p>
 
           <div style="background:#fff7ed;border-left:4px solid #f97316;padding:16px;border-radius:4px 12px 12px 4px;margin-bottom:24px;">
             <p style="margin:0;font-size:14px;color:#9a3412;line-height:1.5;">
-              <strong>Why this matters:</strong> To protect against AI-generated spam and phishing, ${senderName} uses HVEL to ensure they only interact with verified humans. Unverified emails may be deprioritized or moved to junk.
+              <strong>Why this matters:</strong> To protect against AI-generated spam and phishing, ${senderName} uses Attest to ensure they only interact with verified humans. Unverified emails may be deprioritized or moved to junk.
             </p>
           </div>
 
           <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">How to Restore Trust:</h3>
           <div style="display:grid;gap:12px;">
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download HVEL Extension</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://attest.page/hvel-extension.zip" style="color:#4f46e5;text-decoration:none;font-weight:600;">from this link</a>.</p>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download Attest Extension</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://attest.page/hvel-extension.zip" style="color:#007A5E;text-decoration:none;font-weight:600;">from this link</a>.</p>
             </div>
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Link Your Account</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Click the HVEL toolbar icon and sign in with your email to link your account.</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Click the Attest toolbar icon and sign in with your email to link your account.</p>
             </div>
             <div style="background:#ecfdf5;padding:16px;border:1px solid #d1fae5;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#059669;">3. Seamless Background Verification</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">HVEL automatically verifies your human intent in the background as you type. Simply click "Send" as normal to append your trust stamp.</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">Attest automatically verifies your human intent in the background as you type. Simply click "Send" as normal to append your trust stamp.</p>
             </div>
           </div>
 
           <div style="text-align:center;margin-top:32px;">
-            <a href="https://attest.page/verify" style="display:inline-block;background:#4f46e5;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">Open HVEL Portal</a>
+            <a href="https://attest.page/verify" style="display:inline-block;background:#007A5E;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0, 122, 94, 0.4);">Open Attest Portal</a>
           </div>
         </div>
 
         <div style="background:#f8fafc;padding:24px;border-top:1px solid #e2e8f0;text-align:center;">
           <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
             This security report was generated for communication with ${hvelUserEmail}.<br/>
-            HVEL Identity Protocol v2.4 | <a href="https://hvel.io" style="color:#4f46e5;text-decoration:none;">Learn More</a>
+            Attest Identity Protocol v2.4 | <a href="https://attest.page" style="color:#007A5E;text-decoration:none;">Learn More</a>
           </p>
         </div>
       </div>
@@ -706,7 +706,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
 
     console.log(`[SMTP] 📤 Sending nudge email to ${noExtUserEmail}...`);
     const info = await hrmsTransporter.sendMail({
-      from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+      from: `"Attest Security" <${process.env.EMAIL_USER}>`,
       to: noExtUserEmail,
       subject: `⚠️ Your reply to ${hvelUserEmail} was not Human Verified`,
       headers: { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'high', 'X-Entity-Ref-ID': Date.now().toString() },
@@ -733,9 +733,9 @@ app.get('/v/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM verifications WHERE id = $1', [req.params.id]);
     const record = result.rows[0];
     if (!record) return res.status(404).send('<h1>404 - Not found</h1>');
-    const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#10b981';
+    const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#007A5E';
     const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic / AI Sender' : 'Attest Approved';
-    res.send(`<!DOCTYPE html><html><head><title>HVEL Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><a href="https://attest.page" target="_blank" style="text-decoration:none;"><img src="/icon-symbol.png" alt="HVEL" style="width:48px;border:none;"></a></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by HVEL.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;margin-bottom:25px;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div><div style="text-align:center;"><a href="https://attest.page" target="_blank" style="display:inline-block;background:${badgeColor};color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);transition:opacity 0.2s;">Verify Portal</a></div></div></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><title>Attest Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><a href="https://attest.page" target="_blank" style="text-decoration:none;"><img src="/icon-symbol.png" alt="Attest" style="width:48px;border:none;"></a></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by Attest.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;margin-bottom:25px;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div><div style="text-align:center;"><a href="https://attest.page" target="_blank" style="display:inline-block;background:${badgeColor};color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);transition:opacity 0.2s;">Verify Portal</a></div></div></body></html>`);
   } catch (err) { res.status(500).send('<h1>500 - Server Error</h1>'); }
 });
 
@@ -861,9 +861,9 @@ app.post('/api/report-security-alert', async (req, res) => {
 
   console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
 
-  // 1. Alert to the RECIPIENT (The HVEL User)
+  // 1. Alert to the RECIPIENT (The Attest User)
   const recipientMailOptions = {
-    from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+    from: `"Attest Security" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: `⚠️ Security Alert: Identity Mismatch Detected`,
     html: `
@@ -873,7 +873,7 @@ app.post('/api/report-security-alert', async (req, res) => {
         </div>
         <div style="padding: 20px; color: #1f2937;">
           <p>Hello,</p>
-          <p>HVEL has detected a potential identity mismatch in your conversation with <strong>${attacker}</strong>.</p>
+          <p>Attest has detected a potential identity mismatch in your conversation with <strong>${attacker}</strong>.</p>
           <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0;">
             <p style="margin: 0; font-weight: bold; color: #991b1b;">Issue: ${reason}</p>
           </div>
@@ -886,45 +886,45 @@ app.post('/api/report-security-alert', async (req, res) => {
 
   // 2. Instructions to the SENDER (The suspicious user)
   const senderMailOptions = {
-    from: `"HVEL Identity Service" <${process.env.EMAIL_USER}>`,
+    from: `"Attest Identity Service" <${process.env.EMAIL_USER}>`,
     to: attacker,
     subject: `⚠️ Verification Required: 3 Steps to Human Identity`,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
-        <div style="background: #6366f1; color: white; padding: 24px; text-align: center;">
+        <div style="background: #007A5E; color: white; padding: 24px; text-align: center;">
             <h2 style="margin: 0;">Verify Your Human Identity</h2>
             <p style="margin: 8px 0 0; opacity: 0.9;">Follow these 3 steps to secure your emails</p>
         </div>
         <div style="padding: 30px; color: #1f2937;">
             <p>Hello,</p>
-            <p>Your recent email to <strong>${email}</strong> could not be verified as human. Please complete these 3 steps to get your HVEL Human Stamp:</p>
+            <p>Your recent email to <strong>${email}</strong> could not be verified as human. Please complete these 3 steps to get your Attest Approved Stamp:</p>
             
             <table style="width:100%; margin-top:20px; border-collapse:collapse;">
                 <tr>
-                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
+                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#007A5E; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
                     <td style="padding-bottom:20px;">
-                        <strong style="display:block; margin-bottom:4px;">Install HVEL Extension</strong>
-                        <span style="font-size:14px; color:#6b7280;">Download and load the HVEL extension in your Chrome browser.</span>
+                        <strong style="display:block; margin-bottom:4px;">Install Attest Extension</strong>
+                        <span style="font-size:14px; color:#6b7280;">Download and load the Attest extension in your Chrome browser.</span>
                     </td>
                 </tr>
                 <tr>
-                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#6366f1; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
+                    <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#007A5E; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">2</div></td>
                     <td style="padding-bottom:20px;">
-                        <strong style="display:block; margin-bottom:4px;">Setup Identity (TOTP)</strong>
-                        <span style="font-size:14px; color:#6b7280;">Open Gmail, click the HVEL icon, and link your Google Authenticator app.</span>
+                        <strong style="display:block; margin-bottom:4px;">Link Your Account</strong>
+                        <span style="font-size:14px; color:#6b7280;">Click the Attest toolbar icon and sign in with your email to link your account.</span>
                     </td>
                 </tr>
                 <tr>
-                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#10b981; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">3</div></td>
+                    <td style="width:40px; vertical-align:top;"><div style="width:28px; height:28px; background:#059669; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">3</div></td>
                     <td>
                         <strong style="display:block; margin-bottom:4px;">Verify Every Email</strong>
-                        <span style="font-size:14px; color:#6b7280;">Before clicking "Send", click the <strong>"Verify"</strong> button in your Gmail compose window to attach your Human Stamp.</span>
+                        <span style="font-size:14px; color:#6b7280;">Before clicking "Send", click the <strong>"Verify"</strong> button in your Gmail compose window to attach your Attest Approved Stamp.</span>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:30px; text-align:center;">
-                <a href="https://attest.page/verify" style="display:inline-block; background:#6366f1; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open HVEL Portal</a>
+                <a href="https://attest.page/verify" style="display:inline-block; background:#007A5E; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; font-weight:bold;">Open Attest Portal</a>
             </div>
         </div>
       </div>
