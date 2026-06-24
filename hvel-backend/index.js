@@ -15,6 +15,9 @@ const {
 const { isoUint8Array } = require('@simplewebauthn/server/helpers');
 require('dotenv').config();
 
+const Stripe = require('stripe');
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+
 const RP_NAME = 'HVEL Security';
 const RP_ID = process.env.RP_ID || 'localhost';
 const ORIGIN = process.env.ORIGIN || `http://${RP_ID}:3000`;
@@ -23,6 +26,59 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
+
+// Raw parser for Stripe Webhook signature validation
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (stripe && endpointSecret && sig) {
+      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } else {
+      // Fallback for testing without signature verification if secret is not set
+      console.log('[STRIPE WEBHOOK] ⚠️ Warning: Processing unverified webhook event.');
+      const bodyStr = req.body instanceof Buffer ? req.body.toString() : JSON.stringify(req.body);
+      event = JSON.parse(bodyStr);
+    }
+  } catch (err) {
+    console.error(`❌ Webhook Error: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log(`[STRIPE WEBHOOK] Received event type: ${event.type}`);
+  
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const email = session.customer_email || session.customer_details?.email;
+      if (email) {
+        console.log(`[STRIPE WEBHOOK] Upgrading user ${email} to professional`);
+        await pool.query(
+          `INSERT INTO users (email, plan, stripe_customer_id)
+           VALUES ($1, 'professional', $2)
+           ON CONFLICT (email) DO UPDATE
+           SET plan = 'professional', stripe_customer_id = COALESCE($2, users.stripe_customer_id)`,
+          [email.toLowerCase(), session.customer]
+        );
+      }
+    } else if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      console.log(`[STRIPE WEBHOOK] Subscription deleted for customer: ${customerId}`);
+      await pool.query(
+        `UPDATE users SET plan = 'free', plan_expires_at = NULL WHERE stripe_customer_id = $1`,
+        [customerId]
+      );
+    }
+  } catch (dbErr) {
+    console.error('[STRIPE WEBHOOK] Database update failed:', dbErr);
+  }
+
+  res.json({ received: true });
+});
+
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -1238,6 +1294,49 @@ app.post('/api/plan/check-quota', async (req, res) => {
   }
 });
 
+// POST /api/create-checkout-session — initiates Stripe Checkout subscription
+app.post('/api/create-checkout-session', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email is required' });
+
+  if (!stripe) {
+    console.log('[STRIPE] Stripe secret key not configured. Mocking checkout redirect...');
+    // If Stripe is not configured, we return a mock success URL so they can test it end-to-end locally!
+    const successUrl = `${req.headers.origin || 'http://localhost:3000'}/pricing?session_id=mock_session_id&email=${encodeURIComponent(email)}`;
+    return res.json({ id: 'mock_session', url: successUrl });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Attest Professional Plan',
+            description: 'Unlimited Behavioral Verifications, WebAuthn Biometric Support, Up to 5 Gmail Accounts'
+          },
+          unit_amount: 300, // $3.00 USD
+          recurring: {
+            interval: 'month'
+          }
+        },
+        quantity: 1
+      }],
+      mode: 'subscription',
+      allow_promotion_codes: true,
+      success_url: `${req.headers.origin || 'http://localhost:3000'}/pricing?session_id={CHECKOUT_SESSION_ID}&email=${encodeURIComponent(email)}`,
+      cancel_url: `${req.headers.origin || 'http://localhost:3000'}/pricing`,
+      customer_email: email.toLowerCase()
+    });
+
+    res.json({ id: session.id, url: session.url });
+  } catch (err) {
+    console.error('[STRIPE] Error creating checkout session:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/plan/upgrade — called by Stripe webhook or manually to upgrade a user
 app.post('/api/plan/upgrade', async (req, res) => {
   const { email, plan, stripe_customer_id } = req.body;
@@ -1289,6 +1388,40 @@ app.get('/api/plan/quota-log', async (req, res) => {
     res.json({ success: true, total: result.rows.length, records: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/user/delete-account — GDPR & CCPA compliant data deletion
+app.post('/api/user/delete-account', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email is required' });
+  const emailLower = email.toLowerCase();
+
+  try {
+    // 1. Delete plan quota logs
+    await pool.query('DELETE FROM plan_quota_log WHERE LOWER(email) = $1', [emailLower]);
+    
+    // 2. Delete security alert logs
+    await pool.query('DELETE FROM security_alert_log WHERE LOWER(recipient_email) = $1 OR LOWER(attacker_email) = $2', [emailLower, emailLower]);
+    
+    // 3. Delete verifications logs associated with this email
+    await pool.query('DELETE FROM verifications WHERE LOWER(sender_email) = $1 OR LOWER(recipient_email) = $2', [emailLower, emailLower]);
+
+    // 4. Delete profile
+    await pool.query('DELETE FROM profiles WHERE LOWER(email) = $1', [emailLower]);
+
+    // 5. Delete primary user record
+    const result = await pool.query('DELETE FROM users WHERE LOWER(email) = $1', [emailLower]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    console.log(`[GDPR DELETE] 🗑️ User data permanently purged: ${emailLower}`);
+    res.json({ success: true, message: 'Your account and all associated data have been permanently deleted.' });
+  } catch (err) {
+    console.error('[GDPR DELETE] Error deleting user:', err);
+    res.status(500).json({ error: 'Server error during data purging.' });
   }
 });
 

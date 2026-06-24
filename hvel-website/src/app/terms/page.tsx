@@ -55,7 +55,7 @@ export default function Terms() {
             },
             {
               title:'10. Contact',
-              content:'Legal inquiries: legal@attest.com\nAttest Security Ltd., 2026',
+              content:'Support & Legal inquiries: support@attest.page\nAttest Security Ltd., 2026',
             },
           ].map((section) => (
             <div key={section.title}>

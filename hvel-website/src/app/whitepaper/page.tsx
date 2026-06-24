@@ -103,7 +103,7 @@ export default function Whitepaper() {
           <div style={{ borderTop:'1px solid #E2E8F0', paddingTop:32 }}>
             <p style={{ fontSize:13, color:'#94A3B8', lineHeight:1.6 }}>
               For security disclosures, contact{' '}
-              <a href="mailto:security@attest.com" style={{ color:'#2563EB', fontWeight:600 }}>security@attest.com</a>.
+              <a href="mailto:support@attest.page" style={{ color:'#2563EB', fontWeight:600 }}>support@attest.page</a>.
               For the full technical specification, see the{' '}
               <Link href="/docs" style={{ color:'#2563EB', fontWeight:600 }}>Documentation</Link>.
             </p>

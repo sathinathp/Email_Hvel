@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { EXTENSION_DOWNLOAD_URL } from '@/lib/constants';
@@ -6,6 +9,8 @@ const sharedStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
   .pricing-page * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
   @keyframes fadeInUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
   .plan-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
   .plan-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(0,0,0,0.08) !important; }
   .faq-item { transition: background 0.2s; }
@@ -19,10 +24,125 @@ const CheckIcon = () => (
 );
 
 export default function Pricing() {
+  const [email, setEmail] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
+  useEffect(() => {
+    // Check if redirecting back from checkout
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    const userEmail = params.get('email');
+
+    if (sessionId && userEmail) {
+      if (sessionId === 'mock_session_id') {
+        // Upgrade mock user immediately
+        setLoading(true);
+        fetch(`${BACKEND_URL}/api/plan/upgrade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, plan: 'professional' })
+        })
+          .then(res => res.json())
+          .then(data => {
+            setLoading(false);
+            if (data.success) {
+              setStatusMsg({
+                type: 'success',
+                text: `🎉 Mock Checkout Successful! Account ${userEmail} has been upgraded to the Professional plan.`
+              });
+            } else {
+              setStatusMsg({
+                type: 'error',
+                text: data.error || 'Failed to complete mock upgrade.'
+              });
+            }
+          })
+          .catch(() => {
+            setLoading(false);
+            setStatusMsg({
+              type: 'error',
+              text: 'Failed to connect to backend for mock upgrade.'
+            });
+          });
+      } else {
+        // Real checkout session redirect success
+        setStatusMsg({
+          type: 'success',
+          text: `🎉 Thank you for subscribing! Your Professional plan is now active for ${userEmail}.`
+        });
+      }
+    }
+  }, []);
+
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setStatusMsg(null);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to generate checkout session.');
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setStatusMsg({
+        type: 'error',
+        text: err.message || 'Checkout connection error.'
+      });
+    }
+  };
+
   return (
     <main className="pricing-page" style={{ minHeight: '100vh', background: '#ffffff' }}>
       <style>{sharedStyles}</style>
       <Navbar />
+
+      {/* ── Status Message Alert ── */}
+      {statusMsg && (
+        <div style={{
+          position: 'fixed',
+          top: '96px',
+          right: '24px',
+          zIndex: 1100,
+          maxWidth: 420,
+          width: 'calc(100% - 48px)',
+          padding: '16px 20px',
+          borderRadius: 16,
+          background: statusMsg.type === 'success' ? 'rgba(240, 253, 244, 0.95)' : 'rgba(254, 242, 242, 0.95)',
+          backdropFilter: 'blur(8px)',
+          border: `1.5px solid ${statusMsg.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          color: statusMsg.type === 'success' ? '#166534' : '#991B1B',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          fontSize: 14,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <span style={{ fontSize: 18 }}>{statusMsg.type === 'success' ? '✅' : '❌'}</span>
+          <span style={{ flexGrow: 1, lineHeight: 1.5 }}>{statusMsg.text}</span>
+          <button 
+            onClick={() => setStatusMsg(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold', fontSize: 16, padding: '0 4px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── Hero ── */}
       <section style={{ padding: '96px 24px 72px', textAlign: 'center', background: 'linear-gradient(180deg, #F8FFF8 0%, #ffffff 100%)' }}>
@@ -105,7 +225,10 @@ export default function Pricing() {
                 </li>
               ))}
             </ul>
-            <button style={{ display: 'block', width: '100%', padding: '15px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #007A5E 0%, #059669 100%)', color: 'white', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,122,94,0.3)' }}>
+            <button 
+              onClick={() => setShowModal(true)}
+              style={{ display: 'block', width: '100%', padding: '15px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #007A5E 0%, #059669 100%)', color: 'white', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,122,94,0.3)' }}
+            >
               Start 14-Day Free Trial
             </button>
             <p style={{ textAlign: 'center', fontSize: 12, color: '#94A3B8', marginTop: 10, fontWeight: 500 }}>No credit card required</p>
@@ -191,6 +314,44 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+
+      {/* ── Email Modal ── */}
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: 24, padding: 36, maxWidth: 440, width: '90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative' }}>
+            <button 
+              onClick={() => setShowModal(false)}
+              style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', marginBottom: 8, letterSpacing: '-0.02em' }}>Activate Professional</h3>
+            <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, marginBottom: 24, fontWeight: 500 }}>
+              Enter your email address. This email will be used to link your premium subscription with your browser extension.
+            </p>
+            <form onSubmit={handleCheckoutSubmit}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Email Address</label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="name@company.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E2E8F0', fontSize: 15, outline: 'none', transition: 'border-color 0.15s', color: '#0F172A' }}
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={loading}
+                style={{ display: 'block', width: '100%', padding: '14px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #007A5E 0%, #059669 100%)', color: 'white', fontWeight: 800, fontSize: 15, cursor: 'pointer', transition: 'background 0.15s', boxShadow: '0 4px 14px rgba(0,122,94,0.3)' }}
+              >
+                {loading ? 'Processing...' : 'Proceed to Stripe Checkout'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>

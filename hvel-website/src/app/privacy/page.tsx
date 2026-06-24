@@ -40,15 +40,15 @@ export default function PrivacyPolicy() {
             },
             {
               title:'6. Data Retention & Deletion',
-              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@attest.com. Account deletion removes all associated records within 30 days.`,
+              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@attest.page. Account deletion removes all associated records within 30 days.`,
             },
             {
               title:'7. Your Rights (GDPR / CCPA)',
-              content:`You have the right to access, correct, export, or delete your personal data at any time. EU residents have additional rights under GDPR including the right to object to processing and the right to data portability. California residents have rights under CCPA including the right to know what data is collected and the right to opt out of sale (we do not sell data). To exercise any right, contact privacy@attest.com.`,
+              content:`You have the right to access, correct, export, or delete your personal data at any time. EU residents have additional rights under GDPR including the right to object to processing and the right to data portability. California residents have rights under CCPA including the right to know what data is collected and the right to opt out of sale (we do not sell data). To exercise any right, contact support@attest.page.`,
             },
             {
               title:'8. Contact',
-              content:`Privacy inquiries: privacy@attest.com\nSecurity disclosures: security@attest.com\nAttest Security Ltd., 2026`,
+              content:`Support & Privacy inquiries: support@attest.page\nSecurity disclosures: support@attest.page\nAttest Security Ltd., 2026`,
             },
           ].map((section) => (
             <div key={section.title}>

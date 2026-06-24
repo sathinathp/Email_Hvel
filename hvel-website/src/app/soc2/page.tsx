@@ -75,7 +75,7 @@ export default function SOC2() {
               Enterprise customers can request our current security documentation, penetration test
               summaries, and compliance evidence package by contacting our security team.
             </p>
-            <a href="mailto:security@attest.com" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#2563EB', color:'white', padding:'10px 22px', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
+            <a href="mailto:support@attest.page" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#2563EB', color:'white', padding:'10px 22px', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
               Contact Security Team →
             </a>
           </div>
