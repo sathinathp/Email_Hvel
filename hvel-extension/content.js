@@ -681,92 +681,156 @@ function showPlanLimitModal(featureKey, usageData = {}) {
     overlay.id = 'hvel-plan-limit-modal';
     overlay.style.cssText = `
         position: fixed; inset: 0; z-index: 99999999;
-        background: rgba(0,0,0,0.55);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
+        background: rgba(8, 10, 15, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         display: flex; align-items: center; justify-content: center;
-        animation: hvel-toast-slide 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
-        font-family: 'Segoe UI', system-ui, sans-serif;
+        opacity: 0;
+        animation: hvelFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     `;
+
+    // Add keyframe animations to document if not already present
+    if (!document.getElementById('hvel-modal-animations')) {
+        const style = document.createElement('style');
+        style.id = 'hvel-modal-animations';
+        style.innerHTML = `
+            @keyframes hvelFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes hvelScaleUp {
+                from { transform: scale(0.95); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+            }
+            #hvel-modal-upgrade-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4) !important;
+                filter: brightness(1.05);
+            }
+            #hvel-modal-close:hover {
+                background: rgba(255, 255, 255, 0.12) !important;
+                color: #f8fafc !important;
+            }
+            #hvel-modal-later:hover {
+                color: #94a3b8 !important;
+                text-decoration: underline;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     overlay.innerHTML = `
         <div style="
-            background: linear-gradient(145deg, #0f172a, #1e293b);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 32px 28px 24px;
-            max-width: 400px; width: 90%;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+            background: linear-gradient(160deg, #131b2e 0%, #0b0f19 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 36px 32px 30px;
+            max-width: 440px; width: 90%;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             position: relative;
+            transform: scale(0.95);
+            animation: hvelScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            color: #f1f5f9;
         ">
-            <!-- Close -->
+            <!-- Close Button -->
             <button id="hvel-modal-close" style="
-                position:absolute;top:14px;right:14px;
-                background:rgba(255,255,255,0.06);border:none;
-                color:#94a3b8;font-size:18px;cursor:pointer;
-                width:28px;height:28px;border-radius:8px;
-                display:flex;align-items:center;justify-content:center;
+                position: absolute; top: 20px; right: 20px;
+                background: rgba(255, 255, 255, 0.05); border: none;
+                color: #94a3b8; font-size: 18px; cursor: pointer;
+                width: 32px; height: 32px; border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                transition: all 0.2s ease;
             ">×</button>
 
-            <!-- Icon + Title -->
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <!-- Icon Header -->
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                 <div style="
-                    width:44px;height:44px;border-radius:12px;
-                    background:rgba(${meta.color === '#f59e0b' ? '245,158,11' : meta.color === '#8b5cf6' ? '139,92,246' : '59,130,246'},0.15);
-                    border:1px solid rgba(${meta.color === '#f59e0b' ? '245,158,11' : '139,92,246'},0.3);
-                    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+                    width: 52px; height: 52px; border-radius: 16px;
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.05) 100%);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 26px; flex-shrink: 0;
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
                 ">${meta.icon}</div>
                 <div>
-                    <div style="font-size:15px;font-weight:700;color:#f1f5f9;">${meta.title}</div>
-                    <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">HVEL ${plan.charAt(0).toUpperCase()+plan.slice(1)} Plan</div>
+                    <h2 style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; letter-spacing: -0.02em;">${meta.title}</h2>
+                    <span style="font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 4px; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 6px;">
+                        ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan
+                    </span>
                 </div>
             </div>
 
-            <!-- Message -->
-            <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0 0 4px;">${msg}</p>
+            <!-- Description -->
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0 0 8px; font-weight: 400;">
+                ${msg}
+            </p>
             ${usageBar}
 
             <!-- Divider -->
-            <div style="border-top:1px solid rgba(255,255,255,0.07);margin:20px 0;"></div>
+            <div style="height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%); margin: 24px 0;"></div>
 
-            <!-- Pro features list -->
-            <p style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">Professional plan includes</p>
-            <div style="display:grid;gap:6px;margin-bottom:20px;">
-                ${[
-                    '♾️ Unlimited human verifications',
-                    '👂 WebAuthn biometric support',
-                    '📧 Up to 5 Gmail accounts',
-                    '📊 Advanced audit dashboard',
-                    '🛡️ GDPR & CCPA compliant'
-                ].map(f => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8;">
-                    <div style="width:4px;height:4px;background:#10b981;border-radius:50%;flex-shrink:0;"></div>${f}
-                </div>`).join('')}
+            <!-- Pro benefits -->
+            <div style="margin-bottom: 28px;">
+                <h3 style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 14px;">Professional plan includes</h3>
+                <div style="display: grid; gap: 10px;">
+                    ${[
+                        '♾️ Unlimited human verifications',
+                        '🔑 WebAuthn biometric login support',
+                        '📧 Up to 5 connected Gmail accounts',
+                        '📊 Advanced activity & audit dashboard',
+                        '🛡️ Enterprise-grade data protection'
+                    ].map(feature => `
+                        <div style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #cbd5e1;">
+                            <span style="color: #10b981; font-size: 12px; margin-top: 2px; flex-shrink: 0;">✦</span>
+                            <span style="line-height: 1.4; font-weight: 500;">${feature.substring(3)}</span>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
 
-            <!-- Price + CTA -->
-            <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+            <!-- Pricing & Call to Action -->
+            <div style="
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.03) 100%);
+                border: 1px solid rgba(16, 185, 129, 0.25);
+                border-radius: 16px;
+                padding: 16px 20px;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            ">
                 <div>
-                    <span style="font-size:22px;font-weight:800;color:#10b981;">$3</span>
-                    <span style="font-size:12px;color:#94a3b8;">/month</span>
-                    <span style="font-size:11px;color:#64748b;text-decoration:line-through;margin-left:6px;">$12</span>
-                    <span style="background:#10b981;color:#000;font-size:10px;font-weight:700;padding:2px 6px;border-radius:9999px;margin-left:4px;">75% OFF</span>
+                    <div style="display: flex; align-items: baseline; gap: 4px;">
+                        <span style="font-size: 26px; font-weight: 800; color: #10b981; letter-spacing: -0.03em;">$3</span>
+                        <span style="font-size: 13px; color: #64748b; font-weight: 500;">/month</span>
+                    </div>
+                    <div style="margin-top: 2px;">
+                        <span style="font-size: 11px; color: #64748b; text-decoration: line-through;">$12</span>
+                        <span style="font-size: 10px; font-weight: 700; color: #10b981; margin-left: 6px;">75% OFF</span>
+                    </div>
                 </div>
-                <span style="font-size:10px;color:#64748b;">🎉 Launch Price</span>
+                <div style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; letter-spacing: -0.01em;">
+                    🎉 Launch Special
+                </div>
             </div>
 
             <a href="https://attest.page/pricing" target="_blank" id="hvel-modal-upgrade-btn" style="
-                display:block;text-align:center;
-                background:linear-gradient(135deg,#10b981,#059669);
-                color:white;font-size:14px;font-weight:700;
-                padding:13px;border-radius:12px;
-                text-decoration:none;
-                box-shadow:0 4px 16px rgba(16,185,129,0.35);
-                transition:opacity 0.2s;
+                display: block; text-align: center;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff; font-size: 14px; font-weight: 700;
+                padding: 14px; border-radius: 14px;
+                text-decoration: none;
+                box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+                transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             ">Upgrade to Professional →</a>
 
             <button id="hvel-modal-later" style="
-                display:block;width:100%;margin-top:10px;
-                background:transparent;border:none;
-                color:#475569;font-size:12px;cursor:pointer;padding:6px;
+                display: block; width: 100%; margin-top: 14px;
+                background: transparent; border: none;
+                color: #475569; font-size: 13px; font-weight: 500;
+                cursor: pointer; padding: 8px;
+                transition: color 0.2s ease;
             ">Maybe later</button>
         </div>
     `;
