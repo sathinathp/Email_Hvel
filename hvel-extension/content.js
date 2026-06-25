@@ -753,7 +753,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
                 <span style="font-size:10px;color:#64748b;">🎉 Launch Price</span>
             </div>
 
-            <a href="https://hvel.io/pricing" target="_blank" id="hvel-modal-upgrade-btn" style="
+            <a href="https://attest.page/pricing" target="_blank" id="hvel-modal-upgrade-btn" style="
                 display:block;text-align:center;
                 background:linear-gradient(135deg,#10b981,#059669);
                 color:white;font-size:14px;font-weight:700;
