@@ -217,7 +217,7 @@ async function updateComposeStampLive(composeBody) {
             if (stampMode === 'hash_only') {
                 badgeInnerHtml = `
                     <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                     </div>
                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
@@ -227,7 +227,7 @@ async function updateComposeStampLive(composeBody) {
             } else {
                 badgeInnerHtml = `
                     <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                         <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
                         <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
@@ -261,7 +261,7 @@ async function injectComposeStamp(dialog) {
         if (stampMode === 'hash_only') {
             badgeInnerHtml = `
                 <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                    <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                     <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                 </div>
                 <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
@@ -271,7 +271,7 @@ async function injectComposeStamp(dialog) {
         } else {
             badgeInnerHtml = `
                 <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                    <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                     <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                     <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
                     <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
@@ -443,7 +443,7 @@ document.addEventListener('click', async (e) => {
                                     if (stampMode === 'hash_only') {
                                         badgeInnerHtml = `
                                             <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                 <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                             </div>
                                             <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -453,7 +453,7 @@ document.addEventListener('click', async (e) => {
                                     } else {
                                         badgeInnerHtml = `
                                             <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                 <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                             </div>
                                         `;
@@ -501,7 +501,7 @@ document.addEventListener('click', async (e) => {
                                             if (stampMode === 'hash_only') {
                                                 badgeInnerHtml = `
                                                     <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                         <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                                     </div>
                                                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -511,7 +511,7 @@ document.addEventListener('click', async (e) => {
                                             } else {
                                                 badgeInnerHtml = `
                                                     <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                         <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                                     </div>
                                                 `;
@@ -537,7 +537,7 @@ document.addEventListener('click', async (e) => {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -547,7 +547,7 @@ document.addEventListener('click', async (e) => {
                                                 } else {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
                                                             <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
                                                             <a href="${recordUrl}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
@@ -561,7 +561,7 @@ document.addEventListener('click', async (e) => {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -571,7 +571,7 @@ document.addEventListener('click', async (e) => {
                                                 } else {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
                                                             <div style="width: 1px; height: 12px; background: #fee2e2;"></div>
                                                             <a href="${recordUrl}" target="_blank" style="color: #dc2626; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
@@ -807,7 +807,7 @@ function showVerificationSuccessToast(message) {
     
     toast.innerHTML = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #e6fbf1; border-radius: 50%; border: 1px solid #a7f3d0; animation: hvel-ring-pulse 2s infinite; flex-shrink: 0;">
-            <img src="https://attest.page/logo.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
+            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
         </div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
             <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest Approved</span>
@@ -1234,7 +1234,7 @@ function showTrustStatus(msgElement, status, text) {
                 border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
                 font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
                 border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <img src="https://attest.page/logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;" />
+                <img src="https://api.attest.page/stamp-icon.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;" />
                 <span>${text}</span>
             </div>`;
     } else if (status === 'tampered' || status === 'invalid') {
@@ -1246,7 +1246,7 @@ function showTrustStatus(msgElement, status, text) {
                 border:1px solid #fee2e2;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
                 font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
                 border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <img src="https://attest.page/logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;filter: grayscale(50%) contrast(150%);" />
+                <img src="https://api.attest.page/stamp-icon.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;filter: grayscale(50%) contrast(150%);" />
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
                     <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
