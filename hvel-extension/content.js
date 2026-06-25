@@ -1228,43 +1228,72 @@ function showTrustStatus(msgElement, status, text) {
     notice.className = 'hvel-trust-notice';
 
     if (status === 'verified') {
-        const bg = '#f0fdf4'; const border = '#16a34a'; const color = '#166534';
         notice.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <img src="https://api.attest.page/stamp-icon.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;" />
-                <span>${text}</span>
+            <div style="
+                display:flex; align-items:center; gap:12px;
+                background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                border: 1px solid #86efac;
+                border-left: 4px solid #16a34a;
+                padding: 12px 16px; margin: 10px 0;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(22,163,74,0.12);
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                <div style="
+                    width:36px; height:36px; border-radius:50%;
+                    background: linear-gradient(135deg, #16a34a, #22c55e);
+                    display:flex; align-items:center; justify-content:center;
+                    flex-shrink:0; box-shadow: 0 2px 6px rgba(22,163,74,0.3);">
+                    <img src="https://api.attest.page/stamp-icon.png" style="width:20px;height:20px;border-radius:50%;object-fit:contain;" />
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:13px; font-weight:700; color:#14532d; letter-spacing:-0.01em;">✅ Attest Verified</span>
+                    <span style="font-size:11px; font-weight:400; color:#166534; opacity:0.85;">${text}</span>
+                </div>
             </div>`;
     } else if (status === 'tampered' || status === 'invalid') {
-        // Genuine security threat — keep strong red styling
-        const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b';
-        const title = 'CRITICAL SECURITY ALERT: ID MISMATCH';
+        const title = 'Critical: ID Mismatch Detected';
         notice.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border:1px solid #fee2e2;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                <img src="https://api.attest.page/stamp-icon.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;filter: grayscale(50%) contrast(150%);" />
-                <div style="display:flex; flex-direction:column;">
-                    <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
-                    <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
+            <div style="
+                display:flex; align-items:center; gap:12px;
+                background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+                border: 1px solid #fca5a5;
+                border-left: 4px solid #dc2626;
+                padding: 12px 16px; margin: 10px 0;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(220,38,38,0.12);
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                <div style="
+                    width:36px; height:36px; border-radius:50%;
+                    background: linear-gradient(135deg, #dc2626, #ef4444);
+                    display:flex; align-items:center; justify-content:center;
+                    flex-shrink:0; box-shadow: 0 2px 6px rgba(220,38,38,0.3);
+                    font-size:18px;">⚠️</div>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:13px; font-weight:700; color:#7f1d1d; letter-spacing:-0.01em;">${title}</span>
+                    <span style="font-size:11px; font-weight:400; color:#991b1b; opacity:0.9; line-height:1.4;">${text}</span>
                 </div>
             </div>`;
     } else {
-        // 'unverified' — not a threat, just not registered. Use amber/neutral styling.
-        const bg = '#fffbeb'; const border = '#d97706'; const color = '#92400e';
-        const title = 'SENDER NOT YET REGISTERED';
+        // 'unverified' — not a threat, just not registered. Sleek amber info card.
         notice.innerHTML = `
-            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
-                border:1px solid #fde68a;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
-                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
-                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-                <span style="font-size:16px;flex-shrink:0;">ℹ️</span>
-                <div style="display:flex; flex-direction:column;gap:2px;">
-                    <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
-                    <span style="font-size:11px; font-weight:400; opacity:0.85; line-height:1.4;">${text}</span>
+            <div style="
+                display:flex; align-items:center; gap:12px;
+                background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                border: 1px solid #fcd34d;
+                border-left: 4px solid #f59e0b;
+                padding: 12px 16px; margin: 10px 0;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(245,158,11,0.10);
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                <div style="
+                    width:36px; height:36px; border-radius:50%;
+                    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+                    display:flex; align-items:center; justify-content:center;
+                    flex-shrink:0; box-shadow: 0 2px 6px rgba(245,158,11,0.3);
+                    font-size:18px;">🔍</div>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:13px; font-weight:700; color:#78350f; letter-spacing:-0.01em;">Sender Not Yet Verified</span>
+                    <span style="font-size:11px; font-weight:400; color:#92400e; opacity:0.9; line-height:1.4;">This sender hasn't installed Attest yet. Treat with normal caution.</span>
                 </div>
             </div>`;
     }
