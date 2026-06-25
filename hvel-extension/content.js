@@ -967,11 +967,169 @@ async function scanIncomingMessages() {
 
         const recipientEmail = getCurrentUserEmail();
         const IGNORED_DOMAINS = [
-            'vercel.com', 'google.com', 'microsoft.com', 'github.com',
-            'aws.com', 'amazon.com', 'netflix.com'
+            // ── Big Tech & Cloud ──────────────────────────────────────────
+            'google.com', 'googleapis.com', 'googlemail.com',
+            'microsoft.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office.com', 'azure.com',
+            'apple.com', 'icloud.com', 'me.com',
+            'amazon.com', 'amazonaws.com', 'aws.com', 'awsapps.com',
+            'meta.com', 'facebook.com', 'instagram.com', 'whatsapp.com', 'threads.net',
+            'twitter.com', 'x.com',
+            'linkedin.com', 'lnkd.in',
+            'netflix.com', 'youtube.com',
+            'github.com', 'githubapp.com',
+            'vercel.com', 'vercel.app',
+            'cloudflare.com', 'workers.dev',
+            'digitalocean.com',
+            'heroku.com',
+            'atlassian.com', 'jira.com', 'confluence.com', 'bitbucket.org',
+            'oracle.com', 'oraclecloud.com',
+            'ibm.com',
+            'salesforce.com', 'force.com', 'exacttarget.com',
+            'adobe.com', 'adobecc.com',
+            'sap.com',
+            'twilio.com',
+            'sendgrid.com', 'sendgrid.net',
+            'mailgun.com', 'mailgun.net',
+            'postmarkapp.com',
+            'sparkpost.com',
+
+            // ── Finance & Banking ─────────────────────────────────────────
+            'paypal.com', 'paypalobjects.com',
+            'stripe.com',
+            'square.com', 'squareup.com',
+            'visa.com',
+            'mastercard.com',
+            'americanexpress.com', 'amex.com',
+            'discover.com', 'services.discover.com',
+            'chase.com', 'jpmorgan.com', 'jpmchase.com',
+            'bankofamerica.com', 'bac.com',
+            'wellsfargo.com',
+            'citibank.com', 'citi.com',
+            'capitalone.com',
+            'usbank.com',
+            'tdbank.com', 'td.com',
+            'pnc.com',
+            'synchrony.com',
+            'ally.com',
+            'schwab.com',
+            'fidelity.com',
+            'vanguard.com',
+            'coinbase.com',
+            'binance.com',
+            'robinhood.com',
+            'klarna.com',
+            'affirm.com',
+            'razorpay.com',
+            'paytm.com',
+            'phonepe.com',
+            'googlepay.com',
+
+            // ── Retail & E-Commerce ───────────────────────────────────────
+            'walmart.com',
+            'target.com',
+            'bestbuy.com',
+            'ebay.com',
+            'etsy.com',
+            'shopify.com', 'myshopify.com',
+            'aliexpress.com', 'alibaba.com',
+            'flipkart.com',
+            'myntra.com',
+            'nykaa.com',
+            'costco.com',
+            'homedepot.com',
+            'ikea.com',
+            'zara.com',
+            'hm.com',
+            'gap.com',
+            'nike.com',
+            'adidas.com',
+            'samsung.com',
+            'sony.com',
+            'dell.com',
+            'hp.com', 'hpe.com',
+            'lenovo.com',
+
+            // ── Travel & Transport ────────────────────────────────────────
+            'uber.com', 'ubereats.com',
+            'lyft.com',
+            'airbnb.com',
+            'booking.com',
+            'expedia.com',
+            'tripadvisor.com',
+            'makemytrip.com',
+            'goibibo.com',
+            'ola.com', 'olacabs.com',
+            'doordash.com',
+            'grubhub.com',
+            'swiggy.com',
+            'zomato.com',
+            'fedex.com',
+            'ups.com',
+            'dhl.com',
+
+            // ── Communication & Productivity ──────────────────────────────
+            'slack.com',
+            'notion.so',
+            'dropbox.com',
+            'zoom.us',
+            'webex.com',
+            'teams.microsoft.com',
+            'hubspot.com',
+            'mailchimp.com',
+            'zendesk.com',
+            'freshdesk.com', 'freshworks.com',
+            'intercom.com', 'intercom.io',
+            'calendly.com',
+            'asana.com',
+            'monday.com',
+            'trello.com',
+            'airtable.com',
+            'box.com',
+            'docusign.com',
+
+            // ── Media & Entertainment ─────────────────────────────────────
+            'spotify.com',
+            'discord.com',
+            'twitch.tv',
+            'tiktok.com',
+            'snapchat.com',
+            'reddit.com',
+            'quora.com',
+            'medium.com',
+            'substack.com',
+            'wordpress.com', 'wordpress.org',
+            'wix.com',
+            'squarespace.com',
+
+            // ── Education ─────────────────────────────────────────────────
+            'coursera.org',
+            'udemy.com',
+            'edx.org',
+            'khanacademy.org',
+            'duolingo.com',
+            'skillshare.com',
+            'udacity.com',
+
+            // ── Government & Public Services ──────────────────────────────
+            'irs.gov', 'usps.gov', 'ssa.gov', 'cdc.gov', 'fbi.gov',
+            'gov.uk', 'gov.in', 'nic.in', 'india.gov.in',
+            'nhs.uk',
+            'europa.eu',
+
+            // ── Security & Identity Providers ─────────────────────────────
+            'okta.com', 'oktapreview.com',
+            'auth0.com',
+            'onelogin.com',
+            'duo.com',
+            'lastpass.com',
+            '1password.com',
+            'norton.com',
+            'mcafee.com',
+            'crowdstrike.com',
         ];
         const senderDomain = senderEmail?.split('@')[1]?.toLowerCase();
-        const isIgnoredDomain = IGNORED_DOMAINS.includes(senderDomain);
+        // Also match subdomains (e.g. services.discover.com)
+        const isIgnoredDomain = IGNORED_DOMAINS.some(d => senderDomain === d || senderDomain?.endsWith('.' + d));
 
         if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
             if (badgeLink) {
@@ -1022,7 +1180,7 @@ async function scanIncomingMessages() {
                     if (userStatus && userStatus.verified) {
                         showTrustStatus(msg, 'verified', `Sender is now Attest Approved (Legacy Message)`);
                     } else {
-                        showTrustStatus(msg, 'unverified', 'This sender is not yet HVEL Verified.');
+                        showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
                         
                         if (msg.offsetParent !== null) {
                             const normSender = senderEmail.toLowerCase().trim();
@@ -1079,10 +1237,10 @@ function showTrustStatus(msgElement, status, text) {
                 <img src="https://attest.page/logo.png" style="width:18px;height:18px;border-radius:50%;object-fit:contain;vertical-align:middle;flex-shrink:0;" />
                 <span>${text}</span>
             </div>`;
-    } else {
+    } else if (status === 'tampered' || status === 'invalid') {
+        // Genuine security threat — keep strong red styling
         const bg = '#fef2f2'; const border = '#dc2626'; const color = '#991b1b';
-        const title = (status === 'tampered' || status === 'invalid') ? 'CRITICAL SECURITY ALERT: ID MISMATCH' : 'SECURITY ALERT: UNTRUSTED SENDER';
-        
+        const title = 'CRITICAL SECURITY ALERT: ID MISMATCH';
         notice.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
                 border:1px solid #fee2e2;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
@@ -1092,6 +1250,21 @@ function showTrustStatus(msgElement, status, text) {
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
                     <span style="font-size:11px; font-weight:500; opacity:0.9;">${text}</span>
+                </div>
+            </div>`;
+    } else {
+        // 'unverified' — not a threat, just not registered. Use amber/neutral styling.
+        const bg = '#fffbeb'; const border = '#d97706'; const color = '#92400e';
+        const title = 'SENDER NOT YET REGISTERED';
+        notice.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;background:${bg};color:${color};
+                border:1px solid #fde68a;border-left:4px solid ${border};padding:10px 16px;margin:8px 0;
+                font-size:13px;font-weight:600;font-family:'Segoe UI',sans-serif;
+                border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                <span style="font-size:16px;flex-shrink:0;">ℹ️</span>
+                <div style="display:flex; flex-direction:column;gap:2px;">
+                    <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">${title}</span>
+                    <span style="font-size:11px; font-weight:400; opacity:0.85; line-height:1.4;">${text}</span>
                 </div>
             </div>`;
     }
