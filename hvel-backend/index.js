@@ -111,17 +111,13 @@ const pool = new Pool({
 const PLANS = {
   free: {
     name: 'Free',
-    totp_daily_limit: Infinity, // ⚠️ TEMP: Unlimited until payment integrated — revert to 3 after Lemon Squeezy setup
     gmail_accounts_limit: 1,    // 1 Gmail account
-    webauthn_enabled: false,    // No biometric
     audit_dashboard: false,     // Basic log only
     trust_badges: false,
   },
   professional: {
     name: 'Professional',
-    totp_daily_limit: Infinity, // Unlimited
     gmail_accounts_limit: 5,   // Up to 5 Gmail accounts
-    webauthn_enabled: true,
     audit_dashboard: true,
     trust_badges: true,
   }
@@ -144,40 +140,6 @@ async function planGuard(feature, req, res, next) {
     const plan = PLANS[user.plan] || PLANS.free;
 
     // ── Feature-specific quota checks ──────────────────────────────────────
-    if (feature === 'totp_verify') {
-      const today = new Date().toISOString().split('T')[0];
-      const quotaRes = await pool.query(
-        `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
-        [email, today]
-      );
-      const used = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
-      if (used >= plan.totp_daily_limit) {
-        console.log(`[PLAN GUARD] 🚫 TOTP limit reached for ${email} (${used}/${plan.totp_daily_limit}) — Plan: ${user.plan}`);
-        return res.status(403).json({
-          error: 'PLAN_LIMIT_REACHED',
-          feature: 'totp_verify',
-          plan: user.plan,
-          used,
-          limit: plan.totp_daily_limit,
-          message: `You've used all ${plan.totp_daily_limit} free TOTP verifications for today.`,
-          upgrade_url: 'https://hvel.io/pricing'
-        });
-      }
-    }
-
-    if (feature === 'webauthn') {
-      if (!plan.webauthn_enabled) {
-        console.log(`[PLAN GUARD] 🚫 WebAuthn blocked for ${email} — Plan: ${user.plan}`);
-        return res.status(403).json({
-          error: 'PLAN_LIMIT_REACHED',
-          feature: 'webauthn',
-          plan: user.plan,
-          message: 'Biometric/WebAuthn authentication requires the Professional plan.',
-          upgrade_url: 'https://hvel.io/pricing'
-        });
-      }
-    }
-
     if (feature === 'gmail_account') {
       const currentCount = parseInt(user.gmail_accounts_count) || 0;
       if (currentCount >= plan.gmail_accounts_limit) {
@@ -257,32 +219,6 @@ async function initDB() {
       type VARCHAR(50) NOT NULL,
       content_hash VARCHAR(255),
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS otps (
-      email VARCHAR(255) PRIMARY KEY,
-      code VARCHAR(10) NOT NULL,
-      expires_at TIMESTAMP NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS totp_secrets (
-      email VARCHAR(255) PRIMARY KEY,
-      secret VARCHAR(255) NOT NULL,
-      is_verified BOOLEAN DEFAULT FALSE
-    );
-    CREATE TABLE IF NOT EXISTS passkeys (
-      id SERIAL PRIMARY KEY,
-      email VARCHAR(255) NOT NULL,
-      cred_id TEXT NOT NULL UNIQUE,
-      cred_public_key BYTEA NOT NULL,
-      counter BIGINT NOT NULL,
-      backup_eligible BOOLEAN NOT NULL,
-      backup_status BOOLEAN NOT NULL,
-      transports TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS challenges (
-      email VARCHAR(255) PRIMARY KEY,
-      challenge TEXT NOT NULL,
-      expires_at TIMESTAMP NOT NULL
     );
     CREATE TABLE IF NOT EXISTS nudge_log (
       id SERIAL PRIMARY KEY,
@@ -381,164 +317,7 @@ function isBlockedEmail(email) {
   return internalEmails.includes(email.toLowerCase()) || IGNORED_DOMAINS.includes(domain);
 }
 
-// OTP endpoints
-app.post('/api/request-otp', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expires_at = new Date(Date.now() + 10 * 60 * 1000);
-  try {
-    await pool.query(`INSERT INTO otps (email, code, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3`, [email, code, expires_at]);
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      console.log(`[SMTP] 📤 Sending OTP to ${email}...`);
-      const info = await mainTransporter.sendMail({ from: process.env.EMAIL_USER, to: email, subject: 'HVEL Verification Code', text: `Your HVEL verification code is: ${code}. Expires in 10 minutes.` });
-      console.log(`[SMTP] ✅ OTP sent to ${email}: ${info.messageId}`);
-    }
-    res.json({ success: true, message: 'OTP sent successfully' });
-  } catch (err) { console.error('Error requesting OTP:', err); res.status(500).json({ error: 'Server error' }); }
-});
 
-app.post('/api/verify-otp', async (req, res) => {
-  const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
-  try {
-    const result = await pool.query('SELECT * FROM otps WHERE email = $1 AND code = $2 AND expires_at > NOW()', [email, code]);
-    if (result.rows.length > 0) {
-      await pool.query('DELETE FROM otps WHERE email = $1', [email]);
-      res.json({ success: true });
-    } else { res.status(401).json({ success: false, error: 'Invalid or expired code' }); }
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
-});
-
-// TOTP endpoints
-app.post('/api/totp-setup', async (req, res) => {
-  const { email, force } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-  console.log(`[HVEL API] 🛠️ TOTP Setup Request - Email: ${email}, Force: ${force}`);
-  try {
-    const result = await pool.query('SELECT secret, is_verified FROM totp_secrets WHERE email = $1', [email]);
-    let secret, is_verified = false;
-    if (result.rows.length > 0 && !force) {
-      secret = result.rows[0].secret; is_verified = result.rows[0].is_verified;
-      console.log(`[HVEL API] Using existing secret for ${email}`);
-    } else {
-      const g = speakeasy.generateSecret({ length: 20, name: `HVEL (${email})`, issuer: 'HVEL' });
-      secret = g.base32;
-      if (result.rows.length > 0) await pool.query('UPDATE totp_secrets SET secret = $2, is_verified = FALSE WHERE email = $1', [email, secret]);
-      else await pool.query('INSERT INTO totp_secrets (email, secret) VALUES ($1, $2)', [email, secret]);
-    }
-    const otpauth = `otpauth://totp/${encodeURIComponent(`HVEL:${email}`)}?secret=${secret}&issuer=HVEL`;
-    console.log(`[HVEL API] Generating QR code for: ${otpauth}`);
-    const imageUrl = await qrcode.toDataURL(otpauth);
-    console.log(`[HVEL API] QR code generated (length: ${imageUrl.length})`);
-    res.json({ success: true, alreadyExists: result.rows.length > 0, isVerified: is_verified, qrcode: imageUrl, secret });
-  } catch (err) { console.error('[HVEL API] Error setting up TOTP:', err); res.status(500).json({ success: false, error: err.message }); }
-});
-
-// TOTP verify — plan-guarded: checks daily quota BEFORE verifying
-app.post('/api/totp-verify', (req, res, next) => planGuard('totp_verify', req, res, next), async (req, res) => {
-  const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
-  try {
-    const result = await pool.query('SELECT secret FROM totp_secrets WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'TOTP not set up' });
-    const isValid = speakeasy.totp.verify({ secret: result.rows[0].secret, encoding: 'base32', token: code, window: 1 });
-    if (isValid) {
-      await pool.query('UPDATE totp_secrets SET is_verified = TRUE WHERE email = $1', [email]);
-      // Increment daily quota counter only on successful verification
-      await incrementQuota(email.toLowerCase(), 'totp_verify');
-      console.log(`[QUOTA] ✅ TOTP quota incremented for ${email}`);
-      res.json({ success: true });
-    } else {
-      res.status(401).json({ success: false, error: 'Invalid authenticator code' });
-    }
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
-});
-
-// Passkey endpoints — WebAuthn is a Professional-only feature
-app.post('/api/passkey/register-options', (req, res, next) => planGuard('webauthn', req, res, next), async (req, res) => {
-  const email = req.body.email?.toLowerCase();
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-  try {
-    const options = await generateRegistrationOptions({
-      rpName: RP_NAME, rpID: RP_ID,
-      userID: new Uint8Array(Buffer.from(email)).slice(0, 32),
-      userName: email, timeout: 120000, attestationType: 'none', excludeCredentials: [],
-      authenticatorSelection: { residentKey: 'discouraged', userVerification: 'discouraged' },
-    });
-    await pool.query('INSERT INTO challenges (email, challenge, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET challenge = $2, expires_at = $3', [email, options.challenge, new Date(Date.now() + 10 * 60 * 1000)]);
-    res.json(options);
-  } catch (err) { console.error('Passkey Reg Options Error:', err); res.status(500).json({ error: 'Failed to generate registration options' }); }
-});
-
-app.post('/api/passkey/register-verify', async (req, res) => {
-  const email = req.body.email?.toLowerCase();
-  const { registrationResponse } = req.body;
-  if (!email || !registrationResponse) return res.status(400).json({ error: 'Email and response are required' });
-  try {
-    console.log(`[PASSKEY] Verifying registration for ${email}...`);
-    const challResult = await pool.query('SELECT challenge FROM challenges WHERE email = $1 AND expires_at > NOW()', [email]);
-    if (challResult.rows.length === 0) return res.status(400).json({ error: 'Challenge expired or not found' });
-    let verification;
-    try {
-      verification = await verifyRegistrationResponse({ response: registrationResponse, expectedChallenge: challResult.rows[0].challenge, expectedOrigin: ORIGIN, expectedRPID: RP_ID });
-    } catch (vErr) { return res.status(400).json({ error: 'Verification failed: ' + vErr.message }); }
-    if (verification.verified && verification.registrationInfo) {
-      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-      const { id, publicKey, counter, transports } = credential;
-      await pool.query('DELETE FROM passkeys WHERE email = $1', [email]);
-      await pool.query(`INSERT INTO passkeys (email, cred_id, cred_public_key, counter, backup_eligible, backup_status, transports) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [email, id, Buffer.from(publicKey), counter, credentialDeviceType === 'multiDevice', credentialBackedUp, JSON.stringify(transports || [])]);
-      console.log(`[PASSKEY] Registration SUCCESS for ${email}`);
-      res.json({ success: true });
-    } else res.status(400).json({ error: 'Registration verification failed' });
-  } catch (err) { console.error('Passkey Verify Error:', err); res.status(500).json({ error: 'Server error' }); }
-});
-
-app.post('/api/passkey/login-options', async (req, res) => {
-  const email = req.body.email?.toLowerCase();
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-  try {
-    const result = await pool.query('SELECT cred_id, transports FROM passkeys WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'No passkeys found' });
-    const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
-      allowCredentials: result.rows.map(r => ({ id: r.cred_id, type: 'public-key', transports: r.transports ? JSON.parse(r.transports) : undefined })),
-      userVerification: 'required',
-    });
-    await pool.query('INSERT INTO challenges (email, challenge, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email) DO UPDATE SET challenge = $2, expires_at = $3', [email, options.challenge, new Date(Date.now() + 10 * 60 * 1000)]);
-    res.json(options);
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
-});
-
-app.post('/api/passkey/login-verify', async (req, res) => {
-  const email = req.body.email?.toLowerCase();
-  const { authResponse } = req.body;
-  if (!email || !authResponse) return res.status(400).json({ error: 'Email and response are required' });
-  try {
-    const challResult = await pool.query('SELECT challenge FROM challenges WHERE email = $1 AND expires_at > NOW()', [email]);
-    if (challResult.rows.length === 0) return res.status(400).json({ error: 'Challenge expired' });
-    const passkeyResult = await pool.query('SELECT * FROM passkeys WHERE cred_id = $1', [authResponse.id]);
-    if (passkeyResult.rows.length === 0) return res.status(404).json({ error: 'Passkey not found' });
-    const passkey = passkeyResult.rows[0];
-    console.log(`[PASSKEY] Found key in DB: ID=${passkey.cred_id}, Counter=${passkey.counter}`);
-    let verification;
-    try {
-      verification = await verifyAuthenticationResponse({
-        response: authResponse, expectedChallenge: challResult.rows[0].challenge,
-        expectedOrigin: ORIGIN, expectedRPID: RP_ID,
-        credential: { id: passkey.cred_id, publicKey: new Uint8Array(passkey.cred_public_key), counter: Number(passkey.counter) },
-        requireUserVerification: true,
-      });
-    } catch (vErr) { return res.status(400).json({ error: 'Verification failed: ' + vErr.message }); }
-    if (verification.verified) {
-      console.log(`[PASSKEY] Authentication SUCCESS for ${email}`);
-      await pool.query('UPDATE passkeys SET counter = $1 WHERE cred_id = $2', [verification.authenticationInfo.newCounter, passkey.cred_id]);
-      await pool.query('DELETE FROM challenges WHERE email = $1', [email]);
-      res.json({ success: true });
-    } else res.status(400).json({ error: 'Authentication failed' });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/verify — Save verification record + send one-time invite email
@@ -1196,15 +975,7 @@ app.get('/api/plan/status', async (req, res) => {
     const planKey = user.plan || 'free';
     const plan = PLANS[planKey] || PLANS.free;
 
-    // Get today's TOTP usage
-    const today = new Date().toISOString().split('T')[0];
-    const quotaRes = await pool.query(
-      `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
-      [email, today]
-    );
-    const totpUsedToday = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
-
-    console.log(`[PLAN API] 📊 Status check — ${email} | Plan: ${planKey} | TOTP today: ${totpUsedToday}/${plan.totp_daily_limit}`);
+    console.log(`[PLAN API] 📊 Status check — ${email} | Plan: ${planKey}`);
 
     res.json({
       success: true,
@@ -1212,15 +983,15 @@ app.get('/api/plan/status', async (req, res) => {
       plan: planKey,
       planDetails: {
         name: plan.name,
-        totp_daily_limit: plan.totp_daily_limit === Infinity ? 'unlimited' : plan.totp_daily_limit,
+        totp_daily_limit: 'unlimited',
         gmail_accounts_limit: plan.gmail_accounts_limit,
-        webauthn_enabled: plan.webauthn_enabled,
+        webauthn_enabled: false,
         audit_dashboard: plan.audit_dashboard,
         trust_badges: plan.trust_badges,
       },
       usage: {
-        totp_used_today: totpUsedToday,
-        totp_remaining_today: plan.totp_daily_limit === Infinity ? 'unlimited' : Math.max(0, plan.totp_daily_limit - totpUsedToday),
+        totp_used_today: 0,
+        totp_remaining_today: 'unlimited',
         gmail_accounts_count: parseInt(user.gmail_accounts_count) || 1,
       },
       plan_expires_at: user.plan_expires_at || null,
