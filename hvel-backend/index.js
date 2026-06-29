@@ -111,12 +111,14 @@ const pool = new Pool({
 const PLANS = {
   free: {
     name: 'Free',
+    totp_daily_limit: 3,        // Max 3 verifications per day for free users
     gmail_accounts_limit: 1,    // 1 Gmail account
     audit_dashboard: false,     // Basic log only
     trust_badges: false,
   },
   professional: {
     name: 'Professional',
+    totp_daily_limit: Infinity, // Unlimited verifications
     gmail_accounts_limit: 5,   // Up to 5 Gmail accounts
     audit_dashboard: true,
     trust_badges: true,
@@ -333,6 +335,10 @@ app.post('/api/verify', async (req, res) => {
       `INSERT INTO verifications (id, sender_email, recipient_email, type, content_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [verificationId, senderEmail, recipientEmail || null, type, contentHash || null]
     );
+
+    // Log / increment the user's daily verification quota
+    await incrementQuota(senderEmail.toLowerCase(), 'totp_verify');
+
     const host = req.get('host') || 'api.attest.page';
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const verificationUrl = `${proto}://${host}/v/${verificationId}`;
@@ -975,7 +981,15 @@ app.get('/api/plan/status', async (req, res) => {
     const planKey = user.plan || 'free';
     const plan = PLANS[planKey] || PLANS.free;
 
-    console.log(`[PLAN API] 📊 Status check — ${email} | Plan: ${planKey}`);
+    // Get today's verification quota usage
+    const today = new Date().toISOString().split('T')[0];
+    const quotaRes = await pool.query(
+      `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
+      [email, today]
+    );
+    const usedToday = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
+
+    console.log(`[PLAN API] 📊 Status check — ${email} | Plan: ${planKey} | Used Today: ${usedToday}`);
 
     res.json({
       success: true,
@@ -983,15 +997,15 @@ app.get('/api/plan/status', async (req, res) => {
       plan: planKey,
       planDetails: {
         name: plan.name,
-        totp_daily_limit: 'unlimited',
+        totp_daily_limit: plan.totp_daily_limit === Infinity ? 'unlimited' : plan.totp_daily_limit,
         gmail_accounts_limit: plan.gmail_accounts_limit,
         webauthn_enabled: false,
         audit_dashboard: plan.audit_dashboard,
         trust_badges: plan.trust_badges,
       },
       usage: {
-        totp_used_today: 0,
-        totp_remaining_today: 'unlimited',
+        totp_used_today: usedToday,
+        totp_remaining_today: plan.totp_daily_limit === Infinity ? 'unlimited' : Math.max(0, plan.totp_daily_limit - usedToday),
         gmail_accounts_count: parseInt(user.gmail_accounts_count) || 1,
       },
       plan_expires_at: user.plan_expires_at || null,
