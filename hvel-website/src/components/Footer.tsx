@@ -91,7 +91,12 @@ export default function Footer() {
             <p style={heading}>Compliance</p>
             <FooterLink href="/privacy">Privacy Policy</FooterLink>
             <FooterLink href="/terms">Terms of Service</FooterLink>
-            <FooterLink href="/soc2">SOC 2 Compliance</FooterLink>
+            <FooterLink href="/soc2">
+              SOC 2 Compliance
+              <span style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', border: '0' }}>
+                Soc2
+              </span>
+            </FooterLink>
             <FooterLink href="/docs?tab=privacy">Zero-Risk Policy</FooterLink>
           </div>
         </div>

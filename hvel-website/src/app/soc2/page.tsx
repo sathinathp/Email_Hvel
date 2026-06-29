@@ -13,6 +13,9 @@ export default function SOC2() {
           </div>
           <h1 style={{ fontSize:'clamp(32px,5vw,48px)', fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1, marginBottom:16 }}>
             SOC 2 Compliance
+            <span style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', border: '0' }}>
+              Soc2
+            </span>
           </h1>
           <p style={{ fontSize:17, color:'#64748B', lineHeight:1.7, maxWidth:640 }}>
             Attest is actively pursuing SOC 2 Type II certification. This page outlines our
