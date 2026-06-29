@@ -10,7 +10,7 @@ export default function PrivacyPolicy() {
           <h1 style={{ fontSize:'clamp(32px,5vw,48px)', fontWeight:900, color:'#0F172A', letterSpacing:'-0.04em', lineHeight:1.1, marginBottom:12 }}>
             Privacy Policy
           </h1>
-          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: May 2026 · Attest Security Ltd.</p>
+          <p style={{ fontSize:14, color:'#94A3B8', fontWeight:600 }}>Last updated: June 2026 · Attest Security Ltd.</p>
         </div>
       </section>
 
@@ -20,19 +20,19 @@ export default function PrivacyPolicy() {
           {[
             {
               title:'1. Our Core Privacy Commitment',
-              content:`Attest is built on a zero-knowledge architecture. We do not read, store, or transmit your email content — ever. This is not a policy choice; it is a technical constraint enforced by our extension's permission model. The extension does not request Gmail API access and cannot read your emails even if it wanted to.`,
+              content:`Attest is built on a zero-knowledge architecture. We do not read, store, or transmit your raw email body content, subject lines, or attachments. The extension reads the email body locally in your browser solely to compute a secure cryptographic hash (SHA-256) for verification. The raw text of your emails never leaves your device.`,
             },
             {
               title:'2. What We Collect',
-              content:`When you register: your full name and a hashed version of your TOTP secret (the secret itself is stored only on your device). When you verify a send action: a SHA-256 hash of the send-action event, the UTC timestamp, your registered full name, and the verification result (pass/fail). We do not collect your Gmail address, email content, recipient lists, attachments, or any Google account identifiers.`,
+              content:`When you register an account, we collect:\n- Your email address\n- Your registered full name\n\nWhen you verify an email send action, we collect and store:\n- The sender's email address (your Gmail address)\n- The recipient's email address\n- A SHA-256 cryptographic hash of the email body\n- The UTC timestamp of the verification event\n- The verification type and result (e.g. human/pass, fail)\n\nDuring email composition, the extension transiently analyzes mouse movement dynamics (coordinates, timing, and velocity) to verify physical human presence. This interaction telemetry is processed in memory on our API to perform bot detection and is not stored persistently.`,
             },
             {
               title:'3. What We Never Collect',
-              content:`We never collect: your Gmail address or Google account ID, email subject lines, email body text, recipient email addresses (To/CC/BCC), email attachments or file names, browser history or tab URLs, biometric data (fingerprint, face scan — these are processed locally by your OS), Google OAuth tokens or session cookies, or any data from emails you receive.`,
+              content:`We never collect, read, or store: your raw email body text or subject lines, email attachments or file names, browser history or tab URLs outside of Gmail, biometric data (fingerprint, face scan — these are processed locally by your OS), Google OAuth tokens, passwords, or session cookies, or any raw data from emails you receive.`,
             },
             {
               title:'4. How We Use Your Data',
-              content:`Your registered name is used solely to display the verified sender badge to email recipients. Verification hashes and timestamps are used to provide the audit trail service. We do not sell, share, or use your data for advertising, profiling, or any purpose other than providing the Attest verification service.`,
+              content:`Your registered name is used to display the verified sender badge to email recipients. Recipient email addresses are used to allow validation of the trust stamp, check for verification relationships, and to route one-time security alerts or nudges if an unverified reply or identity mismatch is detected. Verification hashes and timestamps are stored to provide the public audit trail and trust record page. We do not sell, share, or use your data for advertising, profiling, or any purpose other than providing the Attest verification service.`,
             },
             {
               title:'5. Data Storage & Security',
@@ -40,7 +40,7 @@ export default function PrivacyPolicy() {
             },
             {
               title:'6. Data Retention & Deletion',
-              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@attest.page. Account deletion removes all associated records within 30 days.`,
+              content:`Verification records are retained for 2 years, then automatically purged. You may request immediate deletion of all your records at any time by contacting support@attest.page or using the self-service account deletion feature. Account deletion permanently removes all associated records within 30 days.`,
             },
             {
               title:'7. Your Rights (GDPR / CCPA)',

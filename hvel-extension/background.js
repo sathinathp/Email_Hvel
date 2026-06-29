@@ -95,69 +95,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open for the async response
   }
 
-  if (request.action === 'requestOTP') {
-    fetch(`${API_BASE_URL}/api/request-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: request.senderEmail })
-    })
-    .then(r => r.json())
-    .then(data => sendResponse(data))
-    .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (request.action === 'verifyOTP') {
-    fetch(`${API_BASE_URL}/api/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: request.senderEmail, code: request.code })
-    })
-    .then(r => r.json())
-    .then(data => sendResponse(data))
-    .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (request.action === 'setupTOTP') {
-    console.log(`[HVEL EXT] Setting up TOTP for ${request.senderEmail} (Force: ${request.force})`);
-    fetch(`${API_BASE_URL}/api/totp-setup`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        email: request.senderEmail,
-        force: request.force
-      })
-    })
-    .then(r => {
-      console.log(`[HVEL EXT] TOTP Setup Status: ${r.status}`);
-      return r.json();
-    })
-    .then(data => {
-      console.log(`[HVEL EXT] TOTP Setup Response Success: ${data.success}`);
-      sendResponse(data);
-    })
-    .catch(err => {
-      console.error('[HVEL EXT] TOTP Setup Network Error:', err);
-      sendResponse({ success: false, error: err.message });
-    });
-    return true;
-  }
-
-  if (request.action === 'verifyTOTP') {
-    fetch(`${API_BASE_URL}/api/totp-verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: request.senderEmail, code: request.code })
-    })
-    .then(r => r.json())
-    .then(data => sendResponse(data))
-    .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
   if (request.action === 'validateVerification') {
     fetch(`${API_BASE_URL}/api/validate`, {
       method: 'POST',

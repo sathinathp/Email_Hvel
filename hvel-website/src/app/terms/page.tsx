@@ -27,7 +27,7 @@ export default function Terms() {
             },
             {
               title:'3. Account Registration',
-              content:'You must provide your real full name during registration. This name is used for the verified sender badge shown to email recipients. You are responsible for maintaining the security of your TOTP secret and authenticator device.',
+              content:'You must provide your real full name during registration. This name is used for the verified sender badge shown to email recipients. You are responsible for maintaining the security of your registered email account and credentials.',
             },
             {
               title:'4. Acceptable Use',
