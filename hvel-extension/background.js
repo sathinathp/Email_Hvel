@@ -24,23 +24,29 @@ setInterval(checkBackendUrl, 10000);
 // ─── PLAN STATUS: fetch on startup and cache for 10 mins ───────────────────────
 function fetchAndCachePlanStatus(email) {
   if (!email) return;
-  fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`)
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        chrome.storage.local.set({
-          hvel_plan: data.plan,
-          hvel_plan_details: data.planDetails,
-          hvel_usage: data.usage,
-          hvel_plan_cached_at: Date.now()
-        });
-        console.log(`[HVEL BG] 📊 Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
-      }
-    })
-    .catch(() => {});
+  chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (res.hvel_auth_token) {
+      headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
+    }
+    fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          chrome.storage.local.set({
+            hvel_plan: data.plan,
+            hvel_plan_details: data.planDetails,
+            hvel_usage: data.usage,
+            hvel_plan_cached_at: Date.now()
+          });
+          console.log(`[HVEL BG] 📊 Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
+        }
+      })
+      .catch(() => {});
+  });
 }
 
-// Listen for messages from the content script
+// Listen for messages from the content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'heartbeat') {
     fetch(`${API_BASE_URL}/api/heartbeat`, {
@@ -51,48 +57,138 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
-  if (request.action === 'updateProfile') {
-    fetch(`${API_BASE_URL}/api/profile/update`, {
+  // ─── AUTHENTICATION ACTIONS ────────────────────────────────────────────────
+  if (request.action === 'login') {
+    fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        email: request.email, 
-        name: request.name 
-      })
-    }).catch(() => {});
+      body: JSON.stringify({ email: request.email, password: request.password })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        chrome.storage.local.set({
+          hvel_auth_email: data.email,
+          hvel_auth_token: data.token
+        }, () => {
+          fetchAndCachePlanStatus(data.email);
+          sendResponse(data);
+        });
+      } else {
+        sendResponse(data);
+      }
+    })
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'signup') {
+    fetch(`${API_BASE_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: request.email, password: request.password })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        chrome.storage.local.set({
+          hvel_auth_email: data.email,
+          hvel_auth_token: data.token
+        }, () => {
+          fetchAndCachePlanStatus(data.email);
+          sendResponse(data);
+        });
+      } else {
+        sendResponse(data);
+      }
+    })
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'logout') {
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      const headers = {};
+      if (res.hvel_auth_token) {
+        headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
+      }
+      fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers
+      }).catch(() => {});
+      
+      chrome.storage.local.remove([
+        'hvel_auth_email',
+        'hvel_auth_token',
+        'hvel_plan',
+        'hvel_plan_details',
+        'hvel_usage',
+        'hvel_plan_cached_at',
+        'hvel_stats_sent_stamped_link',
+        'hvel_stats_sent_stamped_hash',
+        'hvel_stats_sent_unstamped',
+        'hvel_stats_received_stamped',
+        'hvel_stats_received_unstamped',
+        'hvel_audit_log'
+      ], () => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+
+  if (request.action === 'updateProfile') {
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (res.hvel_auth_token) {
+        headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
+      }
+      fetch(`${API_BASE_URL}/api/profile/update`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          email: request.email, 
+          name: request.name 
+        })
+      }).catch(() => {});
+    });
     return false;
   }
 
   if (request.action === 'verifyEmail') {
     console.log("Received verification request for type:", request.type);
     
-    // Make actual API call to the backend
-    fetch(`${API_BASE_URL}/api/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        senderEmail: request.senderEmail || 'unknown-sender@gmail.com',
-        recipientEmail: request.recipientEmail,
-        type: request.type,
-        contentHash: request.contentHash // Pass the cryptographic hash
-      })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if(data.success) {
-        sendResponse({ success: true, url: data.data.verificationUrl });
-      } else {
-        sendResponse({ success: false, error: data.error });
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (res.hvel_auth_token) {
+        headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
       }
-    })
-    .catch(error => {
-      console.error("Error connecting to HVEL API:", error);
-      sendResponse({ success: false, error: 'Network Error' });
+      
+      fetch(`${API_BASE_URL}/api/verify`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          senderEmail: request.senderEmail || 'unknown-sender@gmail.com',
+          recipientEmail: request.recipientEmail,
+          type: request.type,
+          contentHash: request.contentHash
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.success) {
+          sendResponse({ success: true, url: data.data.verificationUrl });
+        } else {
+          sendResponse({ success: false, error: data.error || data.message });
+        }
+      })
+      .catch(error => {
+        console.error("Error connecting to HVEL API:", error);
+        sendResponse({ success: false, error: 'Network Error' });
+      });
     });
     
-    return true; // Keep the message channel open for the async response
+    return true;
   }
 
   if (request.action === 'validateVerification') {
@@ -121,7 +217,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         noExtensionEmail: request.noExtensionEmail
       })
     })
-
     .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
@@ -169,34 +264,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getPlanStatus') {
     const email = request.email;
     if (!email) { sendResponse({ success: false, error: 'No email' }); return false; }
-    // Fetch fresh from server (bypass cache for explicit status requests)
-    fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          chrome.storage.local.set({
-            hvel_plan: data.plan,
-            hvel_plan_details: data.planDetails,
-            hvel_usage: data.usage,
-            hvel_plan_cached_at: Date.now()
-          });
-        }
-        sendResponse(data);
-      })
-      .catch(err => sendResponse({ success: false, error: err.message }));
+    
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (res.hvel_auth_token) {
+        headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
+      }
+      
+      fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            chrome.storage.local.set({
+              hvel_plan: data.plan,
+              hvel_plan_details: data.planDetails,
+              hvel_usage: data.usage,
+              hvel_plan_cached_at: Date.now()
+            });
+          }
+          sendResponse(data);
+        })
+        .catch(err => sendResponse({ success: false, error: err.message }));
+    });
     return true;
   }
 
   // ─── PLAN: lightweight pre-check before an action ────────────────────────
   if (request.action === 'checkPlanQuota') {
-    fetch(`${API_BASE_URL}/api/plan/check-quota`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: request.email, feature: request.feature })
-    })
-    .then(r => r.json())
-    .then(data => sendResponse(data))
-    .catch(err => sendResponse({ success: false, allowed: true, error: err.message })); // fail open
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (res.hvel_auth_token) {
+        headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
+      }
+      
+      fetch(`${API_BASE_URL}/api/plan/check-quota`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: request.email, feature: request.feature })
+      })
+      .then(r => r.json())
+      .then(data => sendResponse(data))
+      .catch(err => sendResponse({ success: false, allowed: true, error: err.message }));
+    });
     return true;
   }
 
@@ -204,5 +313,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'syncPlan') {
     fetchAndCachePlanStatus(request.email);
     return false;
+  }
+
+  // ─── AUDIT LOG SYNC ACTIONS ──────────────────────────────────────────────
+  if (request.action === 'getAuditLogs') {
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false, error: 'Not authenticated' });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/audit-logs`, {
+        headers: {
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          chrome.storage.local.set({
+            hvel_stats_sent_stamped_link: data.stats.sent_stamped_link || 0,
+            hvel_stats_sent_stamped_hash: data.stats.sent_stamped_hash || 0,
+            hvel_stats_sent_unstamped: data.stats.sent_unstamped || 0,
+            hvel_stats_received_stamped: data.stats.received_stamped || 0,
+            hvel_stats_received_unstamped: data.stats.received_unstamped || 0,
+            hvel_audit_log: data.logs || []
+          }, () => {
+            sendResponse({ success: true, logs: data.logs, stats: data.stats });
+          });
+        } else {
+          sendResponse({ success: false, error: data.error });
+        }
+      })
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    });
+    return true;
+  }
+
+  if (request.action === 'logAuditEvent') {
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/audit-logs/log`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        },
+        body: JSON.stringify({
+          type: request.type,
+          email: request.email
+        })
+      }).catch(() => {});
+    });
+    return false;
+  }
+
+  if (request.action === 'clearAuditLogs') {
+    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/audit-logs/clear`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        }
+      })
+      .then(r => r.json())
+      .then(data => sendResponse(data))
+      .catch(() => sendResponse({ success: false }));
+    });
+    return true;
   }
 });

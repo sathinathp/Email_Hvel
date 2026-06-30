@@ -463,6 +463,7 @@ document.addEventListener('click', async (e) => {
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
+                            logAuditEvent('sent_unstamped', recipientEmail);
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -520,6 +521,7 @@ document.addEventListener('click', async (e) => {
                                         });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
+                                    logAuditEvent('sent_unstamped', recipientEmail);
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();
@@ -530,6 +532,12 @@ document.addEventListener('click', async (e) => {
                                 const finalizeSend = (recordUrl) => {
                                     chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                         const stampMode = prefs.hvel_stamp_mode || 'with_link';
+
+                                        if (stampMode === 'hash_only' || !recordUrl) {
+                                            logAuditEvent('sent_stamped_hash', recipientEmail);
+                                        } else {
+                                            logAuditEvent('sent_stamped_link', recipientEmail);
+                                        }
 
                                         if (composeBody) {
                                             let badgeInnerHtml;
@@ -1010,7 +1018,8 @@ async function scanIncomingMessages() {
         if (msg.closest('[role="listbox"]') || msg.closest('[role="dialog"]') || msg.closest('.am') || msg.closest('.aqj')) return;
         msg.setAttribute('data-hvel-scanned', 'true');
 
-        const badgeLink = msg.querySelector('a[href*="/v/"]');
+        const badgeLinkElement = msg.querySelector('a[href*="/v/"]');
+        const badgeLink = (badgeLinkElement && !badgeLinkElement.closest('.gmail_quote, blockquote')) ? badgeLinkElement : null;
         let senderEmail = null;
 
         const gD = msg.querySelector('.gD');
@@ -1196,84 +1205,71 @@ async function scanIncomingMessages() {
         const isIgnoredDomain = IGNORED_DOMAINS.some(d => senderDomain === d || senderDomain?.endsWith('.' + d));
 
         if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
-            if (badgeLink) {
-                const url = badgeLink.href;
-                const id = url.split('/v/').pop();
+            chrome.storage.local.get(['hvel_verify_received'], (res) => {
+                if (!res.hvel_verify_received) {
+                    return; // By default off: do not verify received senders, don't show any badge in Gmail
+                }
 
-                chrome.runtime.sendMessage({
-                    action: 'validateVerification',
-                    id: id,
-                    senderEmail: senderEmail,
-                    recipientEmail: recipientEmail
-                }, (response) => {
-                    if (response && response.status === 'verified') {
-                        showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
-                    } else if (response && response.status === 'tampered') {
-                        showTrustStatus(msg, 'tampered', response.message);
-                        
+                if (badgeLink) {
+                    const url = badgeLink.href;
+                    const id = url.split('/v/').pop();
+
+                    chrome.runtime.sendMessage({
+                        action: 'validateVerification',
+                        id: id,
+                        senderEmail: senderEmail,
+                        recipientEmail: recipientEmail
+                    }, (response) => {
+                        // Even if mismatch (tampered) or verified, show the normal Attest Verified stamp
+                        if (response && (response.status === 'verified' || response.status === 'tampered')) {
+                            showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
+                            if (!msg.hasAttribute('data-hvel-audited')) {
+                                msg.setAttribute('data-hvel-audited', 'true');
+                                logAuditEvent('received_stamped', senderEmail);
+                            }
+                        } else {
+                            // If invalid (not found / user does not have extension), show as unverified
+                            showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
+                            if (!msg.hasAttribute('data-hvel-audited')) {
+                                msg.setAttribute('data-hvel-audited', 'true');
+                                logAuditEvent('received_unstamped', senderEmail);
+                            }
+                        }
+                    });
+                } else {
+                    showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
+                    if (!msg.hasAttribute('data-hvel-audited')) {
+                        msg.setAttribute('data-hvel-audited', 'true');
+                        logAuditEvent('received_unstamped', senderEmail);
+                    }
+                    
+                    if (msg.offsetParent !== null) {
                         const normSender = senderEmail.toLowerCase().trim();
-                        const alertKey = `hvel_alerted_${normSender}`;
+                        const nudgeKey = `hvel_nudged_${normSender}`;
                         
-                        chrome.storage.local.get([alertKey], (result) => {
-                            const lastAlert = result[alertKey];
+                        chrome.storage.local.get([nudgeKey], (nudgeResult) => {
+                            const lastNudge = nudgeResult[nudgeKey];
                             const now = Date.now();
                             const dayInMs = 24 * 60 * 60 * 1000;
 
-                            if ((!lastAlert || (now - lastAlert > dayInMs)) && !pendingRequests.has(alertKey)) {
+                            if ((!lastNudge || (now - lastNudge > dayInMs)) && !pendingRequests.has(nudgeKey)) {
                                 const dateSpan = msg.querySelector('span[title]');
                                 const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
 
-                                pendingRequests.add(alertKey);
-                                chrome.storage.local.set({ [alertKey]: now });
+                                pendingRequests.add(nudgeKey);
+                                chrome.storage.local.set({ [nudgeKey]: now });
 
                                 chrome.runtime.sendMessage({
-                                    action: 'reportSecurityAlert',
-                                    email: recipientEmail,
-                                    attacker: normSender,
-                                    reason: response.message,
-                                    details: { timestamp: msgTime }
+                                    action: 'reportUnverifiedReply',
+                                    hvelUserEmail: recipientEmail,
+                                    noExtensionEmail: normSender,
+                                    details: { timestamp: msgTime, url: window.location.href }
                                 });
                             }
                         });
-                    } else {
-                        showTrustStatus(msg, 'invalid', 'Unverifiable Trust Stamp');
                     }
-                });
-            } else {
-                chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userStatus) => {
-                    if (userStatus && userStatus.verified) {
-                        showTrustStatus(msg, 'verified', `Sender is now Attest Approved (Legacy Message)`);
-                    } else {
-                        showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                        
-                        if (msg.offsetParent !== null) {
-                            const normSender = senderEmail.toLowerCase().trim();
-                            const nudgeKey = `hvel_nudged_${normSender}`;
-                            
-                            chrome.storage.local.get([nudgeKey], (result) => {
-                                const lastNudge = result[nudgeKey];
-                                const now = Date.now();
-                                const dayInMs = 24 * 60 * 60 * 1000;
-
-                                if ((!lastNudge || (now - lastNudge > dayInMs)) && !pendingRequests.has(nudgeKey)) {
-                                    const dateSpan = msg.querySelector('span[title]');
-                                    const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
-
-                                    pendingRequests.add(nudgeKey);
-                                    chrome.storage.local.set({ [nudgeKey]: now });
-
-                                    chrome.runtime.sendMessage({
-                                        action: 'reportUnverifiedReply',
-                                        hvelUserEmail: recipientEmail,
-                                        noExtensionEmail: normSender,
-                                        details: { timestamp: msgTime, url: window.location.href }
-                                    });
-                                }
-                            });
-                        }
-                    }
-                });
-            }
+                }
+            });
         }
     });
 }
@@ -1294,76 +1290,84 @@ function showTrustStatus(msgElement, status, text) {
     if (status === 'verified') {
         notice.innerHTML = `
             <div style="
-                display:flex; align-items:center; gap:12px;
-                background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-                border: 1px solid #86efac;
-                border-left: 4px solid #16a34a;
-                padding: 12px 16px; margin: 10px 0;
-                border-radius: 10px;
-                box-shadow: 0 2px 8px rgba(22,163,74,0.12);
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                margin: 16px 0 8px 0;
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                display: block;
+                clear: both;
+            ">
                 <div style="
-                    width:36px; height:36px; border-radius:50%;
-                    background: linear-gradient(135deg, #16a34a, #22c55e);
-                    display:flex; align-items:center; justify-content:center;
-                    flex-shrink:0; box-shadow: 0 2px 6px rgba(22,163,74,0.3);">
-                    <img src="https://api.attest.page/stamp-icon.png" style="width:20px;height:20px;border-radius:50%;object-fit:contain;" />
+                    display: inline-flex;
+                    align-items: center;
+                    background: #f0fdf4;
+                    border: 1px solid #bbf7d0;
+                    border-radius: 9999px;
+                    padding: 4px 12px;
+                    gap: 6px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                ">
+                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">✅</span>
+                    <span style="color: #166534; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">Attest Verified</span>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:13px; font-weight:700; color:#14532d; letter-spacing:-0.01em;">✅ Attest Verified</span>
-                    <span style="font-size:11px; font-weight:400; color:#166534; opacity:0.85;">${text}</span>
+                <div style="margin-top: 5px; font-size: 10px; color: #14532d; opacity: 0.85; line-height: 1.4;">
+                    ${text}
                 </div>
             </div>`;
     } else if (status === 'tampered' || status === 'invalid') {
         const title = 'Critical: ID Mismatch Detected';
         notice.innerHTML = `
             <div style="
-                display:flex; align-items:center; gap:12px;
-                background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
-                border: 1px solid #fca5a5;
-                border-left: 4px solid #dc2626;
-                padding: 12px 16px; margin: 10px 0;
-                border-radius: 10px;
-                box-shadow: 0 2px 8px rgba(220,38,38,0.12);
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                margin: 16px 0 8px 0;
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                display: block;
+                clear: both;
+            ">
                 <div style="
-                    width:36px; height:36px; border-radius:50%;
-                    background: linear-gradient(135deg, #dc2626, #ef4444);
-                    display:flex; align-items:center; justify-content:center;
-                    flex-shrink:0; box-shadow: 0 2px 6px rgba(220,38,38,0.3);
-                    font-size:18px;">⚠️</div>
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    <span style="font-size:13px; font-weight:700; color:#7f1d1d; letter-spacing:-0.01em;">${title}</span>
-                    <span style="font-size:11px; font-weight:400; color:#991b1b; opacity:0.9; line-height:1.4;">${text}</span>
+                    display: inline-flex;
+                    align-items: center;
+                    background: #fff1f2;
+                    border: 1px solid #fecaca;
+                    border-radius: 9999px;
+                    padding: 4px 12px;
+                    gap: 6px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                ">
+                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">⚠️</span>
+                    <span style="color: #991b1b; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">${title}</span>
+                </div>
+                <div style="margin-top: 5px; font-size: 10px; color: #7f1d1d; opacity: 0.9; line-height: 1.4;">
+                    ${text}
                 </div>
             </div>`;
     } else {
-        // 'unverified' — not a threat, just not registered. Sleek amber info card.
+        // 'unverified' — not a threat, just not registered. Small stamp style at the bottom of the email.
         notice.innerHTML = `
             <div style="
-                display:flex; align-items:center; gap:12px;
-                background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-                border: 1px solid #fcd34d;
-                border-left: 4px solid #f59e0b;
-                padding: 12px 16px; margin: 10px 0;
-                border-radius: 10px;
-                box-shadow: 0 2px 8px rgba(245,158,11,0.10);
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
+                margin: 16px 0 8px 0;
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                display: block;
+                clear: both;
+            ">
                 <div style="
-                    width:36px; height:36px; border-radius:50%;
-                    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-                    display:flex; align-items:center; justify-content:center;
-                    flex-shrink:0; box-shadow: 0 2px 6px rgba(245,158,11,0.3);
-                    font-size:18px;">🔍</div>
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    <span style="font-size:13px; font-weight:700; color:#78350f; letter-spacing:-0.01em;">Sender Not Yet Verified</span>
-                    <span style="font-size:11px; font-weight:400; color:#92400e; opacity:0.9; line-height:1.4;">This sender hasn't installed Attest yet. Treat with normal caution.</span>
+                    display: inline-flex;
+                    align-items: center;
+                    background: #fffbeb;
+                    border: 1px solid #fde68a;
+                    border-radius: 9999px;
+                    padding: 4px 12px;
+                    gap: 6px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                ">
+                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">⚠️</span>
+                    <span style="color: #b45309; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">Sender Not Yet Verified</span>
+                </div>
+                <div style="margin-top: 5px; font-size: 10px; color: #78350f; opacity: 0.75; line-height: 1.4;">
+                    This sender hasn't installed Attest yet. Treat with normal caution.
                 </div>
             </div>`;
     }
 
     const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
-    insertTarget.prepend(notice);
+    insertTarget.appendChild(notice);
 }
 
 // Compute SHA-256 hash of email body contents
@@ -1589,5 +1593,32 @@ function scanAndStyleComposeRecipients() {
                 }
             }
         }
+    });
+}
+
+function logAuditEvent(type, emailDetail) {
+    const key = `hvel_stats_${type}`;
+    chrome.storage.local.get([key, 'hvel_audit_log', 'hvel_auth_token'], (res) => {
+        const count = (res[key] || 0) + 1;
+        const rawLog = res.hvel_audit_log || [];
+        const newEntry = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: type,
+            email: emailDetail || 'Unknown',
+            timestamp: Date.now()
+        };
+        const updatedLog = [newEntry, ...rawLog].slice(0, 100);
+        chrome.storage.local.set({
+            [key]: count,
+            hvel_audit_log: updatedLog
+        }, () => {
+            if (res.hvel_auth_token) {
+                chrome.runtime.sendMessage({
+                    action: 'logAuditEvent',
+                    type: type,
+                    email: emailDetail
+                });
+            }
+        });
     });
 }

@@ -48,7 +48,7 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
   }
 
   console.log(`[STRIPE WEBHOOK] Received event type: ${event.type}`);
-  
+
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -111,9 +111,9 @@ const pool = new Pool({
 const PLANS = {
   free: {
     name: 'Free',
-    totp_daily_limit: 3,        // Max 3 verifications per day for free users
-    gmail_accounts_limit: 1,    // 1 Gmail account
-    audit_dashboard: false,     // Basic log only
+    totp_daily_limit: 3,
+    gmail_accounts_limit: 1,
+    audit_dashboard: false,
     trust_badges: false,
   },
   professional: {
@@ -130,7 +130,22 @@ async function planGuard(feature, req, res, next) {
   const email = (req.body?.email || req.query?.email || '').toLowerCase();
   if (!email) return res.status(400).json({ error: 'Email required for plan check' });
 
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
   try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+    if (authEmail !== email) {
+      return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${email}).` });
+    }
+
     // Ensure user row exists (auto-create as free)
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free')
@@ -206,6 +221,11 @@ async function initDB() {
       plan_expires_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      email VARCHAR(255) NOT NULL,
+      token VARCHAR(255) PRIMARY KEY,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS plan_quota_log (
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) NOT NULL,
@@ -248,9 +268,18 @@ async function initDB() {
       alert_sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(recipient_email, attacker_email)
     );
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id SERIAL PRIMARY KEY,
+      user_email VARCHAR(255) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(createTableQuery);
+    await pool.query('CREATE INDEX IF NOT EXISTS audit_logs_user_email_idx ON audit_logs (user_email)');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)');
     const colCheck = await pool.query(`
       SELECT column_name FROM information_schema.columns
       WHERE table_name='verifications' AND column_name='recipient_email'
@@ -258,7 +287,7 @@ async function initDB() {
     if (colCheck.rows.length === 0) {
       await pool.query('ALTER TABLE verifications ADD COLUMN recipient_email VARCHAR(255)');
     }
-    console.log("✅ Database tables ensured (including plan system).");
+    console.log("✅ Database tables ensured (including plan and auth system).");
   } catch (err) {
     console.error("Error creating tables:", err);
   }
@@ -267,6 +296,123 @@ initDB();
 
 app.get('/health', (req, res) => res.json({ status: 'ok', message: 'HVEL Backend is running' }));
 app.post('/api/heartbeat', (req, res) => res.json({ success: true }));
+
+// ─── AUTHENTICATION CRYPTO HELPERS ──────────────────────────────────────────
+const crypto = require('crypto');
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedValue) {
+  if (!storedValue || !storedValue.includes(':')) return false;
+  const [salt, hash] = storedValue.split(':');
+  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return hash === checkHash;
+}
+
+// ─── AUTHENTICATION ENDPOINTS ────────────────────────────────────────────────
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email and password are required' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    // Check if user exists and already has a password set
+    const userRes = await pool.query('SELECT password_hash FROM users WHERE email = $1', [emailLower]);
+
+    if (userRes.rows.length > 0) {
+      if (userRes.rows[0].password_hash) {
+        return res.status(400).json({ error: 'USER_EXISTS', message: 'An account with this email already exists' });
+      }
+
+      // If user exists (e.g. from Stripe checkout or auto-created free), but has no password hash set yet
+      const passwordHash = hashPassword(password);
+      await pool.query(
+        `UPDATE users SET password_hash = $1 WHERE email = $2`,
+        [passwordHash, emailLower]
+      );
+    } else {
+      // New user registration
+      const passwordHash = hashPassword(password);
+      await pool.query(
+        `INSERT INTO users (email, plan, password_hash) VALUES ($1, 'free', $2)`,
+        [emailLower, passwordHash]
+      );
+    }
+
+    // Auto log in on signup
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, token]
+    );
+
+    console.log(`[AUTH] 👤 User signed up and logged in: ${emailLower}`);
+    res.json({ success: true, email: emailLower, token });
+  } catch (err) {
+    console.error('[AUTH SIGNUP] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Signup failed. Please try again.' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email and password are required' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    const userRes = await pool.query('SELECT password_hash FROM users WHERE email = $1', [emailLower]);
+    if (userRes.rows.length === 0 || !userRes.rows[0].password_hash) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
+    }
+
+    const isValid = verifyPassword(password, userRes.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, token]
+    );
+
+    console.log(`[AUTH] 🔑 User logged in: ${emailLower}`);
+    res.json({ success: true, email: emailLower, token });
+  } catch (err) {
+    console.error('[AUTH LOGIN] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Login failed. Please try again.' });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(400).json({ error: 'NO_TOKEN', message: 'No active session token provided' });
+  }
+
+  try {
+    await pool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('[AUTH LOGOUT] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Logout failed.' });
+  }
+});
 
 const mainTransporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -309,8 +455,8 @@ if (process.env.HRMS_EMAIL_PASS) {
 
 // Shared domain/email block helper
 const IGNORED_DOMAINS = [
-  'vercel.com','google.com','microsoft.com','github.com','github.io',
-  'aws.com','amazon.com','netflix.com','facebook.com','linkedin.com','twitter.com','x.com'
+  'vercel.com', 'google.com', 'microsoft.com', 'github.com', 'github.io',
+  'aws.com', 'amazon.com', 'netflix.com', 'facebook.com', 'linkedin.com', 'twitter.com', 'x.com'
 ];
 function isBlockedEmail(email) {
   if (!email || !email.includes('@')) return true;
@@ -329,8 +475,23 @@ app.post('/api/verify', async (req, res) => {
   console.log(`[HVEL API] 🛡️ Verification Start — Sender: ${senderEmail} | Recipient: ${recipientEmail || 'N/A'}`);
   if (!senderEmail || !type) return res.status(400).json({ error: 'senderEmail and type are required' });
 
-  const verificationId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
   try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+    if (authEmail !== senderEmail.toLowerCase()) {
+      return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match the sender email (${senderEmail}).` });
+    }
+
+    const verificationId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     const result = await pool.query(
       `INSERT INTO verifications (id, sender_email, recipient_email, type, content_hash) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [verificationId, senderEmail, recipientEmail || null, type, contentHash || null]
@@ -345,8 +506,8 @@ app.post('/api/verify', async (req, res) => {
 
     // Send invite email — only once per sender→recipient pair
     if (recipientEmail && !isBlockedEmail(recipientEmail) &&
-        senderEmail.toLowerCase() !== recipientEmail.toLowerCase() &&
-        process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      senderEmail.toLowerCase() !== recipientEmail.toLowerCase() &&
+      process.env.EMAIL_USER && process.env.EMAIL_PASS) {
 
       const alreadyInvited = await pool.query(
         `SELECT id FROM invite_log WHERE LOWER(sender_email) = LOWER($1) AND LOWER(recipient_email) = LOWER($2) LIMIT 1`,
@@ -419,7 +580,7 @@ app.post('/api/validate', async (req, res) => {
 // GATE: Only sends if extension user previously sent a verified email to them
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/notify-unverified-reply', async (req, res) => {
-  const hvelUserEmail  = (req.body.hvelUserEmail  || req.body.senderEmail   || '').trim().toLowerCase();
+  const hvelUserEmail = (req.body.hvelUserEmail || req.body.senderEmail || '').trim().toLowerCase();
   const noExtUserEmail = (req.body.noExtensionEmail || req.body.recipientEmail || '').trim().toLowerCase();
 
   console.log('----------------------------------------------------------------');
@@ -459,7 +620,7 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   try {
     const details = req.body.details || {};
     const timestamp = details.timestamp || new Date().toLocaleString();
-    
+
     // Atomic Block - Insert or Update timestamp if older than 24h
     try {
       await pool.query(
@@ -598,14 +759,14 @@ app.post('/api/check-user-verified', async (req, res) => {
   try {
     const totpResult = await pool.query(`SELECT is_verified FROM totp_secrets WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
     const passkeyResult = await pool.query(`SELECT id FROM passkeys WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
-    
+
     const isVerified = (totpResult.rows.length > 0 && totpResult.rows[0].is_verified) || (passkeyResult.rows.length > 0);
-    
+
     console.log(`[HVEL API] 👤 check-user-verified: ${email} = ${isVerified}`);
     res.json({ verified: isVerified });
-  } catch (err) { 
+  } catch (err) {
     console.error('Error checking user verification:', err);
-    res.status(500).json({ verified: false, error: 'Server error' }); 
+    res.status(500).json({ verified: false, error: 'Server error' });
   }
 });
 
@@ -634,7 +795,23 @@ app.post('/api/test-smtp', async (req, res) => {
 app.post('/api/profile/update', async (req, res) => {
   const { email, name } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
   try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+    if (authEmail !== email.toLowerCase()) {
+      return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${email}).` });
+    }
+
     await pool.query(
       `INSERT INTO profiles (email, full_name, last_active) 
        VALUES ($1, $2, NOW()) 
@@ -696,8 +873,8 @@ app.post('/api/report-security-alert', async (req, res) => {
     } catch (dbErr) {
       console.error("[HVEL API] DB Error in security lock:", dbErr);
     }
-  } catch (err) { 
-    return res.status(500).json({ error: 'Server error during security lock' }); 
+  } catch (err) {
+    return res.status(500).json({ error: 'Server error during security lock' });
   }
 
   console.log(`[HVEL API] 🚨 SECURITY ALERT for ${email}: ${reason} by ${attacker}`);
@@ -776,10 +953,10 @@ app.post('/api/report-security-alert', async (req, res) => {
     // Send both emails
     const info1 = await mainTransporter.sendMail(recipientMailOptions);
     console.log(`[SMTP] ✅ Alert sent to recipient: ${info1.messageId}`);
-    
+
     const info2 = await mainTransporter.sendMail(senderMailOptions);
     console.log(`[SMTP] ✅ Alert sent to attacker: ${info2.messageId}`);
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('[HVEL API] ❌ Error sending security alerts:', err);
@@ -804,7 +981,7 @@ function verifyHumanBehavior(points) {
   const displacement = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
   if (displacement < 5) {
     // Small movements are allowed to pass immediately
-    return { success: true }; 
+    return { success: true };
   }
 
   // 1. Straightness test (Linear deviation)
@@ -970,7 +1147,22 @@ app.get('/api/plan/status', async (req, res) => {
   const email = (req.query.email || '').toLowerCase();
   if (!email) return res.status(400).json({ error: 'email query param required' });
 
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
   try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+    if (authEmail !== email) {
+      return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${email}).` });
+    }
+
     // Auto-create user as free if not exists
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
@@ -1017,13 +1209,159 @@ app.get('/api/plan/status', async (req, res) => {
   }
 });
 
+// ─── AUDIT LOG ENDPOINTS ─────────────────────────────────────────────────────
+
+// GET /api/audit-logs — returns all audit logs and aggregated stats for the user
+app.get('/api/audit-logs', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const email = sessionRes.rows[0].email.toLowerCase();
+
+    // Get all logs for the user, limited to latest 100 for performance
+    const logsRes = await pool.query(
+      `SELECT type, email, timestamp FROM audit_logs 
+       WHERE LOWER(user_email) = $1 
+       ORDER BY timestamp DESC LIMIT 100`,
+      [email]
+    );
+
+    // Get aggregated counts of each log type
+    const statsRes = await pool.query(
+      `SELECT type, COUNT(*) as count FROM audit_logs 
+       WHERE LOWER(user_email) = $1 
+       GROUP BY type`,
+      [email]
+    );
+
+    const stats = {
+      sent_stamped_link: 0,
+      sent_stamped_hash: 0,
+      sent_unstamped: 0,
+      received_stamped: 0,
+      received_unstamped: 0
+    };
+
+    statsRes.rows.forEach(row => {
+      const typeKey = row.type.toLowerCase();
+      if (typeKey in stats) {
+        stats[typeKey] = parseInt(row.count) || 0;
+      }
+    });
+
+    res.json({
+      success: true,
+      logs: logsRes.rows.map(row => ({
+        type: row.type,
+        email: row.email,
+        timestamp: new Date(row.timestamp).getTime()
+      })),
+      stats
+    });
+  } catch (err) {
+    console.error('[AUDIT LOGS GET] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/audit-logs/log — logs a new audit event
+app.post('/api/audit-logs/log', async (req, res) => {
+  const { type, email: targetEmail } = req.body;
+  if (!type || !targetEmail) {
+    return res.status(400).json({ error: 'type and email are required' });
+  }
+
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const userEmail = sessionRes.rows[0].email.toLowerCase();
+
+    const insertRes = await pool.query(
+      `INSERT INTO audit_logs (user_email, type, email, timestamp) 
+       VALUES ($1, $2, $3, NOW()) 
+       RETURNING type, email, timestamp`,
+      [userEmail, type, targetEmail.toLowerCase()]
+    );
+
+    res.json({
+      success: true,
+      log: {
+        type: insertRes.rows[0].type,
+        email: insertRes.rows[0].email,
+        timestamp: new Date(insertRes.rows[0].timestamp).getTime()
+      }
+    });
+  } catch (err) {
+    console.error('[AUDIT LOGS LOG] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/audit-logs/clear — clears all audit logs for the user
+app.delete('/api/audit-logs/clear', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const email = sessionRes.rows[0].email.toLowerCase();
+
+    await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1', [email]);
+
+    res.json({
+      success: true,
+      message: 'Audit logs cleared successfully'
+    });
+  } catch (err) {
+    console.error('[AUDIT LOGS CLEAR] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/plan/check-quota — lightweight pre-check before performing an action
 app.post('/api/plan/check-quota', async (req, res) => {
   const { email, feature } = req.body;
   if (!email || !feature) return res.status(400).json({ error: 'email and feature required' });
   const emailLower = email.toLowerCase();
 
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
   try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+    if (authEmail !== emailLower) {
+      return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${emailLower}).` });
+    }
+
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
       [emailLower]
@@ -1185,10 +1523,13 @@ app.post('/api/user/delete-account', async (req, res) => {
   try {
     // 1. Delete plan quota logs
     await pool.query('DELETE FROM plan_quota_log WHERE LOWER(email) = $1', [emailLower]);
-    
+
+    // Delete audit logs
+    await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1', [emailLower]);
+
     // 2. Delete security alert logs
     await pool.query('DELETE FROM security_alert_log WHERE LOWER(recipient_email) = $1 OR LOWER(attacker_email) = $2', [emailLower, emailLower]);
-    
+
     // 3. Delete verifications logs associated with this email
     await pool.query('DELETE FROM verifications WHERE LOWER(sender_email) = $1 OR LOWER(recipient_email) = $2', [emailLower, emailLower]);
 
