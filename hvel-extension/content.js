@@ -63,15 +63,15 @@ updateProfile();
 // Keep a cached copy of the authenticated user's email from chrome.storage
 let cachedUserEmail = 'unknown-sender@gmail.com';
 
-chrome.storage.local.get(['hvel_auth_email'], (res) => {
-    if (res && res.hvel_auth_email) {
-        cachedUserEmail = res.hvel_auth_email.toLowerCase().trim();
+chrome.storage.local.get(['gmail_hvel_auth_email'], (res) => {
+    if (res && res.gmail_hvel_auth_email) {
+        cachedUserEmail = res.gmail_hvel_auth_email.toLowerCase().trim();
     }
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.hvel_auth_email) {
-        cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
+    if (areaName === 'local' && changes.gmail_hvel_auth_email) {
+        cachedUserEmail = changes.gmail_hvel_auth_email.newValue ? changes.gmail_hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
     }
 });
 
@@ -1631,10 +1631,10 @@ function scanAndStyleComposeRecipients() {
 }
 
 function logAuditEvent(type, emailDetail) {
-    const key = `hvel_stats_${type}`;
-    chrome.storage.local.get([key, 'hvel_audit_log', 'hvel_auth_token'], (res) => {
+    const key = `gmail_hvel_stats_${type}`;
+    chrome.storage.local.get([key, 'gmail_hvel_audit_log', 'gmail_hvel_auth_token'], (res) => {
         const count = (res[key] || 0) + 1;
-        const rawLog = res.hvel_audit_log || [];
+        const rawLog = res.gmail_hvel_audit_log || [];
         const newEntry = {
             id: Math.random().toString(36).substring(2, 9),
             type: type,
@@ -1644,9 +1644,9 @@ function logAuditEvent(type, emailDetail) {
         const updatedLog = [newEntry, ...rawLog].slice(0, 100);
         chrome.storage.local.set({
             [key]: count,
-            hvel_audit_log: updatedLog
+            gmail_hvel_audit_log: updatedLog
         }, () => {
-            if (res.hvel_auth_token) {
+            if (res.gmail_hvel_auth_token) {
                 chrome.runtime.sendMessage({
                     action: 'logAuditEvent',
                     type: type,

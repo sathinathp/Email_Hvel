@@ -1,106 +1,160 @@
 let currentMode = 'with_link';
 let activeTab = 'login'; // 'login' or 'signup'
+let currentSiteType = 'gmail'; // 'gmail' or 'outlook'
 
 // Load saved settings and check auth status on popup open
 document.addEventListener('DOMContentLoaded', () => {
-  // Existing settings UI bindings
-  chrome.storage.local.get(['hvel_stamp_mode', 'hvel_verify_received'], (result) => {
-    currentMode = result.hvel_stamp_mode || 'with_link';
-    applyModeUI(currentMode);
-    
-    const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
-    if (verifyCheckbox) {
-      verifyCheckbox.checked = !!result.hvel_verify_received;
+  // Query active tab to check the current site context
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs && tabs[0] && tabs[0].url) {
+      const url = tabs[0].url;
+      if (
+        url.includes('outlook.live.com') ||
+        url.includes('outlook.office.com') ||
+        url.includes('outlook.office365.com') ||
+        url.includes('outlook.cloud.microsoft') ||
+        url.includes('mail.dialog.office.com')
+      ) {
+        currentSiteType = 'outlook';
+      }
     }
-  });
 
-  const linkCard = document.getElementById('optionLink');
-  const hashCard = document.getElementById('optionHash');
-  const saveBtn = document.getElementById('saveBtn');
-  const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
+    // Update UI headers / indicators for Gmail vs Outlook
+    updateSiteTypeUI();
 
-  if (linkCard) {
-    linkCard.addEventListener('click', () => selectMode('with_link'));
-  }
-  if (hashCard) {
-    hashCard.addEventListener('click', () => selectMode('hash_only'));
-  }
-  if (verifyCheckbox) {
-    verifyCheckbox.addEventListener('change', saveSettings);
-  }
-  if (saveBtn) {
-    saveBtn.addEventListener('click', saveSettings);
-  }
-
-  // View tab switching (Settings vs Audit Log)
-  const btnTabSettings = document.getElementById('btnTabSettings');
-  const btnTabAudit = document.getElementById('btnTabAudit');
-  const settingsTabContent = document.getElementById('settingsTabContent');
-  const auditTabContent = document.getElementById('auditTabContent');
-
-  if (btnTabSettings && btnTabAudit && settingsTabContent && auditTabContent) {
-    btnTabSettings.addEventListener('click', () => {
-      btnTabSettings.classList.add('active');
-      btnTabSettings.style.color = '#0f172a';
-      btnTabSettings.style.borderBottomColor = '#0f172a';
-      btnTabSettings.style.fontWeight = '600';
-
-      btnTabAudit.classList.remove('active');
-      btnTabAudit.style.color = '#64748b';
-      btnTabAudit.style.borderBottomColor = 'transparent';
-      btnTabAudit.style.fontWeight = '500';
-
-      settingsTabContent.style.display = 'flex';
-      auditTabContent.style.display = 'none';
-      if (saveBtn) saveBtn.style.display = 'block';
-    });
-
-    btnTabAudit.addEventListener('click', () => {
-      btnTabAudit.classList.add('active');
-      btnTabAudit.style.color = '#0f172a';
-      btnTabAudit.style.borderBottomColor = '#0f172a';
-      btnTabAudit.style.fontWeight = '600';
-
-      btnTabSettings.classList.remove('active');
-      btnTabSettings.style.color = '#64748b';
-      btnTabSettings.style.borderBottomColor = 'transparent';
-      btnTabSettings.style.fontWeight = '500';
-
-      settingsTabContent.style.display = 'none';
-      auditTabContent.style.display = 'flex';
-      if (saveBtn) saveBtn.style.display = 'none';
+    // Load global settings
+    chrome.storage.local.get(['hvel_stamp_mode', 'hvel_verify_received'], (result) => {
+      currentMode = result.hvel_stamp_mode || 'with_link';
+      applyModeUI(currentMode);
       
-      updateAuditUI();
-
-      chrome.runtime.sendMessage({ action: 'getAuditLogs' }, (res) => {
-        if (res && res.success) {
-          updateAuditUI();
-        }
-      });
+      const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
+      if (verifyCheckbox) {
+        verifyCheckbox.checked = !!result.hvel_verify_received;
+      }
     });
-  }
 
-  const btnClearAudit = document.getElementById('btnClearAudit');
-  if (btnClearAudit) {
-    btnClearAudit.addEventListener('click', () => {
-      chrome.storage.local.set({
-        hvel_stats_sent_stamped_link: 0,
-        hvel_stats_sent_stamped_hash: 0,
-        hvel_stats_sent_unstamped: 0,
-        hvel_stats_received_stamped: 0,
-        hvel_stats_received_unstamped: 0,
-        hvel_audit_log: []
-      }, () => {
+    const linkCard = document.getElementById('optionLink');
+    const hashCard = document.getElementById('optionHash');
+    const saveBtn = document.getElementById('saveBtn');
+    const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
+
+    if (linkCard) {
+      linkCard.addEventListener('click', () => selectMode('with_link'));
+    }
+    if (hashCard) {
+      hashCard.addEventListener('click', () => selectMode('hash_only'));
+    }
+    if (verifyCheckbox) {
+      verifyCheckbox.addEventListener('change', saveSettings);
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener('click', saveSettings);
+    }
+
+    // View tab switching (Settings vs Audit Log)
+    const btnTabSettings = document.getElementById('btnTabSettings');
+    const btnTabAudit = document.getElementById('btnTabAudit');
+    const settingsTabContent = document.getElementById('settingsTabContent');
+    const auditTabContent = document.getElementById('auditTabContent');
+
+    if (btnTabSettings && btnTabAudit && settingsTabContent && auditTabContent) {
+      btnTabSettings.addEventListener('click', () => {
+        btnTabSettings.classList.add('active');
+        btnTabSettings.style.color = '#0f172a';
+        btnTabSettings.style.borderBottomColor = '#0f172a';
+        btnTabSettings.style.fontWeight = '600';
+
+        btnTabAudit.classList.remove('active');
+        btnTabAudit.style.color = '#64748b';
+        btnTabAudit.style.borderBottomColor = 'transparent';
+        btnTabAudit.style.fontWeight = '500';
+
+        settingsTabContent.style.display = 'flex';
+        auditTabContent.style.display = 'none';
+        if (saveBtn) saveBtn.style.display = 'block';
+      });
+
+      btnTabAudit.addEventListener('click', () => {
+        btnTabAudit.classList.add('active');
+        btnTabAudit.style.color = '#0f172a';
+        btnTabAudit.style.borderBottomColor = '#0f172a';
+        btnTabAudit.style.fontWeight = '600';
+
+        btnTabSettings.classList.remove('active');
+        btnTabSettings.style.color = '#64748b';
+        btnTabSettings.style.borderBottomColor = 'transparent';
+        btnTabSettings.style.fontWeight = '500';
+
+        settingsTabContent.style.display = 'none';
+        auditTabContent.style.display = 'flex';
+        if (saveBtn) saveBtn.style.display = 'none';
+        
         updateAuditUI();
-        chrome.runtime.sendMessage({ action: 'clearAuditLogs' });
-      });
-    });
-  }
 
-  // Authentication UI bindings
-  initAuthUI();
-  checkAuthStatus();
+        chrome.runtime.sendMessage({ action: 'getAuditLogs', siteType: currentSiteType }, (res) => {
+          if (res && res.success) {
+            updateAuditUI();
+          }
+        });
+      });
+    }
+
+    const btnClearAudit = document.getElementById('btnClearAudit');
+    if (btnClearAudit) {
+      btnClearAudit.addEventListener('click', () => {
+        const prefix = currentSiteType;
+        chrome.storage.local.set({
+          [`${prefix}_hvel_stats_sent_stamped_link`]: 0,
+          [`${prefix}_hvel_stats_sent_stamped_hash`]: 0,
+          [`${prefix}_hvel_stats_sent_unstamped`]: 0,
+          [`${prefix}_hvel_stats_received_stamped`]: 0,
+          [`${prefix}_hvel_stats_received_unstamped`]: 0,
+          [`${prefix}_hvel_audit_log`]: []
+        }, () => {
+          updateAuditUI();
+          chrome.runtime.sendMessage({ action: 'clearAuditLogs', siteType: currentSiteType });
+        });
+      });
+    }
+
+    // Authentication UI bindings
+    initAuthUI();
+    checkAuthStatus();
+  });
 });
+
+function updateSiteTypeUI() {
+  const brandSub = document.getElementById('brandSub');
+  const statusDot = document.getElementById('statusDot');
+  const emailInput = document.getElementById('authEmail');
+  const footerText = document.querySelector('.footer-text');
+
+  if (currentSiteType === 'outlook') {
+    if (brandSub) brandSub.innerText = 'Attest Outlook Profile';
+    if (statusDot) {
+      statusDot.setAttribute('title', 'Active on Outlook');
+      statusDot.style.background = '#0078d4'; // Outlook Blue
+    }
+    if (emailInput) {
+      emailInput.placeholder = 'you@outlook.com';
+    }
+    if (footerText) {
+      footerText.innerText = 'v1.0.0 · Active on Outlook';
+    }
+  } else {
+    if (brandSub) brandSub.innerText = 'Attest Gmail Profile';
+    if (statusDot) {
+      statusDot.setAttribute('title', 'Active on Gmail');
+      statusDot.style.background = '#10b981'; // Gmail Active Green
+    }
+    if (emailInput) {
+      emailInput.placeholder = 'you@gmail.com';
+    }
+    if (footerText) {
+      footerText.innerText = 'v1.0.0 · Active on Gmail';
+    }
+  }
+}
 
 function selectMode(mode) {
   currentMode = mode;
@@ -210,24 +264,38 @@ function switchTab(tab) {
 }
 
 function checkAuthStatus() {
+  const prefix = currentSiteType;
   chrome.storage.local.get(
-    ['hvel_auth_email', 'hvel_auth_token', 'hvel_plan', 'hvel_usage', 'hvel_plan_details'],
+    [
+      `${prefix}_hvel_auth_email`,
+      `${prefix}_hvel_auth_token`,
+      `${prefix}_hvel_plan`,
+      `${prefix}_hvel_usage`,
+      `${prefix}_hvel_plan_details`
+    ],
     (result) => {
       const authView = document.getElementById('authView');
       const mainView = document.getElementById('mainView');
       const saveBtn = document.getElementById('saveBtn');
 
-      if (result.hvel_auth_token && result.hvel_auth_email) {
+      const email = result[`${prefix}_hvel_auth_email`];
+      const token = result[`${prefix}_hvel_auth_token`];
+      const plan = result[`${prefix}_hvel_plan`];
+      const usage = result[`${prefix}_hvel_usage`];
+      const planDetails = result[`${prefix}_hvel_plan_details`];
+
+      if (token && email) {
         authView.style.display = 'none';
         mainView.style.display = 'block';
         if (saveBtn) saveBtn.style.display = 'block';
 
-        updateAccountUI(result.hvel_auth_email, result.hvel_plan, result.hvel_usage, result.hvel_plan_details);
+        updateAccountUI(email, plan, usage, planDetails);
 
         // Fetch fresh plan status in background
         chrome.runtime.sendMessage({
           action: 'getPlanStatus',
-          email: result.hvel_auth_email
+          email: email,
+          siteType: currentSiteType
         }, (res) => {
           if (res && res.success) {
             updateAccountUI(res.email, res.plan, res.usage, res.planDetails);
@@ -235,7 +303,7 @@ function checkAuthStatus() {
         });
 
         // Fetch fresh audit logs in background
-        chrome.runtime.sendMessage({ action: 'getAuditLogs' }, (res) => {
+        chrome.runtime.sendMessage({ action: 'getAuditLogs', siteType: currentSiteType }, (res) => {
           if (res && res.success) {
             updateAuditUI();
           }
@@ -339,7 +407,8 @@ function handleAuthSubmit() {
   chrome.runtime.sendMessage({
     action,
     email,
-    password
+    password,
+    siteType: currentSiteType
   }, (res) => {
     authSubmitBtn.disabled = false;
     authSubmitBtn.innerText = activeTab === 'login' ? 'Sign In' : 'Create Account';
@@ -354,6 +423,18 @@ function handleAuthSubmit() {
   });
 }
 
+// Update the Brand Sub header tag in HTML too
+document.addEventListener('DOMContentLoaded', () => {
+  const brand = document.querySelector('.brand');
+  if (brand) {
+    // Add id="brandSub" to brand-sub class div if not present
+    const sub = brand.querySelector('.brand-sub');
+    if (sub && !sub.id) {
+      sub.id = 'brandSub';
+    }
+  }
+});
+
 function handleLogout() {
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
@@ -361,7 +442,7 @@ function handleLogout() {
     logoutBtn.innerText = 'Logging out...';
   }
 
-  chrome.runtime.sendMessage({ action: 'logout' }, (res) => {
+  chrome.runtime.sendMessage({ action: 'logout', siteType: currentSiteType }, (res) => {
     if (logoutBtn) {
       logoutBtn.disabled = false;
       logoutBtn.innerText = 'Log Out';
@@ -371,16 +452,17 @@ function handleLogout() {
 }
 
 function updateAuditUI() {
+  const prefix = currentSiteType;
   chrome.storage.local.get([
-    'hvel_stats_sent_stamped_link',
-    'hvel_stats_sent_stamped_hash',
-    'hvel_stats_sent_unstamped',
-    'hvel_stats_received_stamped',
-    'hvel_stats_received_unstamped',
-    'hvel_audit_log'
+    `${prefix}_hvel_stats_sent_stamped_link`,
+    `${prefix}_hvel_stats_sent_stamped_hash`,
+    `${prefix}_hvel_stats_sent_unstamped`,
+    `${prefix}_hvel_stats_received_stamped`,
+    `${prefix}_hvel_stats_received_unstamped`,
+    `${prefix}_hvel_audit_log`
   ], (res) => {
-    const linkSent = res.hvel_stats_sent_stamped_link || 0;
-    const hashSent = res.hvel_stats_sent_stamped_hash || 0;
+    const linkSent = res[`${prefix}_hvel_stats_sent_stamped_link`] || 0;
+    const hashSent = res[`${prefix}_hvel_stats_sent_stamped_hash`] || 0;
     const totalSentStamped = linkSent + hashSent;
 
     const elSentStamped = document.getElementById('statSentStamped');
@@ -389,14 +471,14 @@ function updateAuditUI() {
     const elRecvUnstamped = document.getElementById('statRecvUnstamped');
 
     if (elSentStamped) elSentStamped.innerText = totalSentStamped;
-    if (elSentUnstamped) elSentUnstamped.innerText = res.hvel_stats_sent_unstamped || 0;
-    if (elRecvStamped) elRecvStamped.innerText = res.hvel_stats_received_stamped || 0;
-    if (elRecvUnstamped) elRecvUnstamped.innerText = res.hvel_stats_received_unstamped || 0;
+    if (elSentUnstamped) elSentUnstamped.innerText = res[`${prefix}_hvel_stats_sent_unstamped`] || 0;
+    if (elRecvStamped) elRecvStamped.innerText = res[`${prefix}_hvel_stats_received_stamped`] || 0;
+    if (elRecvUnstamped) elRecvUnstamped.innerText = res[`${prefix}_hvel_stats_received_unstamped`] || 0;
 
     const logList = document.getElementById('auditLogList');
     if (!logList) return;
 
-    const auditLog = res.hvel_audit_log || [];
+    const auditLog = res[`${prefix}_hvel_audit_log`] || [];
     if (auditLog.length === 0) {
       logList.innerHTML = '<div style="font-size: 11px; color: #64748b; padding: 24px; text-align: center;">No audit history found</div>';
       return;

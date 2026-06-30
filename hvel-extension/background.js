@@ -1,5 +1,47 @@
 let API_BASE_URL = 'https://api.attest.page';
 
+// Helper to determine site context (gmail vs outlook)
+function getSiteType(request, sender) {
+  if (request && request.siteType) return request.siteType;
+  if (sender && sender.tab && sender.tab.url) {
+    const url = sender.tab.url;
+    if (
+      url.includes('outlook.live.com') ||
+      url.includes('outlook.office.com') ||
+      url.includes('outlook.office365.com') ||
+      url.includes('outlook.cloud.microsoft') ||
+      url.includes('mail.dialog.office.com')
+    ) {
+      return 'outlook';
+    }
+  }
+  return 'gmail';
+}
+
+function getPrefixedValues(siteType, keys, callback) {
+  const prefixedKeys = keys.map(k => `${siteType}_${k}`);
+  chrome.storage.local.get(prefixedKeys, (res) => {
+    const result = {};
+    keys.forEach(k => {
+      result[k] = res[`${siteType}_${k}`];
+    });
+    callback(result);
+  });
+}
+
+function setPrefixedValues(siteType, obj, callback) {
+  const prefixedObj = {};
+  for (let k in obj) {
+    prefixedObj[`${siteType}_${k}`] = obj[k];
+  }
+  chrome.storage.local.set(prefixedObj, callback);
+}
+
+function removePrefixedValues(siteType, keys, callback) {
+  const prefixedKeys = keys.map(k => `${siteType}_${k}`);
+  chrome.storage.local.remove(prefixedKeys, callback);
+}
+
 // Dynamically check if the local server is running on port 5000; if so, route requests to it first
 function checkBackendUrl() {
   fetch('http://localhost:5000/health')
@@ -22,9 +64,9 @@ checkBackendUrl();
 setInterval(checkBackendUrl, 10000);
 
 // ─── PLAN STATUS: fetch on startup and cache for 10 mins ───────────────────────
-function fetchAndCachePlanStatus(email) {
-  if (!email) return;
-  chrome.storage.local.get(['hvel_auth_token'], (res) => {
+function fetchAndCachePlanStatus(email, siteType) {
+  if (!email || !siteType) return;
+  getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
     const headers = { 'Content-Type': 'application/json' };
     if (res.hvel_auth_token) {
       headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -33,13 +75,13 @@ function fetchAndCachePlanStatus(email) {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          chrome.storage.local.set({
+          setPrefixedValues(siteType, {
             hvel_plan: data.plan,
             hvel_plan_details: data.planDetails,
             hvel_usage: data.usage,
             hvel_plan_cached_at: Date.now()
           });
-          console.log(`[HVEL BG] 📊 Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
+          console.log(`[HVEL BG] 📊 [${siteType}] Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
         }
       })
       .catch(() => {});
@@ -48,6 +90,8 @@ function fetchAndCachePlanStatus(email) {
 
 // Listen for messages from the content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const siteType = getSiteType(request, sender);
+
   if (request.action === 'heartbeat') {
     fetch(`${API_BASE_URL}/api/heartbeat`, {
       method: 'POST',
@@ -67,11 +111,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        chrome.storage.local.set({
+        setPrefixedValues(siteType, {
           hvel_auth_email: data.email,
           hvel_auth_token: data.token
         }, () => {
-          fetchAndCachePlanStatus(data.email);
+          fetchAndCachePlanStatus(data.email, siteType);
           sendResponse(data);
         });
       } else {
@@ -91,11 +135,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        chrome.storage.local.set({
+        setPrefixedValues(siteType, {
           hvel_auth_email: data.email,
           hvel_auth_token: data.token
         }, () => {
-          fetchAndCachePlanStatus(data.email);
+          fetchAndCachePlanStatus(data.email, siteType);
           sendResponse(data);
         });
       } else {
@@ -107,7 +151,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'logout') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       const headers = {};
       if (res.hvel_auth_token) {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -117,7 +161,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         headers
       }).catch(() => {});
       
-      chrome.storage.local.remove([
+      removePrefixedValues(siteType, [
         'hvel_auth_email',
         'hvel_auth_token',
         'hvel_plan',
@@ -138,7 +182,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'updateProfile') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       const headers = { 'Content-Type': 'application/json' };
       if (res.hvel_auth_token) {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -156,9 +200,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyEmail') {
-    console.log("Received verification request for type:", request.type);
+    console.log(`[HVEL BG] Received verification request for ${siteType} type:`, request.type);
     
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       const headers = { 'Content-Type': 'application/json' };
       if (res.hvel_auth_token) {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -265,7 +309,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const email = request.email;
     if (!email) { sendResponse({ success: false, error: 'No email' }); return false; }
     
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       const headers = { 'Content-Type': 'application/json' };
       if (res.hvel_auth_token) {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -275,7 +319,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            chrome.storage.local.set({
+            setPrefixedValues(siteType, {
               hvel_plan: data.plan,
               hvel_plan_details: data.planDetails,
               hvel_usage: data.usage,
@@ -291,7 +335,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // ─── PLAN: lightweight pre-check before an action ────────────────────────
   if (request.action === 'checkPlanQuota') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       const headers = { 'Content-Type': 'application/json' };
       if (res.hvel_auth_token) {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
@@ -311,13 +355,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // ─── PLAN: trigger fetch + cache on profile sync ────────────────────────
   if (request.action === 'syncPlan') {
-    fetchAndCachePlanStatus(request.email);
+    fetchAndCachePlanStatus(request.email, siteType);
     return false;
   }
 
   // ─── AUDIT LOG SYNC ACTIONS ──────────────────────────────────────────────
   if (request.action === 'getAuditLogs') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       if (!res.hvel_auth_token) {
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
@@ -330,7 +374,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          chrome.storage.local.set({
+          setPrefixedValues(siteType, {
             hvel_stats_sent_stamped_link: data.stats.sent_stamped_link || 0,
             hvel_stats_sent_stamped_hash: data.stats.sent_stamped_hash || 0,
             hvel_stats_sent_unstamped: data.stats.sent_unstamped || 0,
@@ -350,7 +394,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'logAuditEvent') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       if (!res.hvel_auth_token) {
         return;
       }
@@ -370,7 +414,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'clearAuditLogs') {
-    chrome.storage.local.get(['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
       if (!res.hvel_auth_token) {
         sendResponse({ success: false });
         return;
