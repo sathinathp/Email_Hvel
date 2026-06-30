@@ -148,17 +148,37 @@ async function planGuard(feature, req, res, next) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
     const authEmail = sessionRes.rows[0].email.toLowerCase();
-    if (authEmail !== email) {
+    
+    // Check if the requested email is either authEmail itself or a linked alias of authEmail
+    let isIdentityMatch = authEmail === email;
+    if (!isIdentityMatch) {
+      const aliasCheck = await pool.query(
+        'SELECT 1 FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
+        [authEmail, email]
+      );
+      if (aliasCheck.rows.length > 0) {
+        isIdentityMatch = true;
+      }
+    }
+
+    if (!isIdentityMatch) {
       return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${email}).` });
+    }
+
+    // Resolve email to primary_email if it is an alias
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [email]);
+    let targetEmail = email;
+    if (aliasRes.rows.length > 0) {
+      targetEmail = aliasRes.rows[0].primary_email.toLowerCase();
     }
 
     // Ensure user row exists (auto-create as free)
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free')
        ON CONFLICT (email) DO NOTHING`,
-      [email]
+      [targetEmail]
     );
-    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [email]);
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [targetEmail]);
     const user = userRes.rows[0];
     const plan = PLANS[user.plan] || PLANS.free;
 
@@ -174,7 +194,7 @@ async function planGuard(feature, req, res, next) {
           used: currentCount,
           limit: plan.gmail_accounts_limit,
           message: `Your ${user.plan} plan allows up to ${plan.gmail_accounts_limit} Gmail account(s). Upgrade to add more.`,
-          upgrade_url: 'https://hvel.io/pricing'
+          upgrade_url: 'https://attest.page/pricing'
         });
       }
     }
@@ -186,7 +206,7 @@ async function planGuard(feature, req, res, next) {
           feature: 'audit_dashboard',
           plan: user.plan,
           message: 'Advanced audit dashboard requires the Professional plan.',
-          upgrade_url: 'https://hvel.io/pricing'
+          upgrade_url: 'https://attest.page/pricing'
         });
       }
     }
@@ -280,6 +300,12 @@ async function initDB() {
       type VARCHAR(50) NOT NULL,
       email VARCHAR(255) NOT NULL,
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS user_aliases (
+      id SERIAL PRIMARY KEY,
+      primary_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+      alias_email VARCHAR(255) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
   try {
@@ -493,9 +519,26 @@ app.post('/api/verify', async (req, res) => {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
     const authEmail = sessionRes.rows[0].email.toLowerCase();
-    if (authEmail !== senderEmail.toLowerCase()) {
+    
+    // Check if senderEmail is either authEmail itself or a linked alias of authEmail
+    let isIdentityMatch = authEmail === senderEmail.toLowerCase();
+    if (!isIdentityMatch) {
+      const aliasCheck = await pool.query(
+        'SELECT 1 FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
+        [authEmail, senderEmail.toLowerCase()]
+      );
+      if (aliasCheck.rows.length > 0) {
+        isIdentityMatch = true;
+      }
+    }
+
+    if (!isIdentityMatch) {
       return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match the sender email (${senderEmail}).` });
     }
+
+    // Resolve senderEmail to primary account for logging/quota tracking if it's an alias
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [senderEmail.toLowerCase()]);
+    const quotaOwnerEmail = aliasRes.rows.length > 0 ? aliasRes.rows[0].primary_email.toLowerCase() : senderEmail.toLowerCase();
 
     const verificationId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     const result = await pool.query(
@@ -504,7 +547,7 @@ app.post('/api/verify', async (req, res) => {
     );
 
     // Log / increment the user's daily verification quota
-    await incrementQuota(senderEmail.toLowerCase(), 'totp_verify');
+    await incrementQuota(quotaOwnerEmail, 'totp_verify');
 
     const host = req.get('host') || 'api.attest.page';
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
@@ -1160,16 +1203,36 @@ app.get('/api/plan/status', async (req, res) => {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
     const authEmail = sessionRes.rows[0].email.toLowerCase();
-    if (authEmail !== email) {
+    
+    // Check identity (matches or is linked alias)
+    let isIdentityMatch = authEmail === email;
+    if (!isIdentityMatch) {
+      const aliasCheck = await pool.query(
+        'SELECT 1 FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
+        [authEmail, email]
+      );
+      if (aliasCheck.rows.length > 0) {
+        isIdentityMatch = true;
+      }
+    }
+
+    if (!isIdentityMatch) {
       return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${email}).` });
+    }
+
+    // Resolve targetEmail to primary account if it is an alias
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [email]);
+    let targetEmail = email;
+    if (aliasRes.rows.length > 0) {
+      targetEmail = aliasRes.rows[0].primary_email.toLowerCase();
     }
 
     // Auto-create user as free if not exists
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
-      [email]
+      [targetEmail]
     );
-    const userRes = await pool.query('SELECT plan, gmail_accounts_count, plan_expires_at FROM users WHERE email = $1', [email]);
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count, plan_expires_at FROM users WHERE email = $1', [targetEmail]);
     const user = userRes.rows[0];
     const planKey = user.plan || 'free';
     const plan = PLANS[planKey] || PLANS.free;
@@ -1178,7 +1241,7 @@ app.get('/api/plan/status', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const quotaRes = await pool.query(
       `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
-      [email, today]
+      [targetEmail, today]
     );
     const usedToday = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
 
@@ -1202,10 +1265,157 @@ app.get('/api/plan/status', async (req, res) => {
         gmail_accounts_count: parseInt(user.gmail_accounts_count) || 1,
       },
       plan_expires_at: user.plan_expires_at || null,
-      upgrade_url: planKey === 'free' ? 'https://hvel.io/pricing' : null
+      upgrade_url: planKey === 'free' ? 'https://attest.page/pricing' : null
     });
   } catch (err) {
     console.error('[PLAN API] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── EMAIL ALIAS MANAGEMENT ENDPOINTS ───────────────────────────────────────
+
+// GET /api/aliases — list all linked email aliases for the logged-in user
+app.get('/api/aliases', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+
+    const aliasesRes = await pool.query(
+      'SELECT alias_email, created_at FROM user_aliases WHERE LOWER(primary_email) = $1 ORDER BY created_at ASC',
+      [authEmail]
+    );
+
+    res.json({
+      success: true,
+      aliases: aliasesRes.rows.map(r => r.alias_email)
+    });
+  } catch (err) {
+    console.error('[ALIASES API] GET Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/aliases — link a new email alias (limit: 5 accounts total for Professional users)
+app.post('/api/aliases', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  const aliasEmail = (req.body.aliasEmail || '').trim().toLowerCase();
+  if (!aliasEmail || !aliasEmail.includes('@')) {
+    return res.status(400).json({ error: 'VALID_EMAIL_REQUIRED', message: 'A valid email address is required.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+
+    // Check if the primary account is on the Professional plan
+    const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
+    const planKey = userRes.rows[0]?.plan || 'free';
+    if (planKey !== 'professional') {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        message: 'Only Professional plan users can link email aliases to share their plan. Please upgrade your plan.'
+      });
+    }
+
+    // Check current count of aliases (max 5 accounts total = 1 primary + 4 aliases)
+    const countRes = await pool.query('SELECT COUNT(*) FROM user_aliases WHERE LOWER(primary_email) = $1', [authEmail]);
+    const currentCount = parseInt(countRes.rows[0].count);
+    if (currentCount >= 4) {
+      return res.status(400).json({
+        error: 'ALIAS_LIMIT_REACHED',
+        message: 'You have reached the maximum limit of 5 total accounts (1 primary + 4 linked aliases) on your Professional plan.'
+      });
+    }
+
+    // Check if the alias email is already registered as a primary email or linked alias
+    const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail]);
+    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail]);
+    if (existingUser.rows.length > 0 && aliasEmail !== authEmail) {
+      return res.status(400).json({
+        error: 'EMAIL_ALREADY_REGISTERED',
+        message: 'This email is already registered as a separate Attest account.'
+      });
+    }
+    if (existingAlias.rows.length > 0) {
+      return res.status(400).json({
+        error: 'ALIAS_ALREADY_LINKED',
+        message: 'This email is already linked as an alias to an Attest account.'
+      });
+    }
+
+    // Add the alias
+    await pool.query(
+      'INSERT INTO user_aliases (primary_email, alias_email) VALUES ($1, $2)',
+      [authEmail, aliasEmail]
+    );
+
+    // Update count in users table
+    await pool.query(
+      'UPDATE users SET gmail_accounts_count = gmail_accounts_count + 1 WHERE email = $1',
+      [authEmail]
+    );
+
+    res.json({ success: true, message: `Successfully linked ${aliasEmail} as an alias.` });
+  } catch (err) {
+    console.error('[ALIASES API] POST Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/aliases — unlink/delete an email alias
+app.delete('/api/aliases', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  const aliasEmail = (req.body.aliasEmail || '').trim().toLowerCase();
+  if (!aliasEmail) {
+    return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required to unlink.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+
+    const deleteRes = await pool.query(
+      'DELETE FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
+      [authEmail, aliasEmail]
+    );
+
+    if (deleteRes.rowCount > 0) {
+      await pool.query(
+        'UPDATE users SET gmail_accounts_count = GREATEST(1, gmail_accounts_count - 1) WHERE email = $1',
+        [authEmail]
+      );
+      res.json({ success: true, message: `Successfully unlinked ${aliasEmail}.` });
+    } else {
+      res.status(404).json({ error: 'ALIAS_NOT_FOUND', message: 'This alias was not found linked to your account.' });
+    }
+  } catch (err) {
+    console.error('[ALIASES API] DELETE Error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -1359,15 +1569,35 @@ app.post('/api/plan/check-quota', async (req, res) => {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
     const authEmail = sessionRes.rows[0].email.toLowerCase();
-    if (authEmail !== emailLower) {
+    
+    // Check identity (matches or is linked alias)
+    let isIdentityMatch = authEmail === emailLower;
+    if (!isIdentityMatch) {
+      const aliasCheck = await pool.query(
+        'SELECT 1 FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
+        [authEmail, emailLower]
+      );
+      if (aliasCheck.rows.length > 0) {
+        isIdentityMatch = true;
+      }
+    }
+
+    if (!isIdentityMatch) {
       return res.status(403).json({ error: 'IDENTITY_MISMATCH', message: `Active Attest session (${authEmail}) does not match this email (${emailLower}).` });
+    }
+
+    // Resolve targetEmail to primary account if it is an alias
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+    let targetEmail = emailLower;
+    if (aliasRes.rows.length > 0) {
+      targetEmail = aliasRes.rows[0].primary_email.toLowerCase();
     }
 
     await pool.query(
       `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
-      [emailLower]
+      [targetEmail]
     );
-    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [emailLower]);
+    const userRes = await pool.query('SELECT plan, gmail_accounts_count FROM users WHERE email = $1', [targetEmail]);
     const user = userRes.rows[0];
     const plan = PLANS[user.plan] || PLANS.free;
 
@@ -1380,7 +1610,7 @@ app.post('/api/plan/check-quota', async (req, res) => {
       const today = new Date().toISOString().split('T')[0];
       const quotaRes = await pool.query(
         `SELECT count FROM plan_quota_log WHERE email = $1 AND feature = 'totp_verify' AND log_date = $2`,
-        [emailLower, today]
+        [targetEmail, today]
       );
       used = quotaRes.rows.length > 0 ? parseInt(quotaRes.rows[0].count) : 0;
       limit = plan.totp_daily_limit;
@@ -1410,7 +1640,7 @@ app.post('/api/plan/check-quota', async (req, res) => {
       used: used || 0,
       limit: limit === Infinity ? 'unlimited' : limit,
       reason: allowed ? null : reason,
-      upgrade_url: allowed ? null : 'https://hvel.io/pricing'
+      upgrade_url: allowed ? null : 'https://attest.page/pricing'
     });
   } catch (err) {
     console.error('[PLAN QUOTA CHECK] Error:', err);

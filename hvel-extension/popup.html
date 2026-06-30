@@ -214,7 +214,7 @@
       </div>
       <div style="font-size: 11px; color: #475569;" id="userUsageSpan">Daily verifications: checking...</div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-        <a href="https://hvel.io/pricing" target="_blank" id="upgradeBtn" style="font-size: 11px; font-weight: 600; color: #10b981; text-decoration: none; display: none;">Upgrade Plan ↗</a>
+        <a href="https://attest.page/pricing" target="_blank" id="upgradeBtn" style="font-size: 11px; font-weight: 600; color: #10b981; text-decoration: none; display: none;">Upgrade Plan ↗</a>
         <span id="proActiveLabel" style="font-size: 11px; font-weight: 600; color: #64748b; display: none;">Professional Account</span>
         <button id="logoutBtn" style="background: none; border: none; font-size: 11px; color: #ef4444; font-weight: 600; cursor: pointer; padding: 0; font-family: inherit;">Log Out</button>
     </div>
@@ -222,6 +222,7 @@
     <!-- View Tabs Navigation -->
     <div style="display: flex; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; gap: 4px;">
       <button class="view-tab-btn active" id="btnTabSettings" style="flex: 1; padding: 8px; border: none; background: none; font-family: inherit; font-size: 11px; font-weight: 600; color: #0f172a; cursor: pointer; border-bottom: 2px solid #0f172a; transition: all 0.2s ease; outline: none;">Settings</button>
+      <button class="view-tab-btn" id="btnTabAliases" style="flex: 1; padding: 8px; border: none; background: none; font-family: inherit; font-size: 11px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; outline: none;">Linked Accounts</button>
       <button class="view-tab-btn" id="btnTabAudit" style="flex: 1; padding: 8px; border: none; background: none; font-family: inherit; font-size: 11px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; outline: none;">Audit Log</button>
     </div>
 
@@ -276,6 +277,37 @@
           <input type="checkbox" id="verifyReceivedCheckbox">
           <span class="slider"></span>
         </label>
+      </div>
+    </div>
+
+    <!-- Linked Accounts (Aliases) Tab Content -->
+    <div id="aliasesTabContent" style="display: none; flex-direction: column; gap: 12px;">
+      <!-- If Free Plan (Locked Alert) -->
+      <div id="aliasesLockedArea" style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; text-align: center; display: none;">
+        <span style="font-size: 20px;">🔒</span>
+        <div style="font-size: 12px; font-weight: 700; color: #c2410c;">Professional Feature</div>
+        <div style="font-size: 11px; color: #7c2d12; line-height: 1.4;">Only Professional plan users can link up to 5 email accounts (Gmail or Outlook) to share their plan.</div>
+        <a href="https://attest.page/pricing" target="_blank" class="save-btn" style="text-decoration: none; padding: 8px 12px; font-size: 11px; margin-top: 4px; display: inline-block; text-align: center;">Upgrade Plan</a>
+      </div>
+
+      <!-- If Professional Plan (Active Area) -->
+      <div id="aliasesActiveArea" style="display: none; flex-direction: column; gap: 12px;">
+        <div>
+          <div class="section-label" style="margin-bottom: 4px;">Link Secondary Email</div>
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Add up to 4 Gmail/Outlook email addresses to share this subscription.</div>
+          <div style="display: flex; gap: 6px;">
+            <input type="email" id="aliasEmailInput" placeholder="secondary@outlook.com" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 11px; outline: none;" />
+            <button id="btnAddAlias" style="background: #0f172a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Link</button>
+          </div>
+          <div id="aliasError" style="font-size: 10px; color: #ef4444; margin-top: 4px; display: none;"></div>
+        </div>
+
+        <div>
+          <div class="section-label" style="margin-bottom: 6px;">Linked Emails (<span id="aliasCount">0</span>/4)</div>
+          <div id="aliasList" style="border: 1px solid #e2e8f0; border-radius: 6px; max-height: 125px; overflow-y: auto; background: #ffffff; display: flex; flex-direction: column;">
+            <div style="font-size: 11px; color: #64748b; padding: 12px; text-align: center;">No linked email accounts found</div>
+          </div>
+        </div>
       </div>
     </div>
 

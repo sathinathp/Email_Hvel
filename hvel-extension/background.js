@@ -431,4 +431,65 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  // ─── EMAIL ALIAS SYNC ACTIONS ────────────────────────────────────────────
+  if (request.action === 'getAliases') {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false, error: 'Not authenticated' });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/aliases`, {
+        headers: {
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        }
+      })
+      .then(r => r.json())
+      .then(data => sendResponse(data))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    });
+    return true;
+  }
+
+  if (request.action === 'addAlias') {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false, error: 'Not authenticated' });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/aliases`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        },
+        body: JSON.stringify({ aliasEmail: request.aliasEmail })
+      })
+      .then(r => r.json())
+      .then(data => sendResponse(data))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    });
+    return true;
+  }
+
+  if (request.action === 'deleteAlias') {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false, error: 'Not authenticated' });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/aliases`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        },
+        body: JSON.stringify({ aliasEmail: request.aliasEmail })
+      })
+      .then(r => r.json())
+      .then(data => sendResponse(data))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    });
+    return true;
+  }
 });

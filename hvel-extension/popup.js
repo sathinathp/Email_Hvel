@@ -51,18 +51,25 @@ document.addEventListener('DOMContentLoaded', () => {
       saveBtn.addEventListener('click', saveSettings);
     }
 
-    // View tab switching (Settings vs Audit Log)
+    // View tab switching (Settings vs Linked Accounts vs Audit Log)
     const btnTabSettings = document.getElementById('btnTabSettings');
+    const btnTabAliases = document.getElementById('btnTabAliases');
     const btnTabAudit = document.getElementById('btnTabAudit');
     const settingsTabContent = document.getElementById('settingsTabContent');
+    const aliasesTabContent = document.getElementById('aliasesTabContent');
     const auditTabContent = document.getElementById('auditTabContent');
 
-    if (btnTabSettings && btnTabAudit && settingsTabContent && auditTabContent) {
+    if (btnTabSettings && btnTabAliases && btnTabAudit && settingsTabContent && aliasesTabContent && auditTabContent) {
       btnTabSettings.addEventListener('click', () => {
         btnTabSettings.classList.add('active');
         btnTabSettings.style.color = '#0f172a';
         btnTabSettings.style.borderBottomColor = '#0f172a';
         btnTabSettings.style.fontWeight = '600';
+
+        btnTabAliases.classList.remove('active');
+        btnTabAliases.style.color = '#64748b';
+        btnTabAliases.style.borderBottomColor = 'transparent';
+        btnTabAliases.style.fontWeight = '500';
 
         btnTabAudit.classList.remove('active');
         btnTabAudit.style.color = '#64748b';
@@ -70,8 +77,33 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTabAudit.style.fontWeight = '500';
 
         settingsTabContent.style.display = 'flex';
+        aliasesTabContent.style.display = 'none';
         auditTabContent.style.display = 'none';
         if (saveBtn) saveBtn.style.display = 'block';
+      });
+
+      btnTabAliases.addEventListener('click', () => {
+        btnTabAliases.classList.add('active');
+        btnTabAliases.style.color = '#0f172a';
+        btnTabAliases.style.borderBottomColor = '#0f172a';
+        btnTabAliases.style.fontWeight = '600';
+
+        btnTabSettings.classList.remove('active');
+        btnTabSettings.style.color = '#64748b';
+        btnTabSettings.style.borderBottomColor = 'transparent';
+        btnTabSettings.style.fontWeight = '500';
+
+        btnTabAudit.classList.remove('active');
+        btnTabAudit.style.color = '#64748b';
+        btnTabAudit.style.borderBottomColor = 'transparent';
+        btnTabAudit.style.fontWeight = '500';
+
+        settingsTabContent.style.display = 'none';
+        aliasesTabContent.style.display = 'flex';
+        auditTabContent.style.display = 'none';
+        if (saveBtn) saveBtn.style.display = 'none';
+
+        updateAliasesUI();
       });
 
       btnTabAudit.addEventListener('click', () => {
@@ -85,7 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTabSettings.style.borderBottomColor = 'transparent';
         btnTabSettings.style.fontWeight = '500';
 
+        btnTabAliases.classList.remove('active');
+        btnTabAliases.style.color = '#64748b';
+        btnTabAliases.style.borderBottomColor = 'transparent';
+        btnTabAliases.style.fontWeight = '500';
+
         settingsTabContent.style.display = 'none';
+        aliasesTabContent.style.display = 'none';
         auditTabContent.style.display = 'flex';
         if (saveBtn) saveBtn.style.display = 'none';
         
@@ -94,6 +132,48 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.runtime.sendMessage({ action: 'getAuditLogs', siteType: currentSiteType }, (res) => {
           if (res && res.success) {
             updateAuditUI();
+          }
+        });
+      });
+    }
+
+    // Alias Add binding
+    const btnAddAlias = document.getElementById('btnAddAlias');
+    const aliasEmailInput = document.getElementById('aliasEmailInput');
+    const aliasError = document.getElementById('aliasError');
+
+    if (btnAddAlias && aliasEmailInput) {
+      btnAddAlias.addEventListener('click', () => {
+        const aliasEmail = aliasEmailInput.value.trim();
+        if (aliasError) aliasError.style.display = 'none';
+
+        if (!aliasEmail || !aliasEmail.includes('@')) {
+          if (aliasError) {
+            aliasError.innerText = 'Please enter a valid email address.';
+            aliasError.style.display = 'block';
+          }
+          return;
+        }
+
+        btnAddAlias.disabled = true;
+        btnAddAlias.innerText = 'Linking...';
+
+        chrome.runtime.sendMessage({
+          action: 'addAlias',
+          aliasEmail: aliasEmail,
+          siteType: currentSiteType
+        }, (res) => {
+          btnAddAlias.disabled = false;
+          btnAddAlias.innerText = 'Link';
+
+          if (res && res.success) {
+            aliasEmailInput.value = '';
+            updateAliasesUI();
+          } else {
+            if (aliasError) {
+              aliasError.innerText = res?.error || res?.message || 'Failed to link email alias.';
+              aliasError.style.display = 'block';
+            }
           }
         });
       });
@@ -341,7 +421,7 @@ function updateAccountUI(email, plan, usage, planDetails) {
       planBadge.style.borderColor = '#cbd5e1';
       if (upgradeBtn) {
         upgradeBtn.style.display = 'inline-block';
-        upgradeBtn.href = `https://hvel.io/pricing?email=${encodeURIComponent(email)}`;
+        upgradeBtn.href = `https://attest.page/pricing?email=${encodeURIComponent(email)}`;
       }
       if (proActiveLabel) proActiveLabel.style.display = 'none';
     }
@@ -352,6 +432,9 @@ function updateAccountUI(email, plan, usage, planDetails) {
     const used = usage?.totp_used_today || 0;
     usageSpan.innerText = `Daily verifications: ${used} / ${limit} used`;
   }
+  
+  // Update the aliases view (locked vs active) based on the loaded plan
+  updateAliasesUI();
 }
 
 function showAuthMessage(text, isError = true) {
@@ -523,5 +606,67 @@ function updateAuditUI() {
     });
 
     logList.innerHTML = html;
+  });
+}
+
+function updateAliasesUI() {
+  const prefix = currentSiteType;
+  chrome.storage.local.get([`${prefix}_hvel_plan`], (res) => {
+    const plan = res[`${prefix}_hvel_plan`] || 'free';
+    const lockedArea = document.getElementById('aliasesLockedArea');
+    const activeArea = document.getElementById('aliasesActiveArea');
+
+    if (plan !== 'professional') {
+      if (lockedArea) lockedArea.style.display = 'flex';
+      if (activeArea) activeArea.style.display = 'none';
+    } else {
+      if (lockedArea) lockedArea.style.display = 'none';
+      if (activeArea) activeArea.style.display = 'flex';
+
+      // Load aliases from backend
+      chrome.runtime.sendMessage({ action: 'getAliases', siteType: currentSiteType }, (res) => {
+        const listDiv = document.getElementById('aliasList');
+        const countSpan = document.getElementById('aliasCount');
+        if (!listDiv) return;
+
+        if (res && res.success && res.aliases) {
+          const aliases = res.aliases;
+          if (countSpan) countSpan.innerText = aliases.length;
+
+          if (aliases.length === 0) {
+            listDiv.innerHTML = '<div style="font-size: 11px; color: #64748b; padding: 12px; text-align: center;">No linked email accounts found</div>';
+          } else {
+            listDiv.innerHTML = aliases.map(email => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px;">
+                <span style="font-weight: 500; color: #334155; word-break: break-all; max-width: 180px;">${email}</span>
+                <button class="delete-alias-btn" data-email="${email}" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font-size: 10px; font-family: inherit; padding: 0;">Unlink</button>
+              </div>
+            `).join('');
+
+            // Bind delete button listeners
+            listDiv.querySelectorAll('.delete-alias-btn').forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                const emailToDelete = e.target.getAttribute('data-email');
+                if (confirm(`Are you sure you want to unlink ${emailToDelete}?`)) {
+                  chrome.runtime.sendMessage({
+                    action: 'deleteAlias',
+                    aliasEmail: emailToDelete,
+                    siteType: currentSiteType
+                  }, (deleteRes) => {
+                    if (deleteRes && deleteRes.success) {
+                      updateAliasesUI();
+                    } else {
+                      alert(deleteRes?.error || deleteRes?.message || 'Failed to unlink alias.');
+                    }
+                  });
+                }
+              });
+            });
+          }
+        } else {
+          listDiv.innerHTML = '<div style="font-size: 11px; color: #ef4444; padding: 12px; text-align: center;">Failed to load aliases</div>';
+        }
+      });
+    }
   });
 }
