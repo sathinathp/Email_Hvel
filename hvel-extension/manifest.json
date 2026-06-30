@@ -16,6 +16,11 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
+    "https://outlook.live.com/*",
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*",
+    "https://outlook.cloud.microsoft/*",
+    "https://mail.dialog.office.com/*",
     "https://api.attest.page/*"
   ],
   "background": {
@@ -28,6 +33,22 @@
       ],
       "js": [
         "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://outlook.live.com/*",
+        "https://outlook.office.com/*",
+        "https://outlook.office365.com/*",
+        "https://outlook.cloud.microsoft/*",
+        "https://mail.dialog.office.com/*"
+      ],
+      "js": [
+        "outlook.js"
       ],
       "css": [
         "styles.css"

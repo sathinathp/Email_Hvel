@@ -17,12 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const linkCard = document.getElementById('optionLink');
   const hashCard = document.getElementById('optionHash');
   const saveBtn = document.getElementById('saveBtn');
+  const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
 
   if (linkCard) {
     linkCard.addEventListener('click', () => selectMode('with_link'));
   }
   if (hashCard) {
     hashCard.addEventListener('click', () => selectMode('hash_only'));
+  }
+  if (verifyCheckbox) {
+    verifyCheckbox.addEventListener('change', saveSettings);
   }
   if (saveBtn) {
     saveBtn.addEventListener('click', saveSettings);
@@ -101,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function selectMode(mode) {
   currentMode = mode;
   applyModeUI(mode);
+  saveSettings();
 }
 
 function applyModeUI(mode) {

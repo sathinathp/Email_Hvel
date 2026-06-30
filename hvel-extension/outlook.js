@@ -1,4 +1,4 @@
-console.log("HVEL Content Script loaded into Gmail.");
+console.log("HVEL Content Script loaded into Outlook.");
 
 // Inject animations and styles for premium toasts and button effects
 const style = document.createElement('style');
@@ -8,8 +8,6 @@ style.textContent = `
     }
     @keyframes hvel-shake {
         0%, 100% { transform: translateX(0); }
-        20%, 60% { transform: translateX(-6px); }
-        40%, 80% { transform: translateX(6px); }
     }
     @keyframes hvel-toast-slide {
         from { opacity: 0; transform: translateY(-20px) scale(0.95); }
@@ -28,11 +26,16 @@ style.textContent = `
         70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
+    @keyframes hvel-compose-in {
+        from { opacity: 0; transform: translateX(-8px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
 `;
 document.head.appendChild(style);
 
 // Track in-flight requests to prevent spamming the server
 const pendingRequests = new Set();
+
 
 
 // Cache for checked email verification statuses to optimize API calls
@@ -61,7 +64,7 @@ setInterval(updateProfile, 5 * 60 * 1000); // Sync name/last active every 5m
 sendHeartbeat();
 updateProfile();
 // Keep a cached copy of the authenticated user's email from chrome.storage
-let cachedUserEmail = 'unknown-sender@gmail.com';
+let cachedUserEmail = 'unknown-outlook-sender@outlook.com';
 
 chrome.storage.local.get(['hvel_auth_email'], (res) => {
     if (res && res.hvel_auth_email) {
@@ -71,7 +74,7 @@ chrome.storage.local.get(['hvel_auth_email'], (res) => {
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.hvel_auth_email) {
-        cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
+        cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-outlook-sender@outlook.com';
     }
 });
 
@@ -99,18 +102,17 @@ async function markVerified(email) {
     });
 }
 
-// Extract actual user email and name from Gmail DOM
+// Extract actual user email and name from Outlook DOM
 function getSenderProfile() {
-    const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
-    if (accountBtn) {
-        const label = accountBtn.getAttribute('aria-label') || "";
-        // Format: "Google Account: Name (email@gmail.com)"
-        const nameMatch = label.match(/Google Account:\s*(.*?)\s*\(/);
+    const meBtn = document.querySelector('#O365_MainLink_Me, button[aria-label*="Account manager"], button[title*="Account manager"]');
+    if (meBtn) {
+        const label = meBtn.getAttribute('aria-label') || meBtn.getAttribute('title') || "";
         const emailMatch = label.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+        const nameMatch = label.match(/(?:for|as)\s+([^(\n]+?)\s*(?:\(|$)/);
         
         return {
             email: emailMatch ? emailMatch[0].toLowerCase() : null,
-            name: nameMatch ? nameMatch[1] : null
+            name: nameMatch ? nameMatch[1].trim() : null
         };
     }
     return { email: null, name: null };
@@ -126,11 +128,9 @@ function getSenderEmail() {
     return cachedUserEmail;
 }
 
-// Function to find the recipient of an incoming message (the current user)
 function getCurrentUserEmail() {
     return getSenderEmail();
 }
-
 
 // ─── SILENT MOUSE TRACKING ENGINE ───
 let mousePoints = [];
@@ -139,32 +139,17 @@ document.addEventListener('mousemove', (e) => {
     if (mousePoints.length > 50) mousePoints.shift();
 });
 
-
 // ─── COMPOSE SESSION TRACKING ENGINE ───
 let composeMousePoints = [];
 let activeComposeDialog = null;
 
-// Inject compose-specific styles
-const composeTrackStyle = document.createElement('style');
-composeTrackStyle.textContent = `
-    @keyframes hvel-pulse-dot {
-        0%,100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.4; transform: scale(0.75); }
-    }
-    @keyframes hvel-compose-in {
-        from { opacity: 0; transform: translateX(-8px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-`;
-document.head.appendChild(composeTrackStyle);
-
-function injectComposeIndicator(dialog) {
-    if (dialog.querySelector('#hvel-compose-indicator')) return;
-    const toolbar = dialog.querySelector('.btC') ||
-                    dialog.querySelector('[gh="mtb"]') ||
-                    dialog.querySelector('.aFe') ||
-                    dialog.querySelector('.gU');
+function injectComposeIndicator(container) {
+    if (container.querySelector('#hvel-compose-indicator')) return;
+    
+    // Look for Outlook compose toolbar next to the main commands or Send button
+    const toolbar = container.querySelector('div[role="toolbar"], .ms-CommandBar, .ms-Button--commandBar') || container;
     if (!toolbar) return;
+    
     const indicator = document.createElement('span');
     indicator.id = 'hvel-compose-indicator';
     indicator.style.cssText = `
@@ -187,8 +172,8 @@ function injectComposeIndicator(dialog) {
     toolbar.appendChild(indicator);
 }
 
-function flashComposeVerified(dialog) {
-    const indicator = dialog?.querySelector('#hvel-compose-indicator');
+function flashComposeVerified(container) {
+    const indicator = container?.querySelector('#hvel-compose-indicator');
     if (!indicator) return;
     indicator.innerHTML = `<span style="font-size:12px;">✅</span> <span>HVEL Verified</span>`;
     indicator.style.background = 'rgba(16,185,129,0.15)';
@@ -260,8 +245,8 @@ async function updateComposeStampLive(composeBody) {
     }, 300);
 }
 
-async function injectComposeStamp(dialog) {
-    const composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+async function injectComposeStamp(container) {
+    const composeBody = container.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"], .DraftEditor-editorContainer div[contenteditable="true"]');
     if (!composeBody) return;
     
     // Prevent duplicate signature
@@ -310,15 +295,15 @@ async function injectComposeStamp(dialog) {
 
 // Watch for compose dialogs opening/closing
 const composeSessionObserver = new MutationObserver(() => {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    dialogs.forEach(dialog => {
-        const hasBody = dialog.querySelector('div[aria-label="Message Body"]');
-        if (hasBody && dialog !== activeComposeDialog) {
-            activeComposeDialog = dialog;
+    const editors = document.querySelectorAll('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+    editors.forEach(editor => {
+        const container = editor.closest('div[role="region"]') || editor.closest('.ms-ComposeHeader') || editor.closest('div.ms-CommandBar')?.parentElement || editor.parentElement;
+        if (container && container !== activeComposeDialog) {
+            activeComposeDialog = container;
             composeMousePoints = []; // Fresh buffer per compose session
-            injectComposeIndicator(dialog);
-            injectComposeStamp(dialog);
-            console.log('[HVEL] 📝 Compose detected — focused tracking active');
+            injectComposeIndicator(container);
+            injectComposeStamp(container);
+            console.log('[HVEL Outlook] 📝 Compose detected — focused tracking active');
         }
     });
     // Cleanup if compose was closed
@@ -337,7 +322,6 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-
 // ─── FRICTIONLESS CLICK INTERCEPTION ───
 let isVerifying = false;
 
@@ -355,11 +339,8 @@ function restoreSendButton(btn) {
 }
 
 document.addEventListener('click', async (e) => {
-    const sendBtn = e.target.closest('div[role="button"]');
+    const sendBtn = e.target.closest('button[title^="Send"], button[aria-label^="Send"], button.splitButton-send, button[data-unique-id*="Send"], [role="button"][aria-label^="Send"]');
     if (!sendBtn) return;
-
-    const tooltip = sendBtn.getAttribute('data-tooltip') || '';
-    if (!tooltip.includes('Send') && !tooltip.includes('send') && sendBtn.innerText.toLowerCase() !== 'send') return;
 
     // 1. If this is a programmatic click initiated after successful verification, bypass the check
     if (sendBtn.getAttribute('data-hvel-verified') === 'true') {
@@ -394,7 +375,7 @@ document.addEventListener('click', async (e) => {
             try {
                 const realEmailForCheck = getSenderEmail();
 
-                // \u2500\u2500 PLAN QUOTA PRE-CHECK (runs before mouse tracking & send) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                // ─── PLAN QUOTA PRE-CHECK ───
                 chrome.runtime.sendMessage({
                     action: 'checkPlanQuota',
                     email: realEmailForCheck,
@@ -408,7 +389,6 @@ document.addEventListener('click', async (e) => {
                         return; // Stop — do NOT send the email
                     }
 
-                    // If quota check failed network-side, fail open (let it proceed)
                     const quotaBlocked = quotaRes && quotaRes.allowed === false;
                     if (quotaBlocked) {
                         isVerifying = false;
@@ -422,8 +402,7 @@ document.addEventListener('click', async (e) => {
                         return; // Stop — do NOT send the email
                     }
 
-                    // Quota OK \u2014 proceed with mouse tracking
-                    // Use compose-focused buffer if available (richer data), else fall back to global
+                    // Quota OK — proceed with mouse tracking
                     const pointsToSend = (activeComposeDialog && composeMousePoints.length >= 10)
                         ? composeMousePoints
                         : mousePoints;
@@ -443,10 +422,10 @@ document.addEventListener('click', async (e) => {
                         const recipientEmail = getRecipientEmail(sendBtn);
                         
                         // Find compose body related to this send button
-                        let composeBody = document.querySelector('div[aria-label="Message Body"]');
-                        const dialog = sendBtn.closest('div[role="dialog"]');
-                        if (dialog) {
-                            composeBody = dialog.querySelector('div[aria-label="Message Body"]');
+                        let composeBody = document.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+                        const container = sendBtn.closest('div[role="region"]') || sendBtn.closest('.Ms-BasePicker') || document;
+                        if (container) {
+                            composeBody = container.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
                         }
                         
                         let emailBodyText = "";
@@ -458,7 +437,6 @@ document.addEventListener('click', async (e) => {
                         const contentHash = await computeHash(emailBodyText);
 
                         if (isNetworkError) {
-                            // Offline / Network Error fallback - let them send, stamp as Offline Unverified
                             isVerifying = false;
                             restoreSendButton(sendBtn);
 
@@ -497,10 +475,9 @@ document.addEventListener('click', async (e) => {
                             return;
                         }
 
-                        // Not a network error: can be either verified human or detected robotic bot
                         const verificationType = isHuman ? 'human' : 'robotic';
 
-                        // Call background verifyEmail API to save verification record in DB and get the Trust Record URL
+                        // Call background verifyEmail API
                         chrome.runtime.sendMessage({
                             action: 'verifyEmail',
                             type: verificationType,
@@ -512,7 +489,6 @@ document.addEventListener('click', async (e) => {
                                 isVerifying = false;
                                 restoreSendButton(sendBtn);
 
-                                // Handle verify response
                                 const isVerifySuccess = !!(verifyRes && verifyRes.success);
                                 const isVerifyNetworkErr = !!(verifyRes && verifyRes.error && (
                                     verifyRes.error.toLowerCase().includes('fetch') || 
@@ -640,12 +616,11 @@ document.addEventListener('click', async (e) => {
                                 if (isVerifySuccess) {
                                     finalizeSend(verifyRes.url);
                                 } else {
-                                    // DB save failed but it's not a network error
                                     showVerificationWarningToast("Verification Warning", "Failed to generate trust record, dispatching email.");
                                     finalizeSend(null);
                                 }
                             } catch (innerErr) {
-                                console.error("HVEL Inner Callback Error:", innerErr);
+                                console.error("HVEL Outer Send Catch Callback Error:", innerErr);
                                 isVerifying = false;
                                 restoreSendButton(sendBtn);
                                 sendBtn.setAttribute('data-hvel-verified', 'true');
@@ -653,16 +628,16 @@ document.addEventListener('click', async (e) => {
                             }
                         });
                     } catch (midErr) {
-                        console.error("HVEL Mid Callback Error:", midErr);
+                        console.error("HVEL Send Verification Core Error:", midErr);
                         isVerifying = false;
                         restoreSendButton(sendBtn);
                         sendBtn.setAttribute('data-hvel-verified', 'true');
                         sendBtn.click();
                     }
-                }); // end verifyHumanity
-                }); // end checkPlanQuota
+                });
+                });
             } catch (msgErr) {
-                console.error("HVEL Message Send Error:", msgErr);
+                console.error("HVEL Sending Message Pipeline Error:", msgErr);
                 isVerifying = false;
                 restoreSendButton(sendBtn);
                 sendBtn.setAttribute('data-hvel-verified', 'true');
@@ -670,7 +645,7 @@ document.addEventListener('click', async (e) => {
             }
         }, 200);
     } catch (outerErr) {
-        console.error("HVEL Outer Handler Error:", outerErr);
+        console.error("HVEL Top Send Intercept Error:", outerErr);
         isVerifying = false;
         restoreSendButton(sendBtn);
         sendBtn.setAttribute('data-hvel-verified', 'true');
@@ -678,19 +653,15 @@ document.addEventListener('click', async (e) => {
     }
 }, true);
 
-
 // ─── PLAN LIMIT MODAL ──────────────────────────────────────────────────
-// Shows a premium blocking modal when the user hits their plan quota
-// featureKey: 'totp_verify' | 'webauthn' | 'gmail_account'
-// usageData: { used, limit, message, plan }
 function showPlanLimitModal(featureKey, usageData = {}) {
     const existing = document.getElementById('hvel-plan-limit-modal');
     if (existing) existing.remove();
 
     const FEATURE_LABELS = {
         totp_verify:   { icon: '🛡️', title: 'Daily Verification Limit Reached', color: '#f59e0b' },
-        webauthn:      { icon: '👂', title: 'Biometric is a Pro Feature',       color: '#8b5cf6' },
-        gmail_account: { icon: '📧', title: 'Gmail Account Limit Reached',      color: '#3b82f6' },
+        webauthn:      { icon: '🔑', title: 'Biometric is a Pro Feature',       color: '#8b5cf6' },
+        gmail_account: { icon: '📧', title: 'Account Limit Reached',            color: '#3b82f6' },
         audit_dashboard:{ icon: '📊', title: 'Advanced Audit is a Pro Feature', color: '#10b981' },
     };
     const meta = FEATURE_LABELS[featureKey] || { icon: '🚧', title: 'Plan Limit Reached', color: '#ef4444' };
@@ -724,7 +695,6 @@ function showPlanLimitModal(featureKey, usageData = {}) {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     `;
 
-    // Add keyframe animations to document if not already present
     if (!document.getElementById('hvel-modal-animations')) {
         const style = document.createElement('style');
         style.id = 'hvel-modal-animations';
@@ -767,7 +737,6 @@ function showPlanLimitModal(featureKey, usageData = {}) {
             animation: hvelScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             color: #f1f5f9;
         ">
-            <!-- Close Button -->
             <button id="hvel-modal-close" style="
                 position: absolute; top: 20px; right: 20px;
                 background: rgba(255, 255, 255, 0.05); border: none;
@@ -777,7 +746,6 @@ function showPlanLimitModal(featureKey, usageData = {}) {
                 transition: all 0.2s ease;
             ">×</button>
 
-            <!-- Icon Header -->
             <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                 <div style="
                     width: 52px; height: 52px; border-radius: 16px;
@@ -795,23 +763,20 @@ function showPlanLimitModal(featureKey, usageData = {}) {
                 </div>
             </div>
 
-            <!-- Description -->
             <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0 0 8px; font-weight: 400;">
                 ${msg}
             </p>
             ${usageBar}
 
-            <!-- Divider -->
             <div style="height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%); margin: 24px 0;"></div>
 
-            <!-- Pro benefits -->
             <div style="margin-bottom: 28px;">
                 <h3 style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 14px;">Professional plan includes</h3>
                 <div style="display: grid; gap: 10px;">
                     ${[
                         '♾️ Unlimited human verifications',
                         '🔑 WebAuthn biometric login support',
-                        '📧 Up to 5 connected Gmail accounts',
+                        '📧 Up to 5 connected accounts',
                         '📊 Advanced activity & audit dashboard',
                         '🛡️ Enterprise-grade data protection'
                     ].map(feature => `
@@ -823,7 +788,6 @@ function showPlanLimitModal(featureKey, usageData = {}) {
                 </div>
             </div>
 
-            <!-- Pricing & Call to Action -->
             <div style="
                 background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.03) 100%);
                 border: 1px solid rgba(16, 185, 129, 0.25);
@@ -875,10 +839,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
     console.log(`[HVEL] 🚧 Plan limit modal shown — feature: ${featureKey}`);
 }
 
-
 // ─── PREMIUM INTERFACE UTILITIES ───
-
-// Show premium emerald green success toast notification
 function showVerificationSuccessToast(message) {
     const existing = document.getElementById('hvel-success-toast');
     if (existing) existing.remove();
@@ -922,7 +883,6 @@ function showVerificationSuccessToast(message) {
     }, 3500);
 }
 
-// Show premium warning toast notification for robotic or offline conditions
 function showVerificationWarningToast(title, message) {
     const existing = document.getElementById('hvel-warning-toast');
     if (existing) existing.remove();
@@ -974,276 +934,260 @@ function showVerificationWarningToast(title, message) {
     }, 5000);
 }
 
-// Show premium glassmorphic toast notification
-function showBotBlockedToast(message) {
-    const existing = document.getElementById('hvel-bot-toast');
-    if (existing) existing.remove();
-
-    const toast = document.createElement('div');
-    toast.id = 'hvel-bot-toast';
-    toast.style.cssText = `
-        position: fixed;
-        top: 24px;
-        right: 24px;
-        background: #ffffff;
-        border: 1px solid #fca5a5;
-        border-radius: 8px;
-        padding: 12px 16px;
-        color: #991b1b;
-        z-index: 10000000;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        max-width: 320px;
-        animation: hvel-toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    `;
-    toast.innerHTML = `
-        <span style="font-size: 16px; display: inline-flex; align-items: center; user-select: none;">🛡️</span>
-        <div style="flex: 1; text-align: left;">
-            <div style="font-size: 13px; font-weight: 600; color: #b91c1c; margin-bottom: 2px;">Verification Blocked</div>
-            <div style="font-size: 11px; color: #64748b; line-height: 1.4;">${message}</div>
-        </div>
-        <button style="
-            background: transparent; border: none; color: #cbd5e1; 
-            font-size: 16px; cursor: pointer; padding: 0 2px;
-            font-weight: 700; transition: color 0.2s;
-        " id="hvel-toast-close">×</button>
-    `;
-    document.body.appendChild(toast);
-
-    const closeBtn = toast.querySelector('#hvel-toast-close');
-    closeBtn.onclick = () => toast.remove();
-    closeBtn.onmouseenter = () => closeBtn.style.color = '#64748b';
-    closeBtn.onmouseleave = () => closeBtn.style.color = '#cbd5e1';
+// Helper to detect if an element is inside quoted/reply text or draft composition areas
+function isInsideQuotedText(el) {
+    if (!el) return false;
     
-    setTimeout(() => {
-        if (toast.parentElement) {
-            toast.style.animation = 'hvel-toast-fade 0.3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
+    // 1. Check standard class names and tags for quoted/reply content
+    const quoteSelector = 'blockquote, .gmail_quote, .x_gmail_quote, .x_x_gmail_quote, .ms-quote, .x_ms-quote, .quotedText, .x_quotedText, .outlook_quote, .x_outlook_quote';
+    if (el.closest(quoteSelector)) return true;
+    
+    // 2. Walk up parents to detect visual cues of quoted sections
+    let parent = el.parentElement;
+    while (parent && parent !== document.body) {
+        // Check for inline border-left style which visually signifies a quoted section
+        const style = parent.getAttribute('style') || '';
+        if (style.includes('border-left') || style.includes('border-Left')) {
+            return true;
         }
-    }, 6000);
+        
+        // Specifically check for known Outlook sanitizer classes (not broad substring match)
+        const className = parent.className || '';
+        if (typeof className === 'string') {
+            const classes = className.split(/\s+/);
+            const hasQuoteClass = classes.some(c => 
+                c === 'x_ap' || 
+                c === 'divRTEContent' || 
+                c === 'gmail_quote' || 
+                c === 'x_gmail_quote' || 
+                c === 'x_ms-quote' || 
+                c === 'quotedText'
+            );
+            if (hasQuoteClass) return true;
+        }
+        parent = parent.parentElement;
+    }
+    return false;
 }
 
-// Shake an element visually to indicate blocking
-function shakeElement(el) {
-    el.style.animation = 'none';
-    void el.offsetWidth; // Force reflow
-    el.style.animation = 'hvel-shake 0.4s ease';
-}
+// Helper to inject a clean, premium inline pill/badge next to the sender in the email header
+function injectHeaderBadge(senderEl, status) {
+    if (!senderEl) return;
+    
+    let target = senderEl;
+    // If target is just an avatar image or icon, try to find the adjacent name/email container
+    if (target.tagName === 'IMG' || target.offsetWidth === 0) {
+        const parent = target.parentElement;
+        if (parent) {
+            const nameEl = parent.querySelector('span, button, div');
+            if (nameEl && nameEl !== target) {
+                target = nameEl;
+            }
+        }
+    }
 
+    const container = target.parentElement;
+    if (!container) return;
+    
+    const existing = container.querySelector('.hvel-header-badge');
+    if (existing) existing.remove();
+    
+    const badge = document.createElement('span');
+    badge.className = 'hvel-header-badge';
+    badge.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
+        vertical-align: middle;
+        user-select: none;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    `;
+    
+    if (status === 'verified') {
+        badge.style.background = '#e6fbf1';
+        badge.style.border = '1px solid #a7f3d0';
+        badge.style.color = '#065f46';
+        badge.innerHTML = '✅ Attest Verified';
+    } else if (status === 'tampered' || status === 'invalid') {
+        badge.style.background = '#fff1f2';
+        badge.style.border = '1px solid #fecaca';
+        badge.style.color = '#991b1b';
+        badge.innerHTML = '⚠️ ID Mismatch';
+    } else {
+        badge.style.background = '#fffbeb';
+        badge.style.border = '1px solid #fde68a';
+        badge.style.color = '#b45309';
+        badge.innerHTML = '⚠️ Unverified';
+    }
+    
+    target.after(badge);
+}
 
 // ─── PASSIVE INCOMING INBOX SCANNER ───
 async function scanIncomingMessages() {
-    const messages = document.querySelectorAll('.adn, .ads');
+    // 1. Find all email body containers in the page
+    const bodies = document.querySelectorAll('.allowTextSelection, div.customBody, div.ReadingPane');
+    
+    console.log(`[HVEL OWA] scanIncomingMessages running. Found ${bodies.length} body element(s).`);
 
-    messages.forEach(async (msg) => {
-        if (msg.hasAttribute('data-hvel-scanned')) return;
-        // Ignore autocomplete dropdown lists, compose dialogs, and suggestions popups
-        if (msg.closest('[role="listbox"]') || msg.closest('[role="dialog"]') || msg.closest('.am') || msg.closest('.aqj')) return;
-        msg.setAttribute('data-hvel-scanned', 'true');
+    bodies.forEach(async (bodyEl, idx) => {
+        // Skip compose windows
+        if (bodyEl.querySelector('[contenteditable="true"]') || bodyEl.getAttribute('contenteditable') === 'true' || bodyEl.closest('[contenteditable="true"]')) {
+            console.log(`[HVEL OWA] Body #${idx} skipped: is edit/compose window.`);
+            return;
+        }
 
-        const badgeLinkElement = msg.querySelector('a[href*="/v/"]');
-        const badgeLink = (badgeLinkElement && !badgeLinkElement.closest('.gmail_quote, blockquote')) ? badgeLinkElement : null;
+        // Traverse up from bodyEl to find the message card container containing sender info outside bodyEl
+        let cardContainer = null;
         let senderEmail = null;
+        let senderEl = null;
+        
+        let current = bodyEl;
+        while (current && current.tagName !== 'BODY') {
+            const parent = current.parentElement;
+            if (!parent) break;
 
-        const gD = msg.querySelector('.gD');
-        if (gD) {
-            senderEmail = gD.getAttribute('email') || gD.getAttribute('data-hovercard-id');
+            // Stop walking up if parent is the main conversation thread container (contains multiple bodies)
+            if (parent.querySelectorAll('.allowTextSelection').length > 1) {
+                break;
+            }
+
+            // Search for potential sender elements inside parent but outside current
+            const elements = parent.querySelectorAll('*');
+            for (let el of elements) {
+                if (!current.contains(el) && el !== current) {
+                    // Ignore recipient containers (To, Cc, CC, recipient chips) to avoid misidentifying recipients as the sender
+                    if (el.closest('[aria-label*="To"], [aria-label*="Cc"], [class*="recipient"], [class*="ToLine"], [class*="CcLine"]')) {
+                        continue;
+                    }
+
+                    // Try data-hovercard-id, email, href="mailto:..."
+                    const emailAttr = el.getAttribute('data-hovercard-id') || el.getAttribute('email') || el.getAttribute('href')?.replace('mailto:', '');
+                    if (emailAttr && emailAttr.includes('@')) {
+                        senderEmail = emailAttr;
+                        senderEl = el;
+                        break;
+                    }
+                    
+                    // Try avatar images
+                    if (el.tagName === 'IMG') {
+                        const src = el.src || '';
+                        const emailParamMatch = src.match(/email=([^&]+)/);
+                        if (emailParamMatch) {
+                            senderEmail = decodeURIComponent(emailParamMatch[1]);
+                            senderEl = el;
+                            break;
+                        }
+                        const userParamMatch = src.match(/\/users\/([^/]+)/);
+                        if (userParamMatch) {
+                            senderEmail = decodeURIComponent(userParamMatch[1]);
+                            senderEl = el;
+                            break;
+                        }
+                    }
+
+                    // Try aria-label or title
+                    const ariaLabel = el.getAttribute('aria-label') || '';
+                    const title = el.getAttribute('title') || '';
+                    const match = (ariaLabel + ' ' + title).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    if (match) {
+                        senderEmail = match[0];
+                        senderEl = el;
+                        break;
+                    }
+                }
+            }
+
+            if (senderEmail) {
+                cardContainer = parent;
+                break;
+            }
+
+            // Fallback: Parse raw text from elements outside current
+            let headerText = '';
+            for (let el of elements) {
+                if (!current.contains(el) && el !== current && el.children.length === 0) {
+                    // Ignore recipient container text
+                    if (el.closest('[aria-label*="To"], [aria-label*="Cc"], [class*="recipient"], [class*="ToLine"], [class*="CcLine"]')) {
+                        continue;
+                    }
+                    headerText += (el.innerText || '') + ' ';
+                }
+            }
+            const textMatch = headerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (textMatch) {
+                senderEmail = textMatch[0];
+                cardContainer = parent;
+                
+                // Find the leaf element matching the email or name prefix
+                for (let el of elements) {
+                    if (!current.contains(el) && el !== current && el.children.length === 0 && (el.textContent?.includes(senderEmail) || el.textContent?.includes(senderEmail.split('@')[0]))) {
+                        senderEl = el;
+                        break;
+                    }
+                }
+                break;
+            }
+
+            current = parent;
         }
 
-        if (!senderEmail || !senderEmail.includes('@')) {
-            const emailSpan = msg.querySelector('span[email]');
-            if (emailSpan) senderEmail = emailSpan.getAttribute('email');
+        console.log(`[HVEL OWA] Body #${idx}: Resolved senderEmail: "${senderEmail}", senderEl: ${senderEl ? senderEl.tagName + '.' + senderEl.className : 'null'}`);
+
+        if (!senderEmail || !senderEmail.includes('@') || !cardContainer) {
+            return;
         }
 
-        if (!senderEmail || !senderEmail.includes('@')) {
-            const headerText = msg.innerText.substring(0, 500);
-            const match = headerText.match(/[a-zA-Z0-9._%+-]+@gmail\.com/);
-            if (match) senderEmail = match[0];
+        // Skip if we already injected a notice/badge in this message container to avoid SPA recycling conflicts
+        const hasNotice = bodyEl.querySelector('.hvel-trust-notice') || cardContainer.querySelector('.hvel-header-badge');
+        if (hasNotice) {
+            return;
         }
 
-        const recipientEmail = getCurrentUserEmail();
+        const badgeLinkElement = cardContainer.querySelector('a[href*="/v/"]');
+        const badgeLink = (badgeLinkElement && !isInsideQuotedText(badgeLinkElement)) ? badgeLinkElement : null;
+
+        senderEmail = senderEmail.toLowerCase().trim();
+
+        // Fallback: If we still don't have a senderEl, default to bodyEl's parent/previous sibling
+        if (!senderEl) {
+            senderEl = bodyEl.previousElementSibling || bodyEl.parentElement || bodyEl;
+        }
+
+        const recipientEmail = getCurrentUserEmail() || '';
         const IGNORED_DOMAINS = [
-            // ── Big Tech & Cloud ──────────────────────────────────────────
             'google.com', 'googleapis.com', 'googlemail.com',
             'microsoft.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office.com', 'azure.com',
             'apple.com', 'icloud.com', 'me.com',
             'amazon.com', 'amazonaws.com', 'aws.com', 'awsapps.com',
             'meta.com', 'facebook.com', 'instagram.com', 'whatsapp.com', 'threads.net',
-            'twitter.com', 'x.com',
-            'linkedin.com', 'lnkd.in',
-            'netflix.com', 'youtube.com',
-            'github.com', 'githubapp.com',
-            'vercel.com', 'vercel.app',
-            'cloudflare.com', 'workers.dev',
-            'digitalocean.com',
-            'heroku.com',
-            'atlassian.com', 'jira.com', 'confluence.com', 'bitbucket.org',
-            'oracle.com', 'oraclecloud.com',
-            'ibm.com',
-            'salesforce.com', 'force.com', 'exacttarget.com',
-            'adobe.com', 'adobecc.com',
-            'sap.com',
-            'twilio.com',
-            'sendgrid.com', 'sendgrid.net',
-            'mailgun.com', 'mailgun.net',
-            'postmarkapp.com',
-            'sparkpost.com',
-
-            // ── Finance & Banking ─────────────────────────────────────────
-            'paypal.com', 'paypalobjects.com',
-            'stripe.com',
-            'square.com', 'squareup.com',
-            'visa.com',
-            'mastercard.com',
-            'americanexpress.com', 'amex.com',
-            'discover.com', 'services.discover.com',
-            'chase.com', 'jpmorgan.com', 'jpmchase.com',
-            'bankofamerica.com', 'bac.com',
-            'wellsfargo.com',
-            'citibank.com', 'citi.com',
-            'capitalone.com',
-            'usbank.com',
-            'tdbank.com', 'td.com',
-            'pnc.com',
-            'synchrony.com',
-            'ally.com',
-            'schwab.com',
-            'fidelity.com',
-            'vanguard.com',
-            'coinbase.com',
-            'binance.com',
-            'robinhood.com',
-            'klarna.com',
-            'affirm.com',
-            'razorpay.com',
-            'paytm.com',
-            'phonepe.com',
-            'googlepay.com',
-
-            // ── Retail & E-Commerce ───────────────────────────────────────
-            'walmart.com',
-            'target.com',
-            'bestbuy.com',
-            'ebay.com',
-            'etsy.com',
-            'shopify.com', 'myshopify.com',
-            'aliexpress.com', 'alibaba.com',
-            'flipkart.com',
-            'myntra.com',
-            'nykaa.com',
-            'costco.com',
-            'homedepot.com',
-            'ikea.com',
-            'zara.com',
-            'hm.com',
-            'gap.com',
-            'nike.com',
-            'adidas.com',
-            'samsung.com',
-            'sony.com',
-            'dell.com',
-            'hp.com', 'hpe.com',
-            'lenovo.com',
-
-            // ── Travel & Transport ────────────────────────────────────────
-            'uber.com', 'ubereats.com',
-            'lyft.com',
-            'airbnb.com',
-            'booking.com',
-            'expedia.com',
-            'tripadvisor.com',
-            'makemytrip.com',
-            'goibibo.com',
-            'ola.com', 'olacabs.com',
-            'doordash.com',
-            'grubhub.com',
-            'swiggy.com',
-            'zomato.com',
-            'fedex.com',
-            'ups.com',
-            'dhl.com',
-
-            // ── Communication & Productivity ──────────────────────────────
-            'slack.com',
-            'notion.so',
-            'dropbox.com',
-            'zoom.us',
-            'webex.com',
-            'teams.microsoft.com',
-            'hubspot.com',
-            'mailchimp.com',
-            'zendesk.com',
-            'freshdesk.com', 'freshworks.com',
-            'intercom.com', 'intercom.io',
-            'calendly.com',
-            'asana.com',
-            'monday.com',
-            'trello.com',
-            'airtable.com',
-            'box.com',
-            'docusign.com',
-
-            // ── Media & Entertainment ─────────────────────────────────────
-            'spotify.com',
-            'discord.com',
-            'twitch.tv',
-            'tiktok.com',
-            'snapchat.com',
-            'reddit.com',
-            'quora.com',
-            'medium.com',
-            'substack.com',
-            'wordpress.com', 'wordpress.org',
-            'wix.com',
-            'squarespace.com',
-
-            // ── Education ─────────────────────────────────────────────────
-            'coursera.org',
-            'udemy.com',
-            'edx.org',
-            'khanacademy.org',
-            'duolingo.com',
-            'skillshare.com',
-            'udacity.com',
-
-            // ── Government & Public Services ──────────────────────────────
-            'irs.gov', 'usps.gov', 'ssa.gov', 'cdc.gov', 'fbi.gov',
-            'gov.uk', 'gov.in', 'nic.in', 'india.gov.in',
-            'nhs.uk',
-            'europa.eu',
-
-            // ── Security & Identity Providers ─────────────────────────────
-            'okta.com', 'oktapreview.com',
-            'auth0.com',
-            'onelogin.com',
-            'duo.com',
-            'lastpass.com',
-            '1password.com',
-            'norton.com',
-            'mcafee.com',
-            'crowdstrike.com',
+            'twitter.com', 'x.com', 'linkedin.com', 'lnkd.in', 'netflix.com', 'youtube.com',
+            'github.com', 'githubapp.com', 'vercel.com', 'vercel.app', 'cloudflare.com', 'workers.dev',
+            'digitalocean.com', 'heroku.com', 'atlassian.com', 'jira.com', 'confluence.com',
+            'stripe.com', 'square.com', 'squareup.com', 'visa.com', 'mastercard.com', 'paypal.com'
         ];
         const senderDomain = senderEmail?.split('@')[1]?.toLowerCase();
-        // Also match subdomains (e.g. services.discover.com)
-                const isIgnoredDomain = IGNORED_DOMAINS.some(d => senderDomain === d || senderDomain?.endsWith('.' + d));
+        const isIgnoredDomain = IGNORED_DOMAINS.some(d => senderDomain === d || senderDomain?.endsWith('.' + d));
 
-        console.log(`[HVEL Gmail] Message detected. Sender: "${senderEmail}", Domain Ignored: ${isIgnoredDomain}, Recipient: "${recipientEmail}"`);
+        console.log(`[HVEL OWA] Body #${idx}: Message detected. Sender: "${senderEmail}", Domain Ignored: ${isIgnoredDomain}, Recipient: "${recipientEmail}"`);
 
-        if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
+        if (senderEmail && recipientEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
                 const verifyReceived = !!res.hvel_verify_received;
-                console.log(`[HVEL Gmail] Checking storage for hvel_verify_received: ${verifyReceived}`);
+                console.log(`[HVEL OWA] Body #${idx}: Checking storage for hvel_verify_received: ${verifyReceived}`);
                 if (!verifyReceived) {
-                    return; // By default off: do not verify received senders, don't show any badge in Gmail
+                    return; // Default: do not verify received senders
                 }
 
                 if (badgeLink) {
                     const url = badgeLink.href;
                     const id = url.split('/v/').pop();
-                    console.log(`[HVEL Gmail] Found trust badge link for ID: ${id}. Validating verification...`);
+                    console.log(`[HVEL OWA] Body #${idx}: Found trust badge link for ID: ${id}. Validating verification...`);
 
                     chrome.runtime.sendMessage({
                         action: 'validateVerification',
@@ -1251,32 +1195,33 @@ async function scanIncomingMessages() {
                         senderEmail: senderEmail,
                         recipientEmail: recipientEmail
                     }, (response) => {
-                        console.log(`[HVEL Gmail] Validation result for ID ${id}:`, response);
-                        // Even if mismatch (tampered) or verified, show the normal Attest Verified stamp
+                        console.log(`[HVEL OWA] Body #${idx}: Validation result for ID ${id}:`, response);
                         if (response && (response.status === 'verified' || response.status === 'tampered')) {
-                            showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
-                            if (!msg.hasAttribute('data-hvel-audited')) {
-                                msg.setAttribute('data-hvel-audited', 'true');
+                            showTrustStatus(bodyEl, 'verified', `Verified Human (${senderEmail})`);
+                            injectHeaderBadge(senderEl, 'verified');
+                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                                bodyEl.setAttribute('data-hvel-audited', 'true');
                                 logAuditEvent('received_stamped', senderEmail);
                             }
                         } else {
-                            // If invalid (not found / user does not have extension), show as unverified
-                            showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                            if (!msg.hasAttribute('data-hvel-audited')) {
-                                msg.setAttribute('data-hvel-audited', 'true');
+                            showTrustStatus(bodyEl, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
+                            injectHeaderBadge(senderEl, 'unverified');
+                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                                bodyEl.setAttribute('data-hvel-audited', 'true');
                                 logAuditEvent('received_unstamped', senderEmail);
                             }
                         }
                     });
                 } else {
-                    console.log(`[HVEL Gmail] No trust badge link found. Showing unverified notice for: ${senderEmail}`);
-                    showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                    if (!msg.hasAttribute('data-hvel-audited')) {
-                        msg.setAttribute('data-hvel-audited', 'true');
+                    console.log(`[HVEL OWA] Body #${idx}: No trust badge link found. Showing unverified notice for: ${senderEmail}`);
+                    showTrustStatus(bodyEl, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
+                    injectHeaderBadge(senderEl, 'unverified');
+                    if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                        bodyEl.setAttribute('data-hvel-audited', 'true');
                         logAuditEvent('received_unstamped', senderEmail);
                     }
                     
-                    if (msg.offsetParent !== null) {
+                    if (bodyEl.offsetParent !== null) {
                         const normSender = senderEmail.toLowerCase().trim();
                         const nudgeKey = `hvel_nudged_${normSender}`;
                         
@@ -1286,45 +1231,39 @@ async function scanIncomingMessages() {
                             const dayInMs = 24 * 60 * 60 * 1000;
 
                             if ((!lastNudge || (now - lastNudge > dayInMs)) && !pendingRequests.has(nudgeKey)) {
-                                const dateSpan = msg.querySelector('span[title]');
-                                const msgTime = dateSpan ? dateSpan.getAttribute('title') : new Date().toLocaleString();
-
                                 pendingRequests.add(nudgeKey);
                                 chrome.storage.local.set({ [nudgeKey]: now });
 
-                                console.log(`[HVEL Gmail] Triggering unverified reply nudge email to: ${normSender}`);
+                                console.log(`[HVEL OWA] Body #${idx}: Triggering unverified reply nudge email to: ${normSender}`);
                                 chrome.runtime.sendMessage({
                                     action: 'reportUnverifiedReply',
                                     hvelUserEmail: recipientEmail,
                                     noExtensionEmail: normSender,
-                                    details: { timestamp: msgTime, url: window.location.href }
+                                    details: { timestamp: new Date().toLocaleString(), url: window.location.href }
                                 });
                             }
                         });
                     }
                 }
             });
+        } else {
+            console.log(`[HVEL OWA] Body #${idx}: Ignored self-send, empty emails, or ignored domains.`);
         }
     });
 }
 
-function showTrustStatus(msgElement, status, text) {
-    const existing = msgElement.querySelector('.hvel-trust-notice');
+function showTrustStatus(bodyEl, status, text) {
+    const existing = bodyEl.querySelector('.hvel-trust-notice');
     if (existing) existing.remove();
-    const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
-    if (existingStamp) existingStamp.remove();
-
-    // Ensure we clean up any legacy background styling from previous sessions
-    msgElement.style.removeProperty('background-color');
-    msgElement.style.removeProperty('backgroundColor');
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
+    notice.style.cssText = 'display: block !important; width: 100% !important; clear: both !important; margin: 12px 0 !important;';
 
     if (status === 'verified') {
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1350,7 +1289,7 @@ function showTrustStatus(msgElement, status, text) {
         const title = 'Critical: ID Mismatch Detected';
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1373,10 +1312,9 @@ function showTrustStatus(msgElement, status, text) {
                 </div>
             </div>`;
     } else {
-        // 'unverified' — not a threat, just not registered. Small stamp style at the bottom of the email.
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1400,8 +1338,7 @@ function showTrustStatus(msgElement, status, text) {
             </div>`;
     }
 
-    const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
-    insertTarget.appendChild(notice);
+    bodyEl.insertBefore(notice, bodyEl.firstChild);
 }
 
 // Compute SHA-256 hash of email body contents
@@ -1413,49 +1350,35 @@ async function computeHash(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Extract recipient emails from the "To" field
+// Extract recipient email from Compose elements
 function getRecipientEmail(sendBtn) {
-    const dialog = sendBtn.closest('div[role="dialog"]');
-    if (!dialog) return null;
-
-    const recipientChips = dialog.querySelectorAll('div[role="listitem"] span[email], .vT');
-    if (recipientChips.length > 0) {
-        const email = recipientChips[0].getAttribute('email') || recipientChips[0].innerText.trim();
-        return email.includes('@') ? email : null;
+    const container = sendBtn.closest('div[role="region"]') || sendBtn.closest('.Ms-BasePicker') || document;
+    
+    // Look for Persona chips or elements with data-email
+    const chips = container.querySelectorAll('span[data-email], .ms-PickerPersona-container, .persona-chip, [role="listitem"] span[email]');
+    if (chips.length > 0) {
+        for (let chip of chips) {
+            let email = chip.getAttribute('data-email') || chip.getAttribute('email');
+            if (!email) {
+                const match = chip.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                if (match) email = match[0];
+            }
+            if (email && email.includes('@')) return email.toLowerCase().trim();
+        }
     }
-
-    const recipientArea = dialog.querySelector('textarea[name="to"], input[name="to"]');
-    if (recipientArea && recipientArea.value) {
-        const match = recipientArea.value.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        return match ? match[0] : null;
+    
+    // Fallback to text area inputs
+    const inputs = getRecipientInputs(container);
+    for (let input of inputs) {
+        const val = input.value.trim();
+        const match = val.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
     }
 
     return null;
 }
 
-
-// Interval loops to catch dynamically loaded view changes
-function runHvelIntervals() {
-    scanIncomingMessages();
-    scanAndStyleComposeRecipients();
-}
-
-setInterval(runHvelIntervals, 1500);
-
-let mutationTimeout = null;
-const observer = new MutationObserver(() => {
-    if (mutationTimeout) return;
-    mutationTimeout = setTimeout(() => {
-        runHvelIntervals();
-        mutationTimeout = null;
-    }, 150);
-});
-observer.observe(document.body, { childList: true, subtree: true });
-
-runHvelIntervals();
-
 // ─── RECIPIENT TYPING VERIFICATION & STYLE ENGINE ───
-
 function styleChip(chipElement, isVerified) {
     if (isVerified) {
         chipElement.style.setProperty('border', '1px solid #10b981', 'important');
@@ -1492,22 +1415,16 @@ function resetInputStyle(input) {
     input.style.removeProperty('background-color');
 }
 
-function getRecipientInputs(dialog) {
+function getRecipientInputs(container) {
     const found = [];
-    dialog.querySelectorAll('input, textarea').forEach(input => {
-        const role = input.getAttribute('role') || '';
+    container.querySelectorAll('input[role="combobox"], div[role="combobox"] input, input.ms-BasePicker-input, textarea').forEach(input => {
+        const id = input.getAttribute('id') || '';
         const name = input.getAttribute('name') || '';
         const label = input.getAttribute('aria-label') || '';
-        const className = input.className || '';
         
-        if (role === 'combobox' || 
-            name === 'to' || 
-            label.toLowerCase().includes('to') || 
-            label.toLowerCase().includes('cc') || 
-            label.toLowerCase().includes('bcc') ||
-            className.includes('vO')) {
-            found.push(input);
-        }
+        // Skip Subject input
+        if (label.toLowerCase().includes('subject') || name.toLowerCase().includes('subject') || id.toLowerCase().includes('subject')) return;
+        found.push(input);
     });
     return found;
 }
@@ -1536,20 +1453,18 @@ function checkInputValue(input) {
 }
 
 function scanAndStyleComposeRecipients() {
-    const dialogs = document.querySelectorAll('div[role="dialog"]');
-    dialogs.forEach(dialog => {
-        // 1. Style existing recipient chips
-        const chips = dialog.querySelectorAll('div[role="listitem"], .vT');
+    const editors = document.querySelectorAll('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+    editors.forEach(editor => {
+        const container = editor.closest('div[role="region"]') || editor.closest('.ms-ComposeHeader') || editor.closest('div.ms-CommandBar')?.parentElement || editor.parentElement;
+        if (!container) return;
+
+        // 1. Style recipient chips
+        const chips = container.querySelectorAll('span[data-email], .ms-PickerPersona-container, .persona-chip, [role="listitem"] span[email]');
         let hasUnverified = false;
         let hasVerified = false;
 
         chips.forEach(chip => {
-            // Extract email
-            const emailSpan = chip.querySelector('[email]');
-            let email = emailSpan ? emailSpan.getAttribute('email') : null;
-            if (!email) {
-                email = chip.getAttribute('email');
-            }
+            let email = chip.getAttribute('data-email') || chip.getAttribute('email');
             if (!email) {
                 const match = chip.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
                 if (match) email = match[0];
@@ -1565,7 +1480,6 @@ function scanAndStyleComposeRecipients() {
                         else hasUnverified = true;
                     }
                 } else {
-                    // Query and cache
                     checkedEmailsCache.set(email, { verified: false, checking: true });
                     chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
                         const isVerified = !!(response && response.verified);
@@ -1576,8 +1490,8 @@ function scanAndStyleComposeRecipients() {
             }
         });
         
-        // 2. Attach listeners to input fields for instant typing feedback
-        const inputs = getRecipientInputs(dialog);
+        // 2. Attach listeners to input fields
+        const inputs = getRecipientInputs(container);
         inputs.forEach(input => {
             if (input.getAttribute('data-hvel-listener') === 'true') {
                 checkInputValue(input);
@@ -1597,8 +1511,8 @@ function scanAndStyleComposeRecipients() {
             });
         });
 
-        // 3. Update the compose indicator based on verification status
-        const indicator = dialog.querySelector('#hvel-compose-indicator');
+        // 3. Update compose tracking indicator
+        const indicator = container.querySelector('#hvel-compose-indicator');
         if (indicator) {
             const currentState = indicator.getAttribute('data-hvel-state');
             let newState = 'tracking';
@@ -1656,3 +1570,25 @@ function logAuditEvent(type, emailDetail) {
         });
     });
 }
+
+// Dynamic poll loops
+function runHvelIntervals() {
+    scanIncomingMessages();
+    scanAndStyleComposeRecipients();
+}
+
+setInterval(runHvelIntervals, 1500);
+
+let mutationTimeout = null;
+const observer = new MutationObserver(() => {
+    if (mutationTimeout) return;
+    mutationTimeout = setTimeout(() => {
+        runHvelIntervals();
+        mutationTimeout = null;
+    }, 150);
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+runHvelIntervals();
+
+

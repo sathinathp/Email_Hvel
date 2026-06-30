@@ -97,6 +97,10 @@ app.get('/auth', (req, res) => {
   res.sendFile(__dirname + '/public/auth.html');
 });
 
+app.get('/health', (req, res) => {
+  res.json({ success: true, status: 'ok' });
+});
+
 const net = require('net');
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -111,7 +115,7 @@ const pool = new Pool({
 const PLANS = {
   free: {
     name: 'Free',
-    totp_daily_limit: 3,
+    totp_daily_limit: Infinity,
     gmail_accounts_limit: 1,
     audit_dashboard: false,
     trust_badges: false,
@@ -592,18 +596,8 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
   if (isBlockedEmail(noExtUserEmail)) { console.log(`[HVEL API] ⛔ Blocked — whitelisted: ${noExtUserEmail}`); return res.status(200).json({ success: false, message: 'Ignored' }); }
   if (hvelUserEmail === noExtUserEmail) { console.log(`[HVEL API] ⛔ Self-nudge blocked`); return res.status(200).json({ success: false, message: 'Ignored: self-nudge' }); }
 
-  // Gate: confirm prior verified email exists
   try {
-    const priorVerified = await pool.query(
-      `SELECT id FROM verifications WHERE LOWER(sender_email) = $1 AND LOWER(recipient_email) = $2 LIMIT 1`,
-      [hvelUserEmail, noExtUserEmail]
-    );
-    if (priorVerified.rows.length === 0) {
-      console.log(`[HVEL API] ⛔ No prior verified email from ${hvelUserEmail} to ${noExtUserEmail}`);
-      return res.status(200).json({ success: false, message: 'Ignored: no prior verified email' });
-    }
-
-    // NEW: Permanent "Once Ever" Gate
+    // 24-hour database gate
     const alreadyNudged = await pool.query(
       `SELECT id FROM nudge_log 
        WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2 
@@ -621,21 +615,25 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     const details = req.body.details || {};
     const timestamp = details.timestamp || new Date().toLocaleString();
 
-    // Atomic Block - Insert or Update timestamp if older than 24h
+    // Always insert or update timestamp
     try {
-      await pool.query(
-        `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)
-         ON CONFLICT (hvel_user, no_extension_user) 
-         DO UPDATE SET nudge_sent_at = NOW() 
-         WHERE nudge_log.nudge_sent_at < NOW() - INTERVAL '24 hours'`,
+      const existing = await pool.query(
+        `SELECT id FROM nudge_log WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2 LIMIT 1`,
         [hvelUserEmail, noExtUserEmail]
       );
-    } catch (dbErr) {
-      if (dbErr.code === '23505') { // Unique violation
-        console.log(`[HVEL API] ⛔ Race condition blocked: Nudge already logged for ${noExtUserEmail}`);
-        return res.json({ success: true, message: 'Already notified once.' });
+      if (existing.rows.length > 0) {
+        await pool.query(
+          `UPDATE nudge_log SET nudge_sent_at = NOW() WHERE LOWER(hvel_user) = $1 AND LOWER(no_extension_user) = $2`,
+          [hvelUserEmail, noExtUserEmail]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO nudge_log (hvel_user, no_extension_user) VALUES ($1, $2)`,
+          [hvelUserEmail, noExtUserEmail]
+        );
       }
-      throw dbErr;
+    } catch (dbErr) {
+      console.error('[HVEL API] Database error logging nudge:', dbErr);
     }
 
     // Get sender profile for personalization
@@ -968,7 +966,7 @@ app.post('/api/report-security-alert', async (req, res) => {
 // Proof of Humanity — Mouse Tracking Bot Detection Analyzer
 // ─────────────────────────────────────────────────────────────────────────────
 function verifyHumanBehavior(points) {
-  if (!points || points.length < 5) {
+  if (!points || points.length < 20) {
     // If a human clicks without moving their mouse much, we still pass them
     console.log(`[HUMAN VERIFIED] 🧑 Trigger: Few points (${points ? points.length : 0}), assuming stationary human.`);
     return { success: true };
@@ -979,8 +977,9 @@ function verifyHumanBehavior(points) {
 
   // Calculate straight-line distance (displacement)
   const displacement = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-  if (displacement < 5) {
+  if (displacement < 150) {
     // Small movements are allowed to pass immediately
+    console.log(`[HUMAN VERIFIED] 🧑 Trigger: Low displacement (${displacement.toFixed(2)}px), assuming short human click path.`);
     return { success: true };
   }
 
