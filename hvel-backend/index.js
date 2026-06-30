@@ -115,10 +115,11 @@ const pool = new Pool({
 const PLANS = {
   free: {
     name: 'Free',
-    totp_daily_limit: Infinity,
+    totp_daily_limit: 3,
     gmail_accounts_limit: 1,
     audit_dashboard: false,
     trust_badges: false,
+    webauthn_enabled: false,
   },
   professional: {
     name: 'Professional',
@@ -126,6 +127,7 @@ const PLANS = {
     gmail_accounts_limit: 5,   // Up to 5 Gmail accounts
     audit_dashboard: true,
     trust_badges: true,
+    webauthn_enabled: true,
   }
 };
 
@@ -1190,7 +1192,7 @@ app.get('/api/plan/status', async (req, res) => {
         name: plan.name,
         totp_daily_limit: plan.totp_daily_limit === Infinity ? 'unlimited' : plan.totp_daily_limit,
         gmail_accounts_limit: plan.gmail_accounts_limit,
-        webauthn_enabled: false,
+        webauthn_enabled: !!plan.webauthn_enabled,
         audit_dashboard: plan.audit_dashboard,
         trust_badges: plan.trust_badges,
       },
