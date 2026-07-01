@@ -201,6 +201,26 @@
       </div>
       
       <button class="save-btn" id="authSubmitBtn" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 600; border-radius: 6px; margin-top: 6px; cursor: pointer; display: block; text-align: center;">Sign In</button>
+      <div style="text-align: center; margin-top: 10px;">
+        <button id="forgotPasswordBtn" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Forgot password?</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password View (Hidden by default) -->
+  <div class="body" id="forgotView" style="display: none; min-height: 180px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;">
+      <button id="backToLoginBtn" style="background: none; border: none; font-size: 18px; color: #64748b; cursor: pointer; padding: 0; line-height: 1; font-family: inherit; display: flex; align-items: center;">&#8592;</button>
+      <div style="font-size: 13px; font-weight: 600; color: #0f172a;">Reset Password</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <p style="font-size: 11px; color: #64748b; line-height: 1.5; margin: 0;">Enter the email address you registered with. We'll send you a link to reset your password.</p>
+      <div id="forgotMessage" style="font-size: 11px; text-align: center; display: none; padding: 8px 12px; border-radius: 6px; line-height: 1.4;"></div>
+      <div>
+        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.02em;">Email Address</label>
+        <input type="email" id="forgotEmail" placeholder="you@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;" />
+      </div>
+      <button class="save-btn" id="forgotSubmitBtn" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 600; border-radius: 6px; margin-top: 2px; cursor: pointer;">Send Reset Link</button>
     </div>
   </div>
 

@@ -307,6 +307,14 @@ async function initDB() {
       alias_email VARCHAR(255) UNIQUE NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(createTableQuery);
@@ -443,6 +451,136 @@ app.post('/api/auth/logout', async (req, res) => {
   } catch (err) {
     console.error('[AUTH LOGOUT] Error:', err);
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Logout failed.' });
+  }
+});
+
+// ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'MISSING_EMAIL', message: 'Email is required' });
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    // Always return success to avoid user enumeration attacks
+    const userRes = await pool.query('SELECT email FROM users WHERE email = $1', [emailLower]);
+    if (userRes.rows.length === 0) {
+      return res.json({ success: true, message: 'If this email is registered, a reset link has been sent.' });
+    }
+
+    // Delete any old unused tokens for this email
+    await pool.query('DELETE FROM password_reset_tokens WHERE email = $1', [emailLower]);
+
+    // Generate a secure token, expires in 1 hour
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await pool.query(
+      `INSERT INTO password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)`,
+      [emailLower, resetToken, expiresAt]
+    );
+
+    const host = req.get('host') || 'api.attest.page';
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const resetUrl = `${proto}://${host}/reset-password?token=${resetToken}`;
+
+    const resetHtml = `
+      <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;max-width:580px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);">
+        <div style="background:linear-gradient(135deg,#007A5E,#059669);padding:36px 30px;text-align:center;color:white;">
+          <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:12px;border-radius:12px;margin-bottom:16px;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+          <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-0.025em;">Reset Your Password</h2>
+          <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">HVEL — Attest Approved Email Layer</p>
+        </div>
+        <div style="padding:32px;">
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hello,</p>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#374151;">We received a request to reset the password for your HVEL account associated with <strong>${emailLower}</strong>. Click the button below to set a new password.</p>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${resetUrl}" style="display:inline-block;background:#007A5E;color:white;padding:14px 36px;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;box-shadow:0 4px 6px -1px rgba(0,122,94,0.4);letter-spacing:0.01em;">Reset My Password →</a>
+          </div>
+          <div style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 16px;border-radius:4px 10px 10px 4px;margin-bottom:20px;">
+            <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.5;"><strong>⏰ This link expires in 1 hour.</strong> If you didn't request this, you can safely ignore this email — your password won't change.</p>
+          </div>
+          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">If the button above doesn't work, copy and paste this URL into your browser:<br/><span style="font-family:monospace;font-size:11px;color:#6366f1;word-break:break-all;">${resetUrl}</span></p>
+        </div>
+        <div style="background:#f8fafc;padding:20px 30px;border-top:1px solid #e2e8f0;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">Attest Identity Protocol | <a href="https://attest.page" style="color:#007A5E;text-decoration:none;">attest.page</a></p>
+        </div>
+      </div>
+    `;
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      mainTransporter.sendMail({
+        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        to: emailLower,
+        subject: '🔐 Reset Your HVEL Password',
+        html: resetHtml
+      }, (err) => {
+        if (err) console.error('[AUTH FORGOT] Email error:', err);
+        else console.log(`[AUTH FORGOT] ✅ Reset email sent to ${emailLower}`);
+      });
+    }
+
+    console.log(`[AUTH FORGOT] 📧 Reset link generated for: ${emailLower}`);
+    res.json({ success: true, message: 'If this email is registered, a reset link has been sent.' });
+  } catch (err) {
+    console.error('[AUTH FORGOT] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to process request.' });
+  }
+});
+
+// ─── RESET PASSWORD PAGE ──────────────────────────────────────────────────────
+app.get('/reset-password', (req, res) => {
+  res.sendFile(__dirname + '/public/reset-password.html');
+});
+
+// ─── RESET PASSWORD SUBMIT ────────────────────────────────────────────────────
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Token and new password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters.' });
+  }
+
+  try {
+    const tokenRes = await pool.query(
+      `SELECT email, expires_at, used FROM password_reset_tokens WHERE token = $1`,
+      [token]
+    );
+
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({ error: 'INVALID_TOKEN', message: 'This reset link is invalid or has already been used.' });
+    }
+
+    const { email, expires_at, used } = tokenRes.rows[0];
+
+    if (used) {
+      return res.status(400).json({ error: 'TOKEN_USED', message: 'This reset link has already been used. Please request a new one.' });
+    }
+
+    if (new Date() > new Date(expires_at)) {
+      await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
+      return res.status(400).json({ error: 'TOKEN_EXPIRED', message: 'This reset link has expired. Please request a new one.' });
+    }
+
+    // Update password
+    const passwordHash = hashPassword(password);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [passwordHash, email]);
+
+    // Invalidate all active sessions (security best practice)
+    await pool.query('DELETE FROM user_sessions WHERE email = $1', [email]);
+
+    // Mark token as used
+    await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE token = $1', [token]);
+
+    console.log(`[AUTH RESET] ✅ Password successfully reset for: ${email}`);
+    res.json({ success: true, message: 'Password successfully updated! You can now sign in with your new password.' });
+  } catch (err) {
+    console.error('[AUTH RESET] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to reset password.' });
   }
 });
 

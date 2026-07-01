@@ -279,6 +279,9 @@ function initAuthUI() {
   const tabSignup = document.getElementById('tabSignup');
   const authSubmitBtn = document.getElementById('authSubmitBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+  const backToLoginBtn = document.getElementById('backToLoginBtn');
+  const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
 
   if (tabLogin) {
     tabLogin.addEventListener('click', () => switchTab('login'));
@@ -291,6 +294,15 @@ function initAuthUI() {
   }
   if (logoutBtn) {
     logoutBtn.addEventListener('click', handleLogout);
+  }
+  if (forgotPasswordBtn) {
+    forgotPasswordBtn.addEventListener('click', showForgotView);
+  }
+  if (backToLoginBtn) {
+    backToLoginBtn.addEventListener('click', hideForgotView);
+  }
+  if (forgotSubmitBtn) {
+    forgotSubmitBtn.addEventListener('click', handleForgotSubmit);
   }
 
   // Allow enter key submission
@@ -305,7 +317,85 @@ function initAuthUI() {
       });
     }
   });
+
+  const forgotEmailInput = document.getElementById('forgotEmail');
+  if (forgotEmailInput) {
+    forgotEmailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleForgotSubmit();
+    });
+  }
 }
+
+function showForgotView() {
+  const authView = document.getElementById('authView');
+  const forgotView = document.getElementById('forgotView');
+  const forgotMessage = document.getElementById('forgotMessage');
+  const forgotEmail = document.getElementById('forgotEmail');
+  if (authView) authView.style.display = 'none';
+  if (forgotView) forgotView.style.display = 'block';
+  if (forgotMessage) forgotMessage.style.display = 'none';
+  if (forgotEmail) forgotEmail.value = '';
+}
+
+function hideForgotView() {
+  const authView = document.getElementById('authView');
+  const forgotView = document.getElementById('forgotView');
+  if (forgotView) forgotView.style.display = 'none';
+  if (authView) authView.style.display = 'block';
+  switchTab('login');
+}
+
+function handleForgotSubmit() {
+  const forgotEmail = document.getElementById('forgotEmail');
+  const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
+  const forgotMessage = document.getElementById('forgotMessage');
+
+  if (!forgotEmail) return;
+
+  const email = forgotEmail.value.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !emailRegex.test(email)) {
+    showForgotMessage('Please enter a valid email address.', true);
+    return;
+  }
+
+  forgotSubmitBtn.disabled = true;
+  forgotSubmitBtn.innerText = 'Sending...';
+
+  chrome.runtime.sendMessage({
+    action: 'forgotPassword',
+    email: email
+  }, (res) => {
+    forgotSubmitBtn.disabled = false;
+    forgotSubmitBtn.innerText = 'Send Reset Link';
+
+    if (res && res.success) {
+      showForgotMessage('✓ Check your inbox! A reset link has been sent.', false);
+      if (forgotEmail) forgotEmail.value = '';
+    } else {
+      showForgotMessage(res?.message || res?.error || 'Failed to send reset email. Try again.', true);
+    }
+  });
+}
+
+function showForgotMessage(text, isError = true) {
+  const msgDiv = document.getElementById('forgotMessage');
+  if (msgDiv) {
+    msgDiv.innerText = text;
+    msgDiv.style.display = 'block';
+    if (isError) {
+      msgDiv.style.background = '#fef2f2';
+      msgDiv.style.color = '#991b1b';
+      msgDiv.style.border = '1px solid #fee2e2';
+    } else {
+      msgDiv.style.background = '#f0fdf4';
+      msgDiv.style.color = '#166534';
+      msgDiv.style.border = '1px solid #bbf7d0';
+    }
+  }
+}
+
 
 function switchTab(tab) {
   activeTab = tab;

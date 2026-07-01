@@ -101,6 +101,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
+  if (request.action === 'forgotPassword') {
+    fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: request.email })
+    })
+    .then(r => r.json())
+    .then(data => sendResponse(data))
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   // ─── AUTHENTICATION ACTIONS ────────────────────────────────────────────────
   if (request.action === 'login') {
     fetch(`${API_BASE_URL}/api/auth/login`, {
