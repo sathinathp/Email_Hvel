@@ -511,11 +511,22 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     `;
 
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const resetText = `Hi,\n\nYou recently requested to reset your password for your Attest account (${emailLower}).\n\nClick the link below to set a new password. This link will expire in 1 hour.\n\n${resetUrl}\n\nIf you did not request a password reset, you can safely ignore this email. Your password will not change.\n\n— The Attest Team\nattest.page`;
+
       mainTransporter.sendMail({
-        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        from: `"Attest" <${process.env.EMAIL_USER}>`,
+        replyTo: process.env.EMAIL_USER,
         to: emailLower,
-        subject: '🔐 Reset Your HVEL Password',
-        html: resetHtml
+        subject: `Password reset request for your Attest account`,
+        text: resetText,
+        html: resetHtml,
+        headers: {
+          'X-Priority': '3 (Normal)',
+          'Importance': 'normal',
+          'Precedence': 'bulk',
+          'Auto-Submitted': 'auto-generated',
+          'X-Mailer': 'Attest Mailer'
+        }
       }, (err) => {
         if (err) console.error('[AUTH FORGOT] Email error:', err);
         else console.log(`[AUTH FORGOT] ✅ Reset email sent to ${emailLower}`);
