@@ -60,7 +60,7 @@ The project is split into three core repositories, working in a synchronized loo
 *   **`index.js`**: The core engine. Contains all Express routes, PostgreSQL logic, SMTP email configuration, the Bot Detection analyzer, and the **24-hour gating logic** for nudges/alerts.
 *   **`public/auth.html`**: The user-facing portal for identity registration.
 *   **`public/trust_record.html`**: The dynamic template served to recipients when they verify a cryptographic hash.
-*   **`public/hvel-extension.zip`**: The packaged extension available for direct download.
+*   **`public/hvel-extension.zip`**: Legacy packaged extension (now published on the Chrome Web Store).
 *   **`.env`**: (Sensitive) Contains SMTP credentials, DB connection strings, and the `RP_ID` for authentication.
 
 ### B. hvel-extension/
@@ -113,7 +113,7 @@ To ensure a premium user experience and prevent spam, we implemented a **24-hour
 ---
 
 ## 8. Future Roadmap
-1.  **Chrome Web Store**: Move from unpacked loading to official store distribution.
+1.  **Chrome Web Store**: Successfully published and distributed on the Chrome Web Store.
 2.  **Native Mobile Hooks**: Expanding the protocol to the Gmail mobile app.
 3.  **Enterprise Dashboard**: A portal for companies to see their "Humanity Score" across all employee communications.
 

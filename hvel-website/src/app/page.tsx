@@ -2341,8 +2341,8 @@ export default function Home() {
             .attest-trust-section .compare-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 13.5px; line-height: 1.45; font-weight: 550; }
             .attest-trust-section .compare-row i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
             
-            .attest-trust-section .compare-col.without .compare-row i { color: #ef4444; }
-            .attest-trust-section .compare-col.with .compare-row i { color: #007A5E; }
+            .attest-trust-section .compare-row i.ti-circle-check { color: #007A5E; }
+            .attest-trust-section .compare-row i.ti-circle-x { color: #ef4444; }
             .attest-trust-section .compare-col.without .compare-row span { color: #4b5563; }
             .attest-trust-section .compare-col.with .compare-row span { color: #004d3b; }
 

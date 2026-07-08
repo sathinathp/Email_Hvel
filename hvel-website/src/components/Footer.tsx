@@ -55,7 +55,7 @@ export default function Footer() {
 
             {/* Social */}
             <div style={{ display:'flex', gap:10, marginTop:4 }}>
-              <a href="#" aria-label="Discord"
+              <a href="https://discord.gg/nVAyAzYe8" aria-label="Discord" target="_blank" rel="noopener noreferrer"
                 style={{ width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748B', textDecoration:'none', transition:'all 0.2s' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color='white'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color='#64748B'; }}>

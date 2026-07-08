@@ -729,7 +729,7 @@ app.post('/api/verify', async (req, res) => {
               </div>
               <p style="margin:0 0 12px;font-size:14px;line-height:1.6;">To verify your own emails and earn the <strong>✅ Human Verified</strong> trust badge, download the free HVEL Chrome extension:</p>
               <div style="text-align:center;margin:20px 0;">
-                <a href="https://attest.page/hvel-extension.zip" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Download HVEL Extension — Free</a>
+                <a href="https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa?utm_source=item-share-cb" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Install HVEL Extension — Free</a>
               </div>
             </div>
             <div style="background:#f9fafb;padding:16px 30px;border-top:1px solid #e5e7eb;">
@@ -871,8 +871,8 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
           <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">How to Restore Trust:</h3>
           <div style="display:grid;gap:12px;">
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Download Attest Extension</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://attest.page/hvel-extension.zip" style="color:#007A5E;text-decoration:none;font-weight:600;">from this link</a>.</p>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Install HVEL Extension</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa?utm_source=item-share-cb" style="color:#007A5E;text-decoration:none;font-weight:600;">from the Chrome Web Store</a>.</p>
             </div>
             <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
               <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Link Your Account</p>
@@ -1113,8 +1113,8 @@ app.post('/api/report-security-alert', async (req, res) => {
                 <tr>
                     <td style="width:40px; vertical-align:top; padding-bottom:20px;"><div style="width:28px; height:28px; background:#007A5E; color:white; border-radius:50%; text-align:center; line-height:28px; font-weight:bold;">1</div></td>
                     <td style="padding-bottom:20px;">
-                        <strong style="display:block; margin-bottom:4px;">Install Attest Extension</strong>
-                        <span style="font-size:14px; color:#6b7280;">Download and load the Attest extension in your Chrome browser.</span>
+                        <strong style="display:block; margin-bottom:4px;">Install HVEL Extension</strong>
+                        <span style="font-size:14px; color:#6b7280;">Install the HVEL extension from the <a href="https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa?utm_source=item-share-cb" style="color:#007A5E;text-decoration:none;font-weight:600;">Chrome Web Store</a>.</span>
                     </td>
                 </tr>
                 <tr>

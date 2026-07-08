@@ -210,12 +210,12 @@ export default function Pricing() {
                 🎉 Launch Discount — Available Now
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 48, fontWeight: 950, color: '#0F172A', letterSpacing: '-0.04em' }}>$3</span>
+                <span style={{ fontSize: 48, fontWeight: 950, color: '#0F172A', letterSpacing: '-0.04em' }}>$1</span>
                 <span style={{ fontSize: 15, color: '#94A3B8', fontWeight: 600 }}>/month per user</span>
               </div>
               <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#94A3B8', textDecoration: 'line-through' }}>$12</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#007A5E', background: '#DCFCE7', padding: '2px 8px', borderRadius: 9999 }}>75% off</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#94A3B8', textDecoration: 'line-through' }}>$3</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#007A5E', background: '#DCFCE7', padding: '2px 8px', borderRadius: 9999 }}>66% off</span>
               </div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: 12, flexGrow: 1 }}>

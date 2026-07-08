@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { EXTENSION_DOWNLOAD_URL } from '@/lib/constants';
 
 /* ── Design tokens matching homepage ── */
 const ACCENT = '#007A5E';
@@ -244,11 +245,8 @@ const DOCS_CONTENT = {
           <h3 style={S.h3}>Installing the Extension</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              ['1','Download the extension package','Download the extension <code>.zip</code> file directly from our portal.'],
-              ['2','Open Extensions Management','Type <code>chrome://extensions</code> in your browser address bar.'],
-              ['3','Turn on Developer Mode','Toggle the "Developer mode" switch on the top right corner.'],
-              ['4','Load Unpacked','Unzip the file, click the "Load unpacked" button, and select the unzipped extension folder.'],
-              ['5','Pin the Icon','Click the puzzle piece icon on your Chrome toolbar and pin Attest so you can see your status.'],
+              ['1','Install from Chrome Web Store','Visit the <a href="' + EXTENSION_DOWNLOAD_URL + '" style="color:#007A5E;text-decoration:underline;font-weight:600;" target="_blank">HVEL Chrome Web Store page</a> and click "Add to Chrome".'],
+              ['2','Pin the Extension Icon','Click the puzzle piece icon on your Chrome toolbar and pin HVEL so you can see your status.'],
             ].map(([num, title, desc]) => (
               <div key={num} style={{ display:'flex', gap:16, padding:'16px 20px', background:'#F8FAFC', borderRadius:12, border:'1px solid #E2E8F0' }}>
                 <div style={{ width:32, height:32, background:'#2563EB', color:'white', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:13, flexShrink:0 }}>{num}</div>
