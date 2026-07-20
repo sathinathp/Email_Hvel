@@ -244,44 +244,67 @@ async function updateComposeStampLive(composeBody) {
 async function injectComposeStamp(container) {
     const composeBody = container.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"], .DraftEditor-editorContainer div[contenteditable="true"]');
     if (!composeBody) return;
-    
-    // Prevent duplicate signature
-    if (composeBody.querySelector('.hvel-badge-wrapper')) return;
-    
-    const clone = composeBody.cloneNode(true);
-    clone.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
-    const emailBodyText = clone.innerText || "";
-    const contentHash = await computeHash(emailBodyText);
 
-    chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
-        const stampMode = prefs.hvel_stamp_mode || 'with_link';
-        
-        let badgeInnerHtml = '';
-        if (stampMode === 'hash_only') {
-            badgeInnerHtml = `
-                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                </div>
-                <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
-                    <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
-                </div>
-            `;
-        } else {
-            badgeInnerHtml = `
-                <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
-                    <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                </a>
-            `;
+    const senderEmail = getSenderEmail();
+
+    // Check if sender is authorized for current session (primary or linked alias)
+    chrome.runtime.sendMessage({
+        action: 'checkPlanQuota',
+        email: senderEmail,
+        feature: 'totp_verify'
+    }, async (res) => {
+        if (res && (res.error === 'IDENTITY_MISMATCH' || res.error === 'AUTHENTICATION_REQUIRED' || res.error === 'INVALID_SESSION')) {
+            // Unlinked sender account or unauthenticated session: remove any stamp
+            composeBody.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+            
+            const indicator = container.querySelector('#hvel-compose-indicator');
+            if (indicator) {
+                indicator.style.background = 'rgba(239, 68, 68, 0.1)';
+                indicator.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                indicator.style.color = '#dc2626';
+                indicator.innerHTML = `<span style="font-size:11px;">⚠️</span> <span>Unlinked Account (${senderEmail})</span>`;
+            }
+            return;
         }
-        
-        updateOrAppendStamp(composeBody, badgeInnerHtml);
-        
-        // Add live typing/update listeners
-        composeBody.addEventListener('input', () => updateComposeStampLive(composeBody));
-        composeBody.addEventListener('keyup', () => updateComposeStampLive(composeBody));
+
+        // Prevent duplicate signature
+        if (composeBody.querySelector('.hvel-badge-wrapper')) return;
+
+        const clone = composeBody.cloneNode(true);
+        clone.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+        const emailBodyText = clone.innerText || "";
+        const contentHash = await computeHash(emailBodyText);
+
+        chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
+            const stampMode = prefs.hvel_stamp_mode || 'with_link';
+            
+            let badgeInnerHtml = '';
+            if (stampMode === 'hash_only') {
+                badgeInnerHtml = `
+                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
+                        <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
+                    </div>
+                `;
+            } else {
+                badgeInnerHtml = `
+                    <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
+                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
+                `;
+            }
+            
+            updateOrAppendStamp(composeBody, badgeInnerHtml);
+            
+            // Add live typing/update listeners
+            composeBody.addEventListener('input', () => updateComposeStampLive(composeBody));
+            composeBody.addEventListener('keyup', () => updateComposeStampLive(composeBody));
+        });
     });
 }
 
@@ -367,7 +390,7 @@ document.addEventListener('click', async (e) => {
             try {
                 const realEmailForCheck = getSenderEmail();
 
-                // ─── PLAN QUOTA PRE-CHECK ───
+                // ─── PLAN QUOTA & IDENTITY PRE-CHECK ───
                 chrome.runtime.sendMessage({
                     action: 'checkPlanQuota',
                     email: realEmailForCheck,
@@ -377,8 +400,20 @@ document.addEventListener('click', async (e) => {
                     if (isAuthError) {
                         isVerifying = false;
                         restoreSendButton(sendBtn);
+                        let composeBody = document.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+                        if (composeBody) composeBody.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
                         showVerificationWarningToast("Authentication Required", "Please log in to HVEL via the extension popup.");
                         return; // Stop — do NOT send the email
+                    }
+
+                    const isIdentityMismatch = quotaRes && quotaRes.error === 'IDENTITY_MISMATCH';
+                    if (isIdentityMismatch) {
+                        isVerifying = false;
+                        restoreSendButton(sendBtn);
+                        let composeBody = document.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+                        if (composeBody) composeBody.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+                        showVerificationWarningToast("Unlinked Sender Account", quotaRes.message || "Active Attest login does not match this sender email.");
+                        return; // Stop — do NOT send the unlinked email with stamp!
                     }
 
                     const quotaBlocked = quotaRes && quotaRes.allowed === false;
@@ -600,15 +635,15 @@ document.addEventListener('click', async (e) => {
                                 if (isVerifySuccess) {
                                     finalizeSend(verifyRes.url);
                                 } else {
-                                    showVerificationWarningToast("Verification Warning", "Failed to generate trust record, dispatching email.");
-                                    finalizeSend(null);
+                                    if (composeBody) {
+                                        composeBody.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
+                                    }
+                                    showVerificationWarningToast("Verification Blocked", verifyRes.error || "Sender email is not authorized for this Attest session.");
                                 }
                             } catch (innerErr) {
                                 console.error("HVEL Outer Send Catch Callback Error:", innerErr);
                                 isVerifying = false;
                                 restoreSendButton(sendBtn);
-                                sendBtn.setAttribute('data-hvel-verified', 'true');
-                                sendBtn.click();
                             }
                         });
                     } catch (midErr) {
