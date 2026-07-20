@@ -926,11 +926,344 @@ app.get('/v/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM verifications WHERE id = $1', [req.params.id]);
     const record = result.rows[0];
-    if (!record) return res.status(404).send('<h1>404 - Not found</h1>');
+    if (!record) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">404 - Verification Record Not Found</h1>');
     const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#007A5E';
-    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic / AI Sender' : 'Attest Approved';
-    res.send(`<!DOCTYPE html><html><head><title>Attest Trust Record</title><style>body{font-family:-apple-system,sans-serif;background:#f3f4f6;display:flex;justify-content:center;padding-top:50px;}.card{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:500px;width:100%;border-top:6px solid ${badgeColor};}h2{margin-top:0;color:${badgeColor};}.detail{margin-bottom:15px;border-bottom:1px solid #e5e7eb;padding-bottom:15px;}.label{font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:5px;display:block;}.value{font-size:16px;color:#111827;word-break:break-all;}</style></head><body><div class="card"><div style="text-align:center;margin-bottom:20px;"><a href="https://attest.page" target="_blank" style="text-decoration:none;"><img src="/icon-symbol.png" alt="Attest" style="width:48px;border:none;"></a></div><h2>${badgeTitle}</h2><p>This email carries an authentic trust signal verified by Attest.</p><div class="detail"><span class="label">Sender</span><span class="value">${record.sender_email}</span></div><div class="detail"><span class="label">Verification ID</span><span class="value" style="font-family:monospace;">${record.id}</span></div><div class="detail"><span class="label">Content Hash</span><span class="value" style="font-family:monospace;font-size:12px;color:#6b7280;">${record.content_hash || 'N/A'}</span></div><div class="detail" style="border:none;margin-bottom:25px;"><span class="label">Timestamp (UTC)</span><span class="value">${new Date(record.timestamp).toUTCString()}</span></div><div style="text-align:center;"><a href="https://attest.page" target="_blank" style="display:inline-block;background:${badgeColor};color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);transition:opacity 0.2s;">Verify Portal</a></div></div></body></html>`);
-  } catch (err) { res.status(500).send('<h1>500 - Server Error</h1>'); }
+    const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic Sender' : 'Approved';
+    
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attest Trust Record - ${badgeTitle}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+    
+    body {
+      min-height: 100vh;
+      background: #f8fafc;
+      background-image: 
+        radial-gradient(at 50% 0%, rgba(0, 122, 94, 0.05) 0px, transparent 60%),
+        linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: #0f172a;
+    }
+
+    /* Main Verification Card */
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+    }
+
+    .status-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 24px;
+    }
+
+    /* Logo inside circle */
+    .badge-icon-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .badge-logo-img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .status-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .status-subtitle {
+      font-size: 13.5px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    /* Key-Value Details Table */
+    .detail-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Unified Code Box Styling for ALL data fields */
+    .code-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .code-box:hover {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+    }
+
+    .code-text {
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      font-weight: 600;
+    }
+
+    .code-text::-webkit-scrollbar {
+      display: none;
+    }
+
+    .copy-icon {
+      flex-shrink: 0;
+      color: #94a3b8;
+      transition: color 0.15s ease;
+    }
+
+    .code-box:hover .copy-icon {
+      color: ${badgeColor};
+    }
+
+    /* Two Buttons Area */
+    .btn-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 480px) {
+      .btn-container {
+        grid-template-columns: 1fr;
+      }
+      .card {
+        padding: 28px 20px;
+      }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      text-align: center;
+      height: 44px;
+    }
+
+    .btn-verify {
+      background: ${badgeColor};
+      color: #ffffff;
+      border: 1px solid ${badgeColor};
+      box-shadow: 0 2px 8px rgba(0, 122, 94, 0.2);
+    }
+
+    .btn-verify:hover {
+      filter: brightness(0.92);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0, 122, 94, 0.3);
+    }
+
+    .btn-info {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-info:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+    }
+
+    .footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .footer a {
+      color: ${badgeColor};
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* Toast Alert */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="status-header">
+      <!-- LOGO INSIDE THE CIRCLE -->
+      <div class="badge-icon-circle">
+        <img src="/icon-symbol.png" alt="Attest Logo" class="badge-logo-img" />
+      </div>
+
+      <!-- TITLE: APPROVED -->
+      <h1 class="status-title">${badgeTitle}</h1>
+      <p class="status-subtitle">This email carries an authentic trust signal cryptographically verified by Attest.</p>
+    </div>
+
+    <div class="detail-group">
+      <!-- SENDER ADDRESS IN BOX AS REQUESTED -->
+      <div class="detail-row">
+        <div class="detail-label">Sender Address</div>
+        <div class="code-box" onclick="copyToClipboard('${record.sender_email}', 'Sender Address')">
+          <span class="code-text" style="font-family: 'Plus Jakarta Sans', sans-serif;">${record.sender_email}</span>
+          <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </div>
+      </div>
+
+      <!-- VERIFICATION ID IN BOX -->
+      <div class="detail-row">
+        <div class="detail-label">Verification ID</div>
+        <div class="code-box" onclick="copyToClipboard('${record.id}', 'Verification ID')">
+          <span class="code-text">${record.id}</span>
+          <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </div>
+      </div>
+
+      <!-- CONTENT SHA-256 HASH IN BOX -->
+      <div class="detail-row">
+        <div class="detail-label">Content SHA-256 Hash</div>
+        <div class="code-box" onclick="copyToClipboard('${record.content_hash || 'N/A'}', 'Content Hash')">
+          <span class="code-text" style="font-size: 12px; color: #475569;">${record.content_hash || 'N/A'}</span>
+          <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </div>
+      </div>
+
+      <!-- TIMESTAMP (UTC) IN BOX -->
+      <div class="detail-row">
+        <div class="detail-label">Timestamp (UTC)</div>
+        <div class="code-box" style="cursor: default;">
+          <span class="code-text" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #475569; font-weight: 500;">${new Date(record.timestamp).toUTCString()}</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- TWO BUTTONS REQUIRED BY USER -->
+    <div class="btn-container">
+      <a href="https://attest.page/verify" target="_blank" class="btn btn-verify">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 11l2 2 4-4"></path></svg>
+        Verify Portal
+      </a>
+
+      <a href="https://attest.page" target="_blank" class="btn btn-info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        More Information
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <img src="/icon-symbol.png" alt="Attest Logo" style="width: 16px; height: 16px; object-fit: contain;" />
+    Verified by <a href="https://attest.page" target="_blank">Attest Security Protocol</a> · FIDO2 & SHA-256
+  </div>
+
+  <div id="toast" class="toast">Copied to clipboard</div>
+
+  <script>
+    function copyToClipboard(text, label) {
+      if (!text || text === 'N/A') return;
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('toast');
+        toast.innerText = label + ' copied!';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
+  </script>
+
+</body>
+</html>`);
+  } catch (err) { res.status(500).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">500 - Server Error</h1>'); }
 });
 
 // Utility endpoints

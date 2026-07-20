@@ -219,9 +219,9 @@ async function updateComposeStampLive(composeBody) {
             let badgeInnerHtml = '';
             if (stampMode === 'hash_only') {
                 badgeInnerHtml = `
-                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                     </div>
                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
                         <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
@@ -229,15 +229,11 @@ async function updateComposeStampLive(composeBody) {
                 `;
             } else {
                 badgeInnerHtml = `
-                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
                         <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
-                        <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
-                        <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
-                            <span>Trust Record</span>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                        </a>
-                    </div>
+                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
                 `;
             }
             updateOrAppendStamp(composeBody, badgeInnerHtml);
@@ -263,9 +259,9 @@ async function injectComposeStamp(container) {
         let badgeInnerHtml = '';
         if (stampMode === 'hash_only') {
             badgeInnerHtml = `
-                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                     <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                 </div>
                 <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
                     <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
@@ -273,15 +269,11 @@ async function injectComposeStamp(container) {
             `;
         } else {
             badgeInnerHtml = `
-                <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
                     <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
-                    <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
-                    <a href="#" onclick="return false;" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; cursor: default;">
-                        <span>Trust Record</span>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    </a>
-                </div>
+                    <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
             `;
         }
         
@@ -546,9 +538,9 @@ document.addEventListener('click', async (e) => {
                                             if (isHuman) {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                                             <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
+                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
                                                             <span>Hash: ${contentHash}</span>
@@ -556,23 +548,19 @@ document.addEventListener('click', async (e) => {
                                                     `;
                                                 } else {
                                                     badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
                                                             <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest Approved</span>
-                                                            <div style="width: 1px; height: 12px; background: #d1fae5;"></div>
-                                                            <a href="${recordUrl}" target="_blank" style="color: #059669; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
-                                                                <span>Trust Record</span>
-                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                            </a>
-                                                        </div>
+                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                        </a>
                                                     `;
                                                 }
                                             } else {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                                             <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
+                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest (Robotic)</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
                                                             <span>Hash: ${contentHash}</span>
@@ -580,15 +568,11 @@ document.addEventListener('click', async (e) => {
                                                     `;
                                                 } else {
                                                     badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                        <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
                                                             <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic / AI Sender</span>
-                                                            <div style="width: 1px; height: 12px; background: #fee2e2;"></div>
-                                                            <a href="${recordUrl}" target="_blank" style="color: #dc2626; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 3px;">
-                                                                <span>Trust Record</span>
-                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                            </a>
-                                                        </div>
+                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest (Robotic)</span>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                        </a>
                                                     `;
                                                 }
                                             }
@@ -869,7 +853,7 @@ function showVerificationSuccessToast(message) {
             <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
         </div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest Approved</span>
+            <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest Verified</span>
             <span style="font-size: 11px; color: #047857; font-weight: 500; opacity: 0.9;">Secure human intent verified</span>
         </div>
     `;
