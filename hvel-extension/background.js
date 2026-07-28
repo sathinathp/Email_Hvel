@@ -1,4 +1,4 @@
-let API_BASE_URL = 'https://api.attest.page';
+let API_BASE_URL = 'https://api.attest.page'; // Defaults to production; auto-switches to http://localhost:5000 if local server is running
 
 // Helper to determine site context (gmail vs outlook)
 function getSiteType(request, sender) {
@@ -18,12 +18,22 @@ function getSiteType(request, sender) {
   return 'gmail';
 }
 
+const SITE_SPECIFIC_KEYS = [
+  'hvel_stats_sent_stamped_link',
+  'hvel_stats_sent_stamped_hash',
+  'hvel_stats_sent_unstamped',
+  'hvel_stats_received_stamped',
+  'hvel_stats_received_unstamped',
+  'hvel_audit_log'
+];
+
 function getPrefixedValues(siteType, keys, callback) {
-  const prefixedKeys = keys.map(k => `${siteType}_${k}`);
+  const prefixedKeys = keys.map(k => SITE_SPECIFIC_KEYS.includes(k) ? `${siteType}_${k}` : k);
   chrome.storage.local.get(prefixedKeys, (res) => {
     const result = {};
     keys.forEach(k => {
-      result[k] = res[`${siteType}_${k}`];
+      const realKey = SITE_SPECIFIC_KEYS.includes(k) ? `${siteType}_${k}` : k;
+      result[k] = res[realKey];
     });
     callback(result);
   });
@@ -32,21 +42,22 @@ function getPrefixedValues(siteType, keys, callback) {
 function setPrefixedValues(siteType, obj, callback) {
   const prefixedObj = {};
   for (let k in obj) {
-    prefixedObj[`${siteType}_${k}`] = obj[k];
+    const realKey = SITE_SPECIFIC_KEYS.includes(k) ? `${siteType}_${k}` : k;
+    prefixedObj[realKey] = obj[k];
   }
   chrome.storage.local.set(prefixedObj, callback);
 }
 
 function removePrefixedValues(siteType, keys, callback) {
-  const prefixedKeys = keys.map(k => `${siteType}_${k}`);
+  const prefixedKeys = keys.map(k => SITE_SPECIFIC_KEYS.includes(k) ? `${siteType}_${k}` : k);
   chrome.storage.local.remove(prefixedKeys, callback);
 }
 
 // Dynamically check if the local server is running on port 5000; if so, route requests to it first
 function checkBackendUrl() {
   fetch('http://localhost:5000/health')
-    .then(() => {
-      if (API_BASE_URL !== 'http://localhost:5000') {
+    .then((r) => {
+      if (r.ok && API_BASE_URL !== 'http://localhost:5000') {
         API_BASE_URL = 'http://localhost:5000';
         console.log('[HVEL BG] 📡 Localhost backend detected! Routing API requests to: http://localhost:5000');
       }
@@ -54,7 +65,7 @@ function checkBackendUrl() {
     .catch(() => {
       if (API_BASE_URL !== 'https://api.attest.page') {
         API_BASE_URL = 'https://api.attest.page';
-        console.log('[HVEL BG] 📡 Localhost down. Falling back to production backend: https://api.attest.page');
+        console.log('[HVEL BG] 🌐 Localhost offline. Using production API: https://api.attest.page');
       }
     });
 }
@@ -63,9 +74,30 @@ function checkBackendUrl() {
 checkBackendUrl();
 setInterval(checkBackendUrl, 10000);
 
+fetchAndCacheAliases('outlook');
+fetchAndCacheAliases('gmail');
+
+function fetchAndCacheAliases(siteType) {
+  getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+    if (!res.hvel_auth_token) return;
+    fetch(`${API_BASE_URL}/api/aliases`, {
+      headers: { 'Authorization': `Bearer ${res.hvel_auth_token}` }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success && Array.isArray(data.aliases)) {
+        chrome.storage.local.set({ hvel_linked_aliases: data.aliases });
+        console.log(`[HVEL BG] 📧 Aliases cached for ${siteType}:`, data.aliases);
+      }
+    })
+    .catch(() => {});
+  });
+}
+
 // ─── PLAN STATUS: fetch on startup and cache for 10 mins ───────────────────────
 function fetchAndCachePlanStatus(email, siteType) {
   if (!email || !siteType) return;
+  fetchAndCacheAliases(siteType);
   getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
     const headers = { 'Content-Type': 'application/json' };
     if (res.hvel_auth_token) {
@@ -79,7 +111,9 @@ function fetchAndCachePlanStatus(email, siteType) {
             hvel_plan: data.plan,
             hvel_plan_details: data.planDetails,
             hvel_usage: data.usage,
-            hvel_plan_cached_at: Date.now()
+            hvel_plan_cached_at: Date.now(),
+            hvel_is_alias: !!data.isAlias,
+            hvel_primary_email: data.primaryEmail || null
           });
           console.log(`[HVEL BG] 📊 [${siteType}] Plan cached: ${data.plan} | TOTP today: ${data.usage.totp_used_today}/${data.planDetails.totp_daily_limit}`);
         }
@@ -119,6 +153,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email, password: request.password })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        setPrefixedValues(siteType, {
+          hvel_auth_email: data.email,
+          hvel_auth_token: data.token
+        }, () => {
+          fetchAndCachePlanStatus(data.email, siteType);
+          sendResponse(data);
+        });
+      } else {
+        sendResponse(data);
+      }
+    })
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'sendLoginOtp') {
+    fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      body: JSON.stringify({ email: request.email })
+    })
+    .then(r => {
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        return r.text().then(t => { throw new Error(`Non-JSON response (${r.status}): ${t.substring(0,200)}`); });
+      }
+      return r.json();
+    })
+    .then(data => sendResponse(data))
+    .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'verifyLoginOtp') {
+    fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: request.email, otp: request.otp })
     })
     .then(r => r.json())
     .then(data => {
@@ -335,7 +411,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               hvel_plan: data.plan,
               hvel_plan_details: data.planDetails,
               hvel_usage: data.usage,
-              hvel_plan_cached_at: Date.now()
+              hvel_plan_cached_at: Date.now(),
+              hvel_is_alias: !!data.isAlias,
+              hvel_primary_email: data.primaryEmail || null
             });
           }
           sendResponse(data);
@@ -418,7 +496,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         },
         body: JSON.stringify({
           type: request.type,
-          email: request.email
+          email: request.email,
+          extra: request.extra
         })
       }).catch(() => {});
     });
@@ -457,6 +536,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       })
       .then(r => r.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.aliases)) {
+          chrome.storage.local.set({ hvel_linked_aliases: data.aliases });
+        }
+        sendResponse(data);
+      })
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    });
+    return true;
+  }
+
+  if (request.action === 'requestAliasOtp') {
+    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+      if (!res.hvel_auth_token) {
+        sendResponse({ success: false, error: 'Not authenticated' });
+        return;
+      }
+      fetch(`${API_BASE_URL}/api/aliases/request-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${res.hvel_auth_token}`
+        },
+        body: JSON.stringify({ aliasEmail: request.aliasEmail })
+      })
+      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(err => sendResponse({ success: false, error: err.message }));
     });
@@ -475,7 +580,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${res.hvel_auth_token}`
         },
-        body: JSON.stringify({ aliasEmail: request.aliasEmail })
+        body: JSON.stringify({ aliasEmail: request.aliasEmail, otp: request.otp })
       })
       .then(r => r.json())
       .then(data => sendResponse(data))

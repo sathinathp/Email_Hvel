@@ -66,15 +66,30 @@ updateProfile();
 // Keep a cached copy of the authenticated user's email from chrome.storage
 let cachedUserEmail = 'unknown-outlook-sender@outlook.com';
 
-chrome.storage.local.get(['outlook_hvel_auth_email'], (res) => {
-    if (res && res.outlook_hvel_auth_email) {
-        cachedUserEmail = res.outlook_hvel_auth_email.toLowerCase().trim();
-    }
-});
+function updateCachedUserEmail() {
+    chrome.storage.local.get(['hvel_auth_email', 'hvel_linked_aliases'], (res) => {
+        const primary = res.hvel_auth_email ? res.hvel_auth_email.toLowerCase().trim() : null;
+        const aliases = res.hvel_linked_aliases || [];
+
+        if (primary) {
+            cachedUserEmail = primary;
+            // If primary is Gmail, prefer any linked non-Gmail alias for Outlook operations
+            if (primary.endsWith('@gmail.com') || primary.endsWith('@googlemail.com')) {
+                const outlookAlias = aliases.find(a => a && !a.endsWith('@gmail.com') && !a.endsWith('@googlemail.com'));
+                if (outlookAlias) {
+                    cachedUserEmail = outlookAlias.toLowerCase().trim();
+                    console.log(`[HVEL OWA] 🎯 Using linked Outlook alias as active identity: ${cachedUserEmail}`);
+                }
+            }
+        }
+    });
+}
+
+updateCachedUserEmail();
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.outlook_hvel_auth_email) {
-        cachedUserEmail = changes.outlook_hvel_auth_email.newValue ? changes.outlook_hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-outlook-sender@outlook.com';
+    if (areaName === 'local' && (changes.hvel_auth_email || changes.hvel_linked_aliases)) {
+        updateCachedUserEmail();
     }
 });
 
@@ -104,28 +119,102 @@ async function markVerified(email) {
 
 // Extract actual user email and name from Outlook DOM
 function getSenderProfile() {
-    const meBtn = document.querySelector('#O365_MainLink_Me, button[aria-label*="Account manager"], button[title*="Account manager"]');
-    if (meBtn) {
-        const label = meBtn.getAttribute('aria-label') || meBtn.getAttribute('title') || "";
+    // Try all known selectors for the account manager / profile button in old & new OWA
+    const selectors = [
+        '#O365_MainLink_Me',
+        'button[aria-label*="Account manager"]',
+        'button[title*="Account manager"]',
+        '[data-automationid="meControl"]',
+        '[aria-label*="My account"]',
+        '[aria-label*="your account"]',
+        'button[class*="meControl"]',
+        'button[class*="MeControl"]',
+        // New Outlook on cloud.microsoft uses a different button
+        'button[aria-label*="profile"]',
+        'button[aria-label*="Profile"]',
+        '[data-testid="meControl"]',
+    ];
+
+    for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        const label = el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '';
         const emailMatch = label.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        const nameMatch = label.match(/(?:for|as)\s+([^(\n]+?)\s*(?:\(|$)/);
-        
-        return {
-            email: emailMatch ? emailMatch[0].toLowerCase() : null,
-            name: nameMatch ? nameMatch[1].trim() : null
-        };
+        if (emailMatch) {
+            return { email: emailMatch[0].toLowerCase(), name: null };
+        }
     }
     return { email: null, name: null };
 }
 
+function getComposeFromEmail(container) {
+    if (!container) return null;
+    // Look for a From dropdown or text
+    const fromButton = container.querySelector('button[aria-label*="From"], [role="combobox"][aria-label*="From"]');
+    if (fromButton) {
+        const text = fromButton.innerText || '';
+        const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+    // Check all buttons or dropdowns inside compose header that might display the sender email
+    const elements = container.querySelectorAll('.ms-ComposeHeader, [class*="composeHeader"], [class*="From"]');
+    for (let el of elements) {
+        const text = el.innerText || '';
+        const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+    return null;
+}
+
 function getSenderEmail() {
+    // 1. Profile button (account manager)
     const profile = getSenderProfile();
     if (profile.email) return profile.email;
 
+    // 2. Scan the full O365 header / nav bar area for any email
+    const headerSelectors = [
+        '#o365header', '#O365_HeaderLeftRegion', 'header',
+        '[role="banner"]', '[data-automationid="AppHeader"]',
+        'div[class*="header"]', 'nav[class*="nav"]'
+    ];
+    for (const sel of headerSelectors) {
+        const hdr = document.querySelector(sel);
+        if (!hdr) continue;
+        const match = hdr.innerHTML.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+
+    // 3. Meta tags (some OWA versions embed user email here)
+    const metas = document.querySelectorAll('meta[name], meta[property]');
+    for (const meta of metas) {
+        const content = meta.getAttribute('content') || '';
+        const match = content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+
+    // 4. Compose From field
+    if (activeComposeDialog) {
+        const composeFrom = getComposeFromEmail(activeComposeDialog);
+        if (composeFrom) return composeFrom;
+    }
+
+    // 5. Document title
     const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     if (titleMatch) return titleMatch[0].toLowerCase();
 
-    return cachedUserEmail;
+    // 6. URL-embedded user hint (some OWA URLs contain the UPN or tenant hints)
+    const urlMatch = window.location.href.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (urlMatch) return urlMatch[0].toLowerCase();
+
+    // 7. cachedUserEmail if it's a real email (not placeholder or gmail)
+    if (cachedUserEmail &&
+        !cachedUserEmail.endsWith('@gmail.com') &&
+        !cachedUserEmail.endsWith('@googlemail.com') &&
+        cachedUserEmail !== 'unknown-outlook-sender@outlook.com') {
+        return cachedUserEmail;
+    }
+
+    return 'unknown-outlook-sender@outlook.com';
 }
 
 function getCurrentUserEmail() {
@@ -143,12 +232,34 @@ document.addEventListener('mousemove', (e) => {
 let composeMousePoints = [];
 let activeComposeDialog = null;
 
+function isEmailBodyEditor(editor) {
+    if (!editor) return false;
+    const label = (editor.getAttribute('aria-label') || '').toLowerCase();
+    const placeholder = (editor.getAttribute('placeholder') || '').toLowerCase();
+    const role = (editor.getAttribute('role') || '').toLowerCase();
+
+    if (label.includes('search') || placeholder.includes('search')) return false;
+    if (label.includes('subject') || placeholder.includes('subject') || label === 'to' || label === 'cc' || label === 'bcc' || label.includes('recipient')) return false;
+    if (role === 'combobox') return false;
+
+    // If inside a recipient line or header row, reject unless it's explicitly "message body"
+    const recipientContainer = editor.closest('[aria-label*="To"], [aria-label*="Cc"], [aria-label*="Bcc"], [aria-label*="Subject"], [class*="recipient"], [class*="ToLine"], [class*="CcLine"], [class*="BccLine"], [class*="Subject"]');
+    if (recipientContainer && !label.includes('message body') && !label.includes('email body')) {
+        return false;
+    }
+
+    return true;
+}
+
 function injectComposeIndicator(container) {
-    if (container.querySelector('#hvel-compose-indicator')) return;
+    // Remove accidental indicators from recipient fields (To, Cc, Bcc)
+    document.querySelectorAll('[aria-label*="To"] #hvel-compose-indicator, [aria-label*="Cc"] #hvel-compose-indicator, [aria-label*="Bcc"] #hvel-compose-indicator, [class*="ToLine"] #hvel-compose-indicator, [class*="CcLine"] #hvel-compose-indicator').forEach(el => el.remove());
+
+    // Look for Outlook compose toolbar next to the main commands or Send button (bottom bar)
+    const composeWindow = container.closest('div[role="region"]') || container.closest('div[role="dialog"]') || container;
+    const toolbar = composeWindow.querySelector('.ms-CommandBar, div[role="toolbar"], div[class*="footer"], div[class*="Footer"]') || composeWindow.querySelector('#hvel-tracking-footer') || composeWindow;
     
-    // Look for Outlook compose toolbar next to the main commands or Send button
-    const toolbar = container.querySelector('div[role="toolbar"], .ms-CommandBar, .ms-Button--commandBar') || container;
-    if (!toolbar) return;
+    if (!toolbar || toolbar.querySelector('#hvel-compose-indicator')) return;
     
     const indicator = document.createElement('span');
     indicator.id = 'hvel-compose-indicator';
@@ -182,7 +293,11 @@ function flashComposeVerified(container) {
 }
 
 function updateOrAppendStamp(composeBody, badgeInnerHtml) {
-    if (!composeBody) return;
+    if (!composeBody || !isEmailBodyEditor(composeBody)) return;
+
+    // Clean up any accidentally placed stamps in To / Cc / Bcc fields
+    document.querySelectorAll('[aria-label*="To"] .hvel-badge-wrapper, [aria-label*="Cc"] .hvel-badge-wrapper, [aria-label*="Bcc"] .hvel-badge-wrapper, [class*="ToLine"] .hvel-badge-wrapper, [class*="CcLine"] .hvel-badge-wrapper').forEach(el => el.remove());
+
     const existing = composeBody.querySelector('.hvel-badge-wrapper');
     if (existing) {
         existing.innerHTML = badgeInnerHtml;
@@ -202,7 +317,7 @@ let hashUpdateTimeout = null;
 async function updateComposeStampLive(composeBody) {
     if (hashUpdateTimeout) clearTimeout(hashUpdateTimeout);
     hashUpdateTimeout = setTimeout(async () => {
-        if (!composeBody || !document.body.contains(composeBody)) return;
+        if (!composeBody || !document.body.contains(composeBody) || !isEmailBodyEditor(composeBody)) return;
         
         // Extract clean body text and compute the hash
         const clone = composeBody.cloneNode(true);
@@ -242,7 +357,18 @@ async function updateComposeStampLive(composeBody) {
 }
 
 async function injectComposeStamp(container) {
-    const composeBody = container.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"], .DraftEditor-editorContainer div[contenteditable="true"]');
+    // Locate ONLY the main message body editor inside container
+    const allEditors = container.querySelectorAll ? container.querySelectorAll('div[role="textbox"], div[contenteditable="true"]') : [];
+    let composeBody = null;
+    for (let ed of allEditors) {
+        if (isEmailBodyEditor(ed)) {
+            composeBody = ed;
+            break;
+        }
+    }
+    if (!composeBody && isEmailBodyEditor(container)) {
+        composeBody = container;
+    }
     if (!composeBody) return;
 
     const senderEmail = getSenderEmail();
@@ -254,7 +380,6 @@ async function injectComposeStamp(container) {
         feature: 'totp_verify'
     }, async (res) => {
         if (res && (res.error === 'IDENTITY_MISMATCH' || res.error === 'AUTHENTICATION_REQUIRED' || res.error === 'INVALID_SESSION')) {
-            // Unlinked sender account or unauthenticated session: remove any stamp
             composeBody.querySelectorAll('.hvel-badge-wrapper').forEach(el => el.remove());
             
             const indicator = container.querySelector('#hvel-compose-indicator');
@@ -310,24 +435,34 @@ async function injectComposeStamp(container) {
 
 // Watch for compose dialogs opening/closing
 const composeSessionObserver = new MutationObserver(() => {
-    const editors = document.querySelectorAll('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
+    const editors = document.querySelectorAll('div[role="textbox"], div[contenteditable="true"]');
     editors.forEach(editor => {
-        const container = editor.closest('div[role="region"]') || editor.closest('.ms-ComposeHeader') || editor.closest('div.ms-CommandBar')?.parentElement || editor.parentElement;
-        if (container && container !== activeComposeDialog) {
+        if (!isEmailBodyEditor(editor)) return;
+
+        const container = editor.closest('div[role="region"]') || editor.closest('div[role="dialog"]') || editor.parentElement;
+        if (container) {
             activeComposeDialog = container;
             composeMousePoints = []; // Fresh buffer per compose session
             injectComposeIndicator(container);
             injectComposeStamp(container);
-            console.log('[HVEL Outlook] 📝 Compose detected — focused tracking active');
         }
     });
-    // Cleanup if compose was closed
-    if (activeComposeDialog && !document.contains(activeComposeDialog)) {
-        activeComposeDialog = null;
-        composeMousePoints = [];
-    }
 });
 composeSessionObserver.observe(document.body, { childList: true, subtree: true });
+
+// Periodic safety scanner for open compose windows
+setInterval(() => {
+    const editors = document.querySelectorAll('div[role="textbox"], div[contenteditable="true"]');
+    editors.forEach(editor => {
+        if (!isEmailBodyEditor(editor)) return;
+
+        const container = editor.closest('div[role="region"]') || editor.closest('div[role="dialog"]') || editor.parentElement;
+        if (container) {
+            injectComposeIndicator(container);
+            injectComposeStamp(container);
+        }
+    });
+}, 2000);
 
 // Richer focused mouse buffer during compose
 document.addEventListener('mousemove', (e) => {
@@ -494,7 +629,7 @@ document.addEventListener('click', async (e) => {
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                            logAuditEvent('sent_unstamped', recipientEmail);
+                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -550,7 +685,7 @@ document.addEventListener('click', async (e) => {
                                         });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                                    logAuditEvent('sent_unstamped', recipientEmail);
+                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();
@@ -562,10 +697,16 @@ document.addEventListener('click', async (e) => {
                                     chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                         const stampMode = prefs.hvel_stamp_mode || 'with_link';
 
+                                        const extraData = {
+                                            sender: realEmail,
+                                            recipient: recipientEmail,
+                                            verificationId: recordUrl ? recordUrl.split('/v/').pop() : null,
+                                            contentHash: contentHash
+                                        };
                                         if (stampMode === 'hash_only' || !recordUrl) {
-                                            logAuditEvent('sent_stamped_hash', recipientEmail);
+                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData);
                                         } else {
-                                            logAuditEvent('sent_stamped_link', recipientEmail);
+                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData);
                                         }
 
                                         if (composeBody) {
@@ -1049,12 +1190,28 @@ function injectHeaderBadge(senderEl, status) {
 
 // ─── PASSIVE INCOMING INBOX SCANNER ───
 async function scanIncomingMessages() {
-    // 1. Find all email body containers in the page
-    const bodies = document.querySelectorAll('.allowTextSelection, div.customBody, div.ReadingPane');
-    
-    console.log(`[HVEL OWA] scanIncomingMessages running. Found ${bodies.length} body element(s).`);
+    // 1. Find all email body containers in the page — cover old OWA, new OWA (cloud.microsoft), and Outlook.com
+    const bodies = document.querySelectorAll([
+        '.allowTextSelection',
+        'div.customBody',
+        'div.ReadingPane',
+        '[class*="ReadingPane"]',
+        '[class*="readingPane"]',
+        '[class*="messageBody"]',
+        '[class*="MessageBody"]',
+        '[class*="ItemContent"]',
+        'div[class*="readingPaneContent"]',
+        'div[class*="ReadingPaneContent"]',
+        '[data-app-section="MessageBody"]',
+        'div[role="document"] > div > div'
+    ].join(', '));
 
-    bodies.forEach(async (bodyEl, idx) => {
+    // Deduplicate — some selectors may match same elements
+    const uniqueBodies = [...new Set([...bodies])];
+
+    console.log(`[HVEL OWA] scanIncomingMessages running. Found ${uniqueBodies.length} body element(s).`);
+
+    uniqueBodies.forEach(async (bodyEl, idx) => {
         // Skip compose windows
         if (bodyEl.querySelector('[contenteditable="true"]') || bodyEl.getAttribute('contenteditable') === 'true' || bodyEl.closest('[contenteditable="true"]')) {
             console.log(`[HVEL OWA] Body #${idx} skipped: is edit/compose window.`);
@@ -1178,7 +1335,17 @@ async function scanIncomingMessages() {
             senderEl = bodyEl.previousElementSibling || bodyEl.parentElement || bodyEl;
         }
 
-        const recipientEmail = getCurrentUserEmail() || '';
+        // Resolve recipient: prefer DOM resolution, fall back to cached auth email
+        let recipientEmail = getCurrentUserEmail() || '';
+        if (!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com') {
+            recipientEmail = cachedUserEmail || '';
+        }
+        if (!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com') {
+            // Last resort: try storage directly
+            recipientEmail = await new Promise(resolve => {
+                chrome.storage.local.get(['hvel_auth_email'], r => resolve(r.hvel_auth_email || ''));
+            });
+        }
         const IGNORED_DOMAINS = [
             'google.com', 'googleapis.com', 'googlemail.com',
             'microsoft.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office.com', 'azure.com',
@@ -1195,12 +1362,14 @@ async function scanIncomingMessages() {
 
         console.log(`[HVEL OWA] Body #${idx}: Message detected. Sender: "${senderEmail}", Domain Ignored: ${isIgnoredDomain}, Recipient: "${recipientEmail}"`);
 
-        if (senderEmail && recipientEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
+        // Only skip if sender matches recipient exactly (self-send) or domain is ignored
+        const isSelfSend = recipientEmail && senderEmail.toLowerCase() === recipientEmail.toLowerCase();
+        if (senderEmail && !isSelfSend && !isIgnoredDomain) {
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
-                const verifyReceived = !!res.hvel_verify_received;
+                const verifyReceived = res.hvel_verify_received !== false;
                 console.log(`[HVEL OWA] Body #${idx}: Checking storage for hvel_verify_received: ${verifyReceived}`);
                 if (!verifyReceived) {
-                    return; // Default: do not verify received senders
+                    return;
                 }
 
                 if (badgeLink) {
@@ -1220,14 +1389,14 @@ async function scanIncomingMessages() {
                             injectHeaderBadge(senderEl, 'verified');
                             if (!bodyEl.hasAttribute('data-hvel-audited')) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail);
+                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail, verificationId: id });
                             }
                         } else {
                             showTrustStatus(bodyEl, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
                             injectHeaderBadge(senderEl, 'unverified');
                             if (!bodyEl.hasAttribute('data-hvel-audited')) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail);
+                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
                             }
                         }
                     });
@@ -1237,7 +1406,7 @@ async function scanIncomingMessages() {
                     injectHeaderBadge(senderEl, 'unverified');
                     if (!bodyEl.hasAttribute('data-hvel-audited')) {
                         bodyEl.setAttribute('data-hvel-audited', 'true');
-                        logAuditEvent('received_unstamped', senderEmail);
+                        logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
                     }
                     
                     if (bodyEl.offsetParent !== null) {
@@ -1563,30 +1732,129 @@ function scanAndStyleComposeRecipients() {
     });
 }
 
-function logAuditEvent(type, emailDetail) {
+function logAuditEvent(type, emailDetail, extra = null) {
     const key = `outlook_hvel_stats_${type}`;
-    chrome.storage.local.get([key, 'outlook_hvel_audit_log', 'outlook_hvel_auth_token'], (res) => {
+    chrome.storage.local.get([key, 'outlook_hvel_audit_log', 'hvel_auth_token'], (res) => {
         const count = (res[key] || 0) + 1;
         const rawLog = res.outlook_hvel_audit_log || [];
         const newEntry = {
             id: Math.random().toString(36).substring(2, 9),
             type: type,
             email: emailDetail || 'Unknown',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            extra: extra
         };
         const updatedLog = [newEntry, ...rawLog].slice(0, 100);
         chrome.storage.local.set({
             [key]: count,
             outlook_hvel_audit_log: updatedLog
         }, () => {
-            if (res.outlook_hvel_auth_token) {
+            if (res.hvel_auth_token) {
                 chrome.runtime.sendMessage({
                     action: 'logAuditEvent',
                     type: type,
-                    email: emailDetail
+                    email: emailDetail,
+                    extra: extra
                 });
             }
         });
+    });
+}
+
+function updateListBadge(badge, isVerified) {
+    if (isVerified) {
+        badge.innerText = 'Attest';
+        badge.style.setProperty('background', '#e6fbf1', 'important');
+        badge.style.setProperty('border', '1px solid #a7f3d0', 'important');
+        badge.style.setProperty('color', '#065f46', 'important');
+    } else {
+        badge.innerText = 'Not Verified';
+        badge.style.setProperty('background', '#fff1f2', 'important');
+        badge.style.setProperty('border', '1px solid #fecaca', 'important');
+        badge.style.setProperty('color', '#991b1b', 'important');
+    }
+}
+
+function scanOutlookInboxList() {
+    const rows = document.querySelectorAll('div[role="option"], div[data-lpos], [class*="customListItem"]');
+    rows.forEach(row => {
+        // Find time element
+        let timeEl = row.querySelector('[style*="grid-area: time"], [class*="Time"], [class*="time"], span[time], div[time]');
+        if (!timeEl) {
+            const elements = row.querySelectorAll('span, div');
+            for (let el of elements) {
+                if (el.children.length === 0) {
+                    const text = el.innerText.trim();
+                    if (/^(?:\d{1,2}:\d{2}\s*(?:AM|PM)|\w{3}\s+\d{1,2})$/i.test(text)) {
+                        timeEl = el;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!timeEl) return;
+
+        // Find email
+        let email = null;
+        const emailEl = row.querySelector('[data-hovercard-id], [email], a[href^="mailto:"]');
+        if (emailEl) {
+            email = emailEl.getAttribute('data-hovercard-id') || emailEl.getAttribute('email') || emailEl.getAttribute('href')?.replace('mailto:', '');
+        }
+        if (!email || !email.includes('@')) {
+            const titleEl = row.querySelector('[title*="@"]');
+            if (titleEl) {
+                const match = titleEl.getAttribute('title').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                if (match) email = match[0];
+            }
+        }
+
+        if (!email || !email.includes('@')) return;
+        email = email.toLowerCase().trim();
+
+        let badge = timeEl.querySelector('.hvel-list-badge');
+        if (badge) {
+            if (badge.getAttribute('data-email') === email) {
+                return;
+            }
+            badge.setAttribute('data-email', email);
+        } else {
+            badge = document.createElement('span');
+            badge.className = 'hvel-list-badge';
+            badge.setAttribute('data-email', email);
+            badge.style.cssText = `
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: 700;
+                margin-right: 8px;
+                vertical-align: middle;
+                user-select: none;
+                line-height: 1;
+                font-family: 'Segoe UI', system-ui, sans-serif;
+            `;
+            timeEl.insertBefore(badge, timeEl.firstChild);
+        }
+
+        if (checkedEmailsCache.has(email)) {
+            const cached = checkedEmailsCache.get(email);
+            if (!cached.checking) {
+                updateListBadge(badge, cached.verified);
+            }
+        } else {
+            updateListBadge(badge, false);
+            checkedEmailsCache.set(email, { verified: false, checking: true });
+            
+            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
+                const isVerified = !!(response && response.verified);
+                checkedEmailsCache.set(email, { verified: isVerified, checking: false });
+                if (badge.parentElement && badge.getAttribute('data-email') === email) {
+                    updateListBadge(badge, isVerified);
+                }
+            });
+        }
     });
 }
 
@@ -1594,6 +1862,7 @@ function logAuditEvent(type, emailDetail) {
 function runHvelIntervals() {
     scanIncomingMessages();
     scanAndStyleComposeRecipients();
+    scanOutlookInboxList();
 }
 
 setInterval(runHvelIntervals, 1500);

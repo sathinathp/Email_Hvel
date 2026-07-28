@@ -39,6 +39,7 @@ export default function Navbar() {
   }, [pathname]);
 
   const navLinks = [
+    { href: '/#demo-video', label: 'Watch Demo' },
     { href: '/docs',       label: 'Docs' },
     { href: '/pricing',    label: 'Pricing' },
     { href: '/verify',     label: 'Verify Hash' },

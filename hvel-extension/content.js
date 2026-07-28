@@ -63,15 +63,15 @@ updateProfile();
 // Keep a cached copy of the authenticated user's email from chrome.storage
 let cachedUserEmail = 'unknown-sender@gmail.com';
 
-chrome.storage.local.get(['gmail_hvel_auth_email'], (res) => {
-    if (res && res.gmail_hvel_auth_email) {
-        cachedUserEmail = res.gmail_hvel_auth_email.toLowerCase().trim();
+chrome.storage.local.get(['hvel_auth_email'], (res) => {
+    if (res && res.hvel_auth_email) {
+        cachedUserEmail = res.hvel_auth_email.toLowerCase().trim();
     }
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.gmail_hvel_auth_email) {
-        cachedUserEmail = changes.gmail_hvel_auth_email.newValue ? changes.gmail_hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
+    if (areaName === 'local' && changes.hvel_auth_email) {
+        cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
     }
 });
 
@@ -123,7 +123,19 @@ function getSenderEmail() {
     const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     if (titleMatch) return titleMatch[0].toLowerCase();
 
-    return cachedUserEmail;
+    // Fallback ONLY if cachedUserEmail is not an Outlook/Microsoft/Hotmail email
+    const isOutlookEmail = cachedUserEmail && (
+        cachedUserEmail.endsWith('@outlook.com') ||
+        cachedUserEmail.endsWith('@hotmail.com') ||
+        cachedUserEmail.endsWith('@live.com') ||
+        cachedUserEmail.endsWith('@msn.com') ||
+        cachedUserEmail.endsWith('@office.com')
+    );
+    if (cachedUserEmail && !isOutlookEmail && cachedUserEmail !== 'unknown-gmail-sender@gmail.com') {
+        return cachedUserEmail;
+    }
+
+    return 'unknown-gmail-sender@gmail.com';
 }
 
 // Function to find the recipient of an incoming message (the current user)
@@ -519,7 +531,7 @@ document.addEventListener('click', async (e) => {
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                            logAuditEvent('sent_unstamped', recipientEmail);
+                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -577,7 +589,7 @@ document.addEventListener('click', async (e) => {
                                         });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                                    logAuditEvent('sent_unstamped', recipientEmail);
+                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();
@@ -588,11 +600,17 @@ document.addEventListener('click', async (e) => {
                                 const finalizeSend = (recordUrl) => {
                                     chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                         const stampMode = prefs.hvel_stamp_mode || 'with_link';
+                                        const extraData = {
+                                            sender: realEmail,
+                                            recipient: recipientEmail,
+                                            verificationId: recordUrl ? recordUrl.split('/v/').pop() : null,
+                                            contentHash: contentHash
+                                        };
 
                                         if (stampMode === 'hash_only' || !recordUrl) {
-                                            logAuditEvent('sent_stamped_hash', recipientEmail);
+                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData);
                                         } else {
-                                            logAuditEvent('sent_stamped_link', recipientEmail);
+                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData);
                                         }
 
                                         if (composeBody) {
@@ -1253,10 +1271,10 @@ async function scanIncomingMessages() {
 
         if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
-                const verifyReceived = !!res.hvel_verify_received;
+                const verifyReceived = res.hvel_verify_received !== false;
                 console.log(`[HVEL Gmail] Checking storage for hvel_verify_received: ${verifyReceived}`);
                 if (!verifyReceived) {
-                    return; // By default off: do not verify received senders, don't show any badge in Gmail
+                    return;
                 }
 
                 if (badgeLink) {
@@ -1276,14 +1294,14 @@ async function scanIncomingMessages() {
                             showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
                             if (!msg.hasAttribute('data-hvel-audited')) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail);
+                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail, verificationId: id });
                             }
                         } else {
                             // If invalid (not found / user does not have extension), show as unverified
                             showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
                             if (!msg.hasAttribute('data-hvel-audited')) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail);
+                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
                             }
                         }
                     });
@@ -1292,7 +1310,7 @@ async function scanIncomingMessages() {
                     showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
                     if (!msg.hasAttribute('data-hvel-audited')) {
                         msg.setAttribute('data-hvel-audited', 'true');
-                        logAuditEvent('received_unstamped', senderEmail);
+                        logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
                     }
                     
                     if (msg.offsetParent !== null) {
@@ -1339,11 +1357,12 @@ function showTrustStatus(msgElement, status, text) {
 
     const notice = document.createElement('div');
     notice.className = 'hvel-trust-notice';
+    notice.style.cssText = 'display: block !important; width: 100% !important; clear: both !important; margin: 12px 0 !important;';
 
     if (status === 'verified') {
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1369,7 +1388,7 @@ function showTrustStatus(msgElement, status, text) {
         const title = 'Critical: ID Mismatch Detected';
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1395,7 +1414,7 @@ function showTrustStatus(msgElement, status, text) {
         // 'unverified' — not a threat, just not registered. Small stamp style at the bottom of the email.
         notice.innerHTML = `
             <div style="
-                margin: 16px 0 8px 0;
+                margin: 8px 0;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
                 display: block;
                 clear: both;
@@ -1420,7 +1439,7 @@ function showTrustStatus(msgElement, status, text) {
     }
 
     const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
-    insertTarget.appendChild(notice);
+    insertTarget.insertBefore(notice, insertTarget.firstChild);
 }
 
 // Compute SHA-256 hash of email body contents
@@ -1453,10 +1472,95 @@ function getRecipientEmail(sendBtn) {
 }
 
 
+function updateListBadge(badge, isVerified) {
+    if (isVerified) {
+        badge.innerText = 'Attest';
+        badge.style.setProperty('background', '#e6fbf1', 'important');
+        badge.style.setProperty('border', '1px solid #a7f3d0', 'important');
+        badge.style.setProperty('color', '#065f46', 'important');
+    } else {
+        badge.innerText = 'Not Verified';
+        badge.style.setProperty('background', '#fff1f2', 'important');
+        badge.style.setProperty('border', '1px solid #fecaca', 'important');
+        badge.style.setProperty('color', '#991b1b', 'important');
+    }
+}
+
+function scanGmailInboxList() {
+    const rows = document.querySelectorAll('tr.zA');
+    rows.forEach(row => {
+        const senderEl = row.querySelector('[email], [data-hovercard-id], span.zF');
+        let email = null;
+        if (senderEl) {
+            email = senderEl.getAttribute('email') || senderEl.getAttribute('data-hovercard-id');
+        }
+        if (!email || !email.includes('@')) {
+            const childWithEmail = row.querySelector('[email]');
+            if (childWithEmail) email = childWithEmail.getAttribute('email');
+        }
+
+        if (!email || !email.includes('@')) return;
+        email = email.toLowerCase().trim();
+
+        const dateCell = row.querySelector('td.xW');
+        if (!dateCell) return;
+
+        let badge = dateCell.querySelector('.hvel-list-badge');
+        if (badge) {
+            if (badge.getAttribute('data-email') === email) {
+                return;
+            }
+            badge.setAttribute('data-email', email);
+        } else {
+            badge = document.createElement('span');
+            badge.className = 'hvel-list-badge';
+            badge.setAttribute('data-email', email);
+            badge.style.cssText = `
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: 700;
+                margin-right: 8px;
+                vertical-align: middle;
+                user-select: none;
+                line-height: 1;
+                font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            `;
+            dateCell.insertBefore(badge, dateCell.firstChild);
+        }
+
+        dateCell.style.setProperty('min-width', '150px', 'important');
+        dateCell.style.setProperty('text-align', 'right', 'important');
+        dateCell.style.setProperty('white-space', 'nowrap', 'important');
+
+        if (checkedEmailsCache.has(email)) {
+            const cached = checkedEmailsCache.get(email);
+            if (!cached.checking) {
+                updateListBadge(badge, cached.verified);
+            }
+        } else {
+            updateListBadge(badge, false);
+            checkedEmailsCache.set(email, { verified: false, checking: true });
+            
+            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
+                const isVerified = !!(response && response.verified);
+                checkedEmailsCache.set(email, { verified: isVerified, checking: false });
+                if (badge.parentElement && badge.getAttribute('data-email') === email) {
+                    updateListBadge(badge, isVerified);
+                }
+            });
+        }
+    });
+}
+
 // Interval loops to catch dynamically loaded view changes
 function runHvelIntervals() {
     scanIncomingMessages();
     scanAndStyleComposeRecipients();
+    scanGmailInboxList();
 }
 
 setInterval(runHvelIntervals, 1500);
@@ -1649,27 +1753,29 @@ function scanAndStyleComposeRecipients() {
     });
 }
 
-function logAuditEvent(type, emailDetail) {
+function logAuditEvent(type, emailDetail, extra = null) {
     const key = `gmail_hvel_stats_${type}`;
-    chrome.storage.local.get([key, 'gmail_hvel_audit_log', 'gmail_hvel_auth_token'], (res) => {
+    chrome.storage.local.get([key, 'gmail_hvel_audit_log', 'hvel_auth_token'], (res) => {
         const count = (res[key] || 0) + 1;
         const rawLog = res.gmail_hvel_audit_log || [];
         const newEntry = {
             id: Math.random().toString(36).substring(2, 9),
             type: type,
             email: emailDetail || 'Unknown',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            extra: extra
         };
         const updatedLog = [newEntry, ...rawLog].slice(0, 100);
         chrome.storage.local.set({
             [key]: count,
             gmail_hvel_audit_log: updatedLog
         }, () => {
-            if (res.gmail_hvel_auth_token) {
+            if (res.hvel_auth_token) {
                 chrome.runtime.sendMessage({
                     action: 'logAuditEvent',
                     type: type,
-                    email: emailDetail
+                    email: emailDetail,
+                    extra: extra
                 });
             }
         });

@@ -307,6 +307,14 @@ async function initDB() {
       alias_email VARCHAR(255) UNIQUE NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS user_otps (
+      email VARCHAR(255) NOT NULL,
+      otp VARCHAR(10) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (email, type)
+    );
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) NOT NULL,
@@ -326,6 +334,13 @@ async function initDB() {
     `);
     if (colCheck.rows.length === 0) {
       await pool.query('ALTER TABLE verifications ADD COLUMN recipient_email VARCHAR(255)');
+    }
+    const auditColCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name='audit_logs' AND column_name='metadata'
+    `);
+    if (auditColCheck.rows.length === 0) {
+      await pool.query('ALTER TABLE audit_logs ADD COLUMN metadata JSONB');
     }
     console.log("✅ Database tables ensured (including plan and auth system).");
   } catch (err) {
@@ -436,6 +451,125 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Login failed. Please try again.' });
   }
 });
+
+app.post('/api/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'MISSING_EMAIL', message: 'Email address is required.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailLower)) {
+    return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Please enter a valid email address.' });
+  }
+
+  try {
+    // Generate a secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await pool.query(
+      `INSERT INTO user_otps (email, otp, type, expires_at)
+       VALUES ($1, $2, 'login', $3)
+       ON CONFLICT (email, type)
+       DO UPDATE SET otp = $2, expires_at = $3`,
+      [emailLower, otp, expiresAt]
+    );
+
+    const otpHtml = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:500px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+        <div style="background:#007A5E;padding:24px;text-align:center;color:white;">
+          <h2 style="margin:0;font-size:20px;font-weight:700;">HVEL Security OTP</h2>
+        </div>
+        <div style="padding:24px;text-align:center;">
+          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">Use the code below to log in or create your HVEL account. This code will expire in 5 minutes.</p>
+          <div style="background:#f3f4f6;padding:16px;font-size:32px;font-weight:800;letter-spacing:6px;border-radius:8px;color:#0f172a;display:inline-block;margin:10px 0;">${otp}</div>
+          <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">If you did not request this code, you can safely ignore this email.</p>
+        </div>
+      </div>
+    `;
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const otpText = `Your HVEL login/signup verification code is: ${otp}. It will expire in 5 minutes.`;
+      
+      mainTransporter.sendMail({
+        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        replyTo: process.env.EMAIL_USER,
+        to: emailLower,
+        subject: `HVEL Login Verification Code: ${otp}`,
+        text: otpText,
+        html: otpHtml,
+        headers: {
+          'X-Priority': '3 (Normal)',
+          'Importance': 'normal'
+        }
+      }, (err) => {
+        if (err) console.error('[AUTH OTP] Email error:', err);
+        else console.log(`[AUTH OTP] ✅ OTP email sent to ${emailLower}`);
+      });
+    } else {
+      console.log(`[AUTH OTP] ⚠️ Mailer not configured. OTP for ${emailLower} is: ${otp}`);
+    }
+
+    res.json({ success: true, message: 'Verification code sent to your email.' });
+  } catch (err) {
+    console.error('[AUTH OTP] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to send verification code.' });
+  }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email and verification code are required.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    const otpRes = await pool.query(
+      'SELECT otp, expires_at FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [emailLower, 'login']
+    );
+
+    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp.trim()) {
+      return res.status(400).json({ error: 'INVALID_OTP', message: 'The verification code entered is incorrect.' });
+    }
+
+    if (new Date() > new Date(otpRes.rows[0].expires_at)) {
+      return res.status(400).json({ error: 'EXPIRED_OTP', message: 'The verification code has expired. Please request a new one.' });
+    }
+
+    // Delete used OTP
+    await pool.query(
+      'DELETE FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [emailLower, 'login']
+    );
+
+    // Auto-create user if not exists
+    await pool.query(
+      `INSERT INTO users (email, plan)
+       VALUES ($1, 'free')
+       ON CONFLICT (email) DO NOTHING`,
+      [emailLower]
+    );
+
+    // Create session
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, token]
+    );
+
+    console.log(`[AUTH OTP] ✅ User logged in successfully via OTP: ${emailLower}`);
+    res.json({ success: true, email: emailLower, token });
+  } catch (err) {
+    console.error('[AUTH OTP VERIFY] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to verify OTP.' });
+  }
+});
+
 
 app.post('/api/auth/logout', async (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -595,10 +729,14 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
+const smtpHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+const smtpPort = parseInt(process.env.EMAIL_PORT || '465');
+const smtpSecure = process.env.EMAIL_SECURE === 'false' ? false : (process.env.EMAIL_SECURE === 'true' ? true : smtpPort === 465);
+
 const mainTransporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   connectionTimeout: 30000,
   greetingTimeout: 30000,
@@ -609,10 +747,10 @@ const mainTransporter = nodemailer.createTransport({
 });
 
 const hrmsTransporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS },
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS || process.env.EMAIL_PASS },
   connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 30000,
@@ -1732,6 +1870,8 @@ app.get('/api/plan/status', async (req, res) => {
     res.json({
       success: true,
       email,
+      isAlias: aliasRes.rows.length > 0,
+      primaryEmail: aliasRes.rows.length > 0 ? aliasRes.rows[0].primary_email.toLowerCase() : null,
       plan: planKey,
       planDetails: {
         name: plan.name,
@@ -1787,8 +1927,7 @@ app.get('/api/aliases', async (req, res) => {
   }
 });
 
-// POST /api/aliases — link a new email alias (limit: 5 accounts total for Professional users)
-app.post('/api/aliases', async (req, res) => {
+app.post('/api/aliases/request-otp', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) {
@@ -1843,10 +1982,142 @@ app.post('/api/aliases', async (req, res) => {
       });
     }
 
+    // Generate secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await pool.query(
+      `INSERT INTO user_otps (email, otp, type, expires_at)
+       VALUES ($1, $2, 'link_alias', $3)
+       ON CONFLICT (email, type)
+       DO UPDATE SET otp = $2, expires_at = $3`,
+      [aliasEmail, otp, expiresAt]
+    );
+
+    const linkHtml = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:500px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+        <div style="background:#007A5E;padding:24px;text-align:center;color:white;">
+          <h2 style="margin:0;font-size:20px;font-weight:700;">HVEL Link Account Verification</h2>
+        </div>
+        <div style="padding:24px;text-align:center;">
+          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;"><strong>${authEmail}</strong> has requested to link your email address to their Attest account.</p>
+          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">Use the verification code below to authorize this request. This code will expire in 5 minutes.</p>
+          <div style="background:#f3f4f6;padding:16px;font-size:32px;font-weight:800;letter-spacing:6px;border-radius:8px;color:#0f172a;display:inline-block;margin:10px 0;">${otp}</div>
+          <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">If you did not request this, you can safely ignore this email.</p>
+        </div>
+      </div>
+    `;
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      mainTransporter.sendMail({
+        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        replyTo: process.env.EMAIL_USER,
+        to: aliasEmail,
+        subject: `HVEL Account Link Code: ${otp}`,
+        text: `Your HVEL account link code is: ${otp}. It will expire in 5 minutes.`,
+        html: linkHtml,
+        headers: {
+          'X-Priority': '3 (Normal)',
+          'Importance': 'normal'
+        }
+      }, (err) => {
+        if (err) console.error('[ALIAS OTP] Email error:', err);
+        else console.log(`[ALIAS OTP] ✅ OTP email sent to alias: ${aliasEmail}`);
+      });
+    } else {
+      console.log(`[ALIAS OTP] ⚠️ Mailer not configured. OTP for alias ${aliasEmail} is: ${otp}`);
+    }
+
+    res.json({ success: true, message: 'Verification code sent to alias email.' });
+  } catch (err) {
+    console.error('[ALIAS OTP REQUEST] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to send verification code.' });
+  }
+});
+
+// POST /api/aliases — link a new email alias (limit: 5 accounts total for Professional users)
+app.post('/api/aliases', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  const { aliasEmail, otp } = req.body;
+  if (!aliasEmail || !aliasEmail.includes('@')) {
+    return res.status(400).json({ error: 'VALID_EMAIL_REQUIRED', message: 'A valid email address is required.' });
+  }
+  if (!otp) {
+    return res.status(400).json({ error: 'OTP_REQUIRED', message: 'Verification code is required.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const authEmail = sessionRes.rows[0].email.toLowerCase();
+
+    // Check if the primary account is on the Professional plan
+    const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
+    const planKey = userRes.rows[0]?.plan || 'free';
+    if (planKey !== 'professional') {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        message: 'Only Professional plan users can link email aliases to share their plan. Please upgrade your plan.'
+      });
+    }
+
+    // Check current count of aliases (max 5 accounts total = 1 primary + 4 aliases)
+    const countRes = await pool.query('SELECT COUNT(*) FROM user_aliases WHERE LOWER(primary_email) = $1', [authEmail]);
+    const currentCount = parseInt(countRes.rows[0].count);
+    if (currentCount >= 4) {
+      return res.status(400).json({
+        error: 'ALIAS_LIMIT_REACHED',
+        message: 'You have reached the maximum limit of 5 total accounts (1 primary + 4 linked aliases) on your Professional plan.'
+      });
+    }
+
+    // Check if the alias email is already registered as a primary email or linked alias
+    const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail.toLowerCase()]);
+    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail.toLowerCase()]);
+    if (existingUser.rows.length > 0 && aliasEmail.toLowerCase() !== authEmail) {
+      return res.status(400).json({
+        error: 'EMAIL_ALREADY_REGISTERED',
+        message: 'This email is already registered as a separate Attest account.'
+      });
+    }
+    if (existingAlias.rows.length > 0) {
+      return res.status(400).json({
+        error: 'ALIAS_ALREADY_LINKED',
+        message: 'This email is already linked as an alias to an Attest account.'
+      });
+    }
+
+    // Verify OTP
+    const otpRes = await pool.query(
+      'SELECT otp, expires_at FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [aliasEmail.toLowerCase(), 'link_alias']
+    );
+
+    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp.trim()) {
+      return res.status(400).json({ error: 'INVALID_OTP', message: 'The verification code entered is incorrect.' });
+    }
+
+    if (new Date() > new Date(otpRes.rows[0].expires_at)) {
+      return res.status(400).json({ error: 'EXPIRED_OTP', message: 'The verification code has expired. Please request a new one.' });
+    }
+
+    // Delete used OTP
+    await pool.query(
+      'DELETE FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [aliasEmail.toLowerCase(), 'link_alias']
+    );
+
     // Add the alias
     await pool.query(
       'INSERT INTO user_aliases (primary_email, alias_email) VALUES ($1, $2)',
-      [authEmail, aliasEmail]
+      [authEmail, aliasEmail.toLowerCase()]
     );
 
     // Update count in users table
@@ -1921,7 +2192,7 @@ app.get('/api/audit-logs', async (req, res) => {
 
     // Get all logs for the user, limited to latest 100 for performance
     const logsRes = await pool.query(
-      `SELECT type, email, timestamp FROM audit_logs 
+      `SELECT type, email, timestamp, metadata FROM audit_logs 
        WHERE LOWER(user_email) = $1 
        ORDER BY timestamp DESC LIMIT 100`,
       [email]
@@ -1955,7 +2226,8 @@ app.get('/api/audit-logs', async (req, res) => {
       logs: logsRes.rows.map(row => ({
         type: row.type,
         email: row.email,
-        timestamp: new Date(row.timestamp).getTime()
+        timestamp: new Date(row.timestamp).getTime(),
+        extra: row.metadata
       })),
       stats
     });
@@ -1967,7 +2239,7 @@ app.get('/api/audit-logs', async (req, res) => {
 
 // POST /api/audit-logs/log — logs a new audit event
 app.post('/api/audit-logs/log', async (req, res) => {
-  const { type, email: targetEmail } = req.body;
+  const { type, email: targetEmail, extra } = req.body;
   if (!type || !targetEmail) {
     return res.status(400).json({ error: 'type and email are required' });
   }
@@ -1986,10 +2258,10 @@ app.post('/api/audit-logs/log', async (req, res) => {
     const userEmail = sessionRes.rows[0].email.toLowerCase();
 
     const insertRes = await pool.query(
-      `INSERT INTO audit_logs (user_email, type, email, timestamp) 
-       VALUES ($1, $2, $3, NOW()) 
-       RETURNING type, email, timestamp`,
-      [userEmail, type, targetEmail.toLowerCase()]
+      `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata) 
+       VALUES ($1, $2, $3, NOW(), $4) 
+       RETURNING type, email, timestamp, metadata`,
+      [userEmail, type, targetEmail.toLowerCase(), extra ? JSON.stringify(extra) : null]
     );
 
     res.json({
@@ -1997,7 +2269,8 @@ app.post('/api/audit-logs/log', async (req, res) => {
       log: {
         type: insertRes.rows[0].type,
         email: insertRes.rows[0].email,
-        timestamp: new Date(insertRes.rows[0].timestamp).getTime()
+        timestamp: new Date(insertRes.rows[0].timestamp).getTime(),
+        extra: insertRes.rows[0].metadata
       }
     });
   } catch (err) {

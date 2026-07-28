@@ -166,6 +166,14 @@
     input:checked + .slider:before {
       transform: translateX(14px);
     }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -181,10 +189,10 @@
   </div>
 
   <!-- Auth View (Hidden by default) -->
-  <div class="body" id="authView" style="display: none; min-height: 230px;">
-    <div style="display: flex; border-bottom: 1px solid #f1f5f9; margin-bottom: 14px; gap: 8px;">
-      <button class="tab-btn active" id="tabLogin" style="flex: 1; padding: 10px; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: #0f172a; cursor: pointer; border-bottom: 2px solid #0f172a; transition: all 0.2s ease; outline: none;">Sign In</button>
-      <button class="tab-btn" id="tabSignup" style="flex: 1; padding: 10px; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; outline: none;">Create Account</button>
+  <div class="body" id="authView" style="display: none; min-height: 200px;">
+    <div style="text-align: center; margin-bottom: 12px; margin-top: 6px;">
+      <div style="font-size: 14px; font-weight: 700; color: #0f172a;">Passwordless Authentication</div>
+      <div style="font-size: 10.5px; color: #64748b; margin-top: 3px;">Sign in or register securely with your email address</div>
     </div>
     
     <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -195,32 +203,18 @@
         <input type="email" id="authEmail" placeholder="you@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;" />
       </div>
       
-      <div>
-        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.02em;">Password</label>
-        <input type="password" id="authPassword" placeholder="••••••••" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;" />
+      <div id="authOtpArea" style="display: none;">
+        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.02em;">Verification Code (OTP)</label>
+        <input type="text" id="authOtpInput" placeholder="••••••" maxlength="6" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease; text-align: center; letter-spacing: 6px; font-weight: 600;" />
       </div>
       
-      <button class="save-btn" id="authSubmitBtn" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 600; border-radius: 6px; margin-top: 6px; cursor: pointer; display: block; text-align: center;">Sign In</button>
-      <div style="text-align: center; margin-top: 10px;">
-        <button id="forgotPasswordBtn" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Forgot password?</button>
+      <button class="save-btn" id="authSubmitBtn" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 600; border-radius: 6px; margin-top: 6px; cursor: pointer; display: block; text-align: center;">Send Verification Code</button>
+      
+      <div id="authLinksArea" style="display: none; text-align: center; margin-top: 4px; justify-content: center; gap: 12px;">
+        <button id="btnChangeEmail" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Change Email</button>
+        <span style="font-size: 11px; color: #cbd5e1;">|</span>
+        <button id="btnResendOtp" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Resend Code</button>
       </div>
-    </div>
-  </div>
-
-  <!-- Forgot Password View (Hidden by default) -->
-  <div class="body" id="forgotView" style="display: none; min-height: 180px;">
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;">
-      <button id="backToLoginBtn" style="background: none; border: none; font-size: 18px; color: #64748b; cursor: pointer; padding: 0; line-height: 1; font-family: inherit; display: flex; align-items: center;">&#8592;</button>
-      <div style="font-size: 13px; font-weight: 600; color: #0f172a;">Reset Password</div>
-    </div>
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-      <p style="font-size: 11px; color: #64748b; line-height: 1.5; margin: 0;">Enter the email address you registered with. We'll send you a link to reset your password.</p>
-      <div id="forgotMessage" style="font-size: 11px; text-align: center; display: none; padding: 8px 12px; border-radius: 6px; line-height: 1.4;"></div>
-      <div>
-        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px; letter-spacing: 0.02em;">Email Address</label>
-        <input type="email" id="forgotEmail" placeholder="you@gmail.com" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none; transition: border-color 0.15s ease;" />
-      </div>
-      <button class="save-btn" id="forgotSubmitBtn" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 600; border-radius: 6px; margin-top: 2px; cursor: pointer;">Send Reset Link</button>
     </div>
   </div>
 
@@ -310,14 +304,29 @@
         <a href="https://attest.page/pricing" target="_blank" class="save-btn" style="text-decoration: none; padding: 8px 12px; font-size: 11px; margin-top: 4px; display: inline-block; text-align: center;">Upgrade Plan</a>
       </div>
 
+      <!-- If Logged in as an Alias (Restricted Area) -->
+      <div id="aliasesAliasArea" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; text-align: center; display: none;">
+        <span style="font-size: 20px;">📧</span>
+        <div style="font-size: 12px; font-weight: 700; color: #1e40af;">Linked Alias Account</div>
+        <div style="font-size: 11px; color: #1e3a8a; line-height: 1.4;">This account is a linked alias of <span id="aliasPrimaryOwnerSpan" style="font-weight: 600;">...</span>.<br/>Account linking can only be managed from the primary account.</div>
+      </div>
+
       <!-- If Professional Plan (Active Area) -->
       <div id="aliasesActiveArea" style="display: none; flex-direction: column; gap: 12px;">
         <div>
           <div class="section-label" style="margin-bottom: 4px;">Link Secondary Email</div>
           <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Add up to 4 Gmail/Outlook email addresses to share this subscription.</div>
-          <div style="display: flex; gap: 6px;">
-            <input type="email" id="aliasEmailInput" placeholder="secondary@outlook.com" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 11px; outline: none;" />
-            <button id="btnAddAlias" style="background: #0f172a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Link</button>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <input type="email" id="aliasEmailInput" placeholder="secondary@outlook.com" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 11px; outline: none;" />
+              <button id="btnAddAlias" style="background: #0f172a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Link</button>
+            </div>
+            
+            <div id="aliasOtpArea" style="display: none; display: flex; gap: 6px; align-items: center;">
+              <input type="text" id="aliasOtpInput" placeholder="Enter OTP (6 digits)" maxlength="6" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 11px; outline: none; text-align: center; letter-spacing: 2px;" />
+              <button id="btnVerifyAlias" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Verify</button>
+            </div>
           </div>
           <div id="aliasError" style="font-size: 10px; color: #ef4444; margin-top: 4px; display: none;"></div>
         </div>
@@ -374,6 +383,66 @@
   </div>
 
   <div class="toast" id="toast">✓ Settings saved</div>
+
+  <!-- Audit Detail Modal -->
+  <div id="auditDetailModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.2s ease;">
+    <div style="background: #ffffff; border-radius: 12px; width: 100%; max-width: 290px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+      <!-- Modal Header -->
+      <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #f8fafc;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="modalHeaderIcon" style="font-size: 14px;"></span>
+          <span style="font-size: 12px; font-weight: 700; color: #0f172a;">Audit Event Details</span>
+        </div>
+        <button id="closeAuditModal" style="background: none; border: none; font-size: 16px; color: #64748b; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; line-height: 1;">&times;</button>
+      </div>
+      <!-- Modal Body -->
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 360px; overflow-y: auto;">
+
+        <!-- Status Badge -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Status</span>
+          <div id="modalStatusBadge"></div>
+        </div>
+
+        <!-- Event Type -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Event Type</span>
+          <span id="modalEventType" style="font-size: 11px; font-weight: 600; color: #1e293b;"></span>
+        </div>
+
+        <!-- Sender -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Sender</span>
+          <span id="modalSender" style="font-size: 11px; font-weight: 600; color: #1e293b; word-break: break-all; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">-</span>
+        </div>
+
+        <!-- Recipient -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Recipient</span>
+          <span id="modalRecipient" style="font-size: 11px; font-weight: 600; color: #1e293b; word-break: break-all; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">-</span>
+        </div>
+
+        <!-- Timestamp -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Timestamp</span>
+          <span id="modalTimestamp" style="font-size: 11px; color: #475569; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">-</span>
+        </div>
+
+        <!-- Crypto Hash -->
+        <div id="modalHashSection" style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">SHA-256 Content Hash</span>
+          <span id="modalHash" style="font-size: 10px; font-family: monospace; color: #475569; word-break: break-all; background: #f8fafc; padding: 6px; border-radius: 4px; border: 1px solid #e2e8f0;">-</span>
+        </div>
+
+        <!-- Trust Page Link -->
+        <div id="modalUrlSection" style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Trust Certificate</span>
+          <a id="modalUrl" href="#" target="_blank" style="font-size: 11px; color: #10b981; font-weight: 600; text-decoration: none; word-break: break-all; display: inline-flex; align-items: center; gap: 4px; background: #f0fdf4; padding: 6px 8px; border-radius: 4px; border: 1px solid #bbf7d0;">View Certificate ↗</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <script src="popup.js"></script>
 </body>

@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
       if (verifyCheckbox) {
-        verifyCheckbox.checked = !!result.hvel_verify_received;
+        verifyCheckbox.checked = result.hvel_verify_received !== false;
       }
     });
 
@@ -141,12 +141,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddAlias = document.getElementById('btnAddAlias');
     const aliasEmailInput = document.getElementById('aliasEmailInput');
     const aliasError = document.getElementById('aliasError');
+    const aliasOtpArea = document.getElementById('aliasOtpArea');
+    const aliasOtpInput = document.getElementById('aliasOtpInput');
+    const btnVerifyAlias = document.getElementById('btnVerifyAlias');
+
+    function resetAliasForm() {
+      chrome.storage.local.remove(['hvel_alias_otp_pending_email']);
+      if (aliasEmailInput) {
+        aliasEmailInput.value = '';
+        aliasEmailInput.disabled = false;
+      }
+      if (aliasOtpInput) {
+        aliasOtpInput.value = '';
+      }
+      if (btnAddAlias) {
+        btnAddAlias.innerText = 'Link';
+        btnAddAlias.disabled = false;
+      }
+      if (aliasOtpArea) {
+        aliasOtpArea.style.display = 'none';
+      }
+      if (aliasError) {
+        aliasError.style.display = 'none';
+      }
+    }
 
     if (btnAddAlias && aliasEmailInput) {
       btnAddAlias.addEventListener('click', () => {
-        const aliasEmail = aliasEmailInput.value.trim();
         if (aliasError) aliasError.style.display = 'none';
 
+        if (btnAddAlias.innerText === 'Cancel') {
+          resetAliasForm();
+          return;
+        }
+
+        const aliasEmail = aliasEmailInput.value.trim();
         if (!aliasEmail || !aliasEmail.includes('@')) {
           if (aliasError) {
             aliasError.innerText = 'Please enter a valid email address.';
@@ -156,19 +185,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         btnAddAlias.disabled = true;
-        btnAddAlias.innerText = 'Linking...';
+        btnAddAlias.innerText = 'Sending...';
+        aliasEmailInput.disabled = true;
+
+        chrome.runtime.sendMessage({
+          action: 'requestAliasOtp',
+          aliasEmail: aliasEmail,
+          siteType: currentSiteType
+        }, (res) => {
+          if (res && res.success) {
+            chrome.storage.local.set({ hvel_alias_otp_pending_email: aliasEmail }, () => {
+              btnAddAlias.disabled = false;
+              btnAddAlias.innerText = 'Cancel';
+              if (aliasOtpArea) aliasOtpArea.style.display = 'flex';
+              if (aliasOtpInput) aliasOtpInput.focus();
+            });
+          } else {
+            aliasEmailInput.disabled = false;
+            btnAddAlias.disabled = false;
+            btnAddAlias.innerText = 'Link';
+            if (aliasError) {
+              aliasError.innerText = res?.error || res?.message || 'Failed to send verification code.';
+              aliasError.style.display = 'block';
+            }
+          }
+        });
+      });
+    }
+
+    if (btnVerifyAlias && aliasOtpInput) {
+      btnVerifyAlias.addEventListener('click', () => {
+        if (aliasError) aliasError.style.display = 'none';
+
+        const otp = aliasOtpInput.value.trim();
+        if (otp.length !== 6 || isNaN(otp)) {
+          if (aliasError) {
+            aliasError.innerText = 'Please enter a 6-digit verification code.';
+            aliasError.style.display = 'block';
+          }
+          return;
+        }
+
+        btnVerifyAlias.disabled = true;
+        btnVerifyAlias.innerText = 'Verifying...';
+        aliasOtpInput.disabled = true;
+
+        const aliasEmail = aliasEmailInput.value.trim();
 
         chrome.runtime.sendMessage({
           action: 'addAlias',
           aliasEmail: aliasEmail,
+          otp: otp,
           siteType: currentSiteType
         }, (res) => {
-          btnAddAlias.disabled = false;
-          btnAddAlias.innerText = 'Link';
+          btnVerifyAlias.disabled = false;
+          btnVerifyAlias.innerText = 'Verify';
+          aliasOtpInput.disabled = false;
 
           if (res && res.success) {
-            aliasEmailInput.value = '';
-            updateAliasesUI();
+            chrome.storage.local.remove(['hvel_alias_otp_pending_email'], () => {
+              resetAliasForm();
+              updateAliasesUI();
+            });
           } else {
             if (aliasError) {
               aliasError.innerText = res?.error || res?.message || 'Failed to link email alias.';
@@ -200,6 +278,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Authentication UI bindings
     initAuthUI();
     checkAuthStatus();
+
+    // Close Audit Log Detail Modal
+    const auditDetailModal = document.getElementById('auditDetailModal');
+    const closeAuditModal = document.getElementById('closeAuditModal');
+    if (closeAuditModal && auditDetailModal) {
+      closeAuditModal.addEventListener('click', () => {
+        auditDetailModal.style.display = 'none';
+      });
+      auditDetailModal.addEventListener('click', (e) => {
+        if (e.target === auditDetailModal) {
+          auditDetailModal.style.display = 'none';
+        }
+      });
+    }
   });
 });
 
@@ -275,191 +367,130 @@ function saveSettings() {
 // ─── AUTHENTICATION FLOWS ───────────────────────────────────────────────────
 
 function initAuthUI() {
-  const tabLogin = document.getElementById('tabLogin');
-  const tabSignup = document.getElementById('tabSignup');
   const authSubmitBtn = document.getElementById('authSubmitBtn');
   const logoutBtn = document.getElementById('logoutBtn');
-  const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
-  const backToLoginBtn = document.getElementById('backToLoginBtn');
-  const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
+  const btnChangeEmail = document.getElementById('btnChangeEmail');
+  const btnResendOtp = document.getElementById('btnResendOtp');
 
-  if (tabLogin) {
-    tabLogin.addEventListener('click', () => switchTab('login'));
-  }
-  if (tabSignup) {
-    tabSignup.addEventListener('click', () => switchTab('signup'));
-  }
   if (authSubmitBtn) {
     authSubmitBtn.addEventListener('click', handleAuthSubmit);
   }
   if (logoutBtn) {
     logoutBtn.addEventListener('click', handleLogout);
   }
-  if (forgotPasswordBtn) {
-    forgotPasswordBtn.addEventListener('click', showForgotView);
+  if (btnChangeEmail) {
+    btnChangeEmail.addEventListener('click', resetAuthForm);
   }
-  if (backToLoginBtn) {
-    backToLoginBtn.addEventListener('click', hideForgotView);
-  }
-  if (forgotSubmitBtn) {
-    forgotSubmitBtn.addEventListener('click', handleForgotSubmit);
+  if (btnResendOtp) {
+    btnResendOtp.addEventListener('click', handleResendOtp);
   }
 
   // Allow enter key submission
-  const inputs = ['authEmail', 'authPassword'];
-  inputs.forEach(id => {
-    const input = document.getElementById(id);
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          handleAuthSubmit();
-        }
-      });
-    }
-  });
+  const emailInput = document.getElementById('authEmail');
+  if (emailInput) {
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleAuthSubmit();
+      }
+    });
+  }
 
-  const forgotEmailInput = document.getElementById('forgotEmail');
-  if (forgotEmailInput) {
-    forgotEmailInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleForgotSubmit();
+  const otpInput = document.getElementById('authOtpInput');
+  if (otpInput) {
+    otpInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleAuthSubmit();
+      }
     });
   }
 }
 
-function showForgotView() {
-  const authView = document.getElementById('authView');
-  const forgotView = document.getElementById('forgotView');
-  const forgotMessage = document.getElementById('forgotMessage');
-  const forgotEmail = document.getElementById('forgotEmail');
-  if (authView) authView.style.display = 'none';
-  if (forgotView) forgotView.style.display = 'block';
-  if (forgotMessage) forgotMessage.style.display = 'none';
-  if (forgotEmail) forgotEmail.value = '';
-}
+function resetAuthForm() {
+  const emailInput = document.getElementById('authEmail');
+  const otpInput = document.getElementById('authOtpInput');
+  const authOtpArea = document.getElementById('authOtpArea');
+  const authLinksArea = document.getElementById('authLinksArea');
+  const authSubmitBtn = document.getElementById('authSubmitBtn');
+  const msgDiv = document.getElementById('authMessage');
 
-function hideForgotView() {
-  const authView = document.getElementById('authView');
-  const forgotView = document.getElementById('forgotView');
-  if (forgotView) forgotView.style.display = 'none';
-  if (authView) authView.style.display = 'block';
-  switchTab('login');
-}
-
-function handleForgotSubmit() {
-  const forgotEmail = document.getElementById('forgotEmail');
-  const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
-  const forgotMessage = document.getElementById('forgotMessage');
-
-  if (!forgotEmail) return;
-
-  const email = forgotEmail.value.trim();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!email || !emailRegex.test(email)) {
-    showForgotMessage('Please enter a valid email address.', true);
-    return;
+  if (emailInput) {
+    emailInput.disabled = false;
   }
+  if (otpInput) {
+    otpInput.value = '';
+    otpInput.disabled = false;
+  }
+  if (authOtpArea) {
+    authOtpArea.style.display = 'none';
+  }
+  if (authLinksArea) {
+    authLinksArea.style.display = 'none';
+  }
+  if (authSubmitBtn) {
+    authSubmitBtn.innerText = 'Send Verification Code';
+    authSubmitBtn.disabled = false;
+  }
+  if (msgDiv) {
+    msgDiv.style.display = 'none';
+  }
+}
 
-  forgotSubmitBtn.disabled = true;
-  forgotSubmitBtn.innerText = 'Sending...';
+function handleResendOtp() {
+  const emailInput = document.getElementById('authEmail');
+  if (!emailInput) return;
+  const email = emailInput.value.trim();
+
+  showAuthMessage('Sending new code...', false);
 
   chrome.runtime.sendMessage({
-    action: 'forgotPassword',
+    action: 'sendLoginOtp',
     email: email
   }, (res) => {
-    forgotSubmitBtn.disabled = false;
-    forgotSubmitBtn.innerText = 'Send Reset Link';
-
     if (res && res.success) {
-      showForgotMessage('✓ Check your inbox! A reset link has been sent.', false);
-      if (forgotEmail) forgotEmail.value = '';
+      showAuthMessage('✓ A new verification code has been sent.', false);
+      const otpInput = document.getElementById('authOtpInput');
+      if (otpInput) {
+        otpInput.value = '';
+        otpInput.focus();
+      }
     } else {
-      showForgotMessage(res?.message || res?.error || 'Failed to send reset email. Try again.', true);
+      showAuthMessage(res?.message || res?.error || 'Failed to resend code.', true);
     }
   });
 }
 
-function showForgotMessage(text, isError = true) {
-  const msgDiv = document.getElementById('forgotMessage');
-  if (msgDiv) {
-    msgDiv.innerText = text;
-    msgDiv.style.display = 'block';
-    if (isError) {
-      msgDiv.style.background = '#fef2f2';
-      msgDiv.style.color = '#991b1b';
-      msgDiv.style.border = '1px solid #fee2e2';
-    } else {
-      msgDiv.style.background = '#f0fdf4';
-      msgDiv.style.color = '#166534';
-      msgDiv.style.border = '1px solid #bbf7d0';
-    }
-  }
-}
-
-
-function switchTab(tab) {
-  activeTab = tab;
-  const tabLogin = document.getElementById('tabLogin');
-  const tabSignup = document.getElementById('tabSignup');
-  const authSubmitBtn = document.getElementById('authSubmitBtn');
-  const msgDiv = document.getElementById('authMessage');
-
-  if (msgDiv) msgDiv.style.display = 'none';
-
-  if (tab === 'login') {
-    tabLogin.classList.add('active');
-    tabLogin.style.borderBottom = '2px solid #0f172a';
-    tabLogin.style.color = '#0f172a';
-    tabLogin.style.fontWeight = '600';
-
-    tabSignup.classList.remove('active');
-    tabSignup.style.borderBottom = '2px solid transparent';
-    tabSignup.style.color = '#64748b';
-    tabSignup.style.fontWeight = '500';
-
-    authSubmitBtn.innerText = 'Sign In';
-  } else {
-    tabSignup.classList.add('active');
-    tabSignup.style.borderBottom = '2px solid #0f172a';
-    tabSignup.style.color = '#0f172a';
-    tabSignup.style.fontWeight = '600';
-
-    tabLogin.classList.remove('active');
-    tabLogin.style.borderBottom = '2px solid transparent';
-    tabLogin.style.color = '#64748b';
-    tabLogin.style.fontWeight = '500';
-
-    authSubmitBtn.innerText = 'Create Account';
-  }
-}
-
 function checkAuthStatus() {
-  const prefix = currentSiteType;
   chrome.storage.local.get(
     [
-      `${prefix}_hvel_auth_email`,
-      `${prefix}_hvel_auth_token`,
-      `${prefix}_hvel_plan`,
-      `${prefix}_hvel_usage`,
-      `${prefix}_hvel_plan_details`
+      'hvel_auth_email',
+      'hvel_auth_token',
+      'hvel_plan',
+      'hvel_usage',
+      'hvel_plan_details',
+      'hvel_is_alias',
+      'hvel_primary_email',
+      'hvel_auth_otp_pending_email'
     ],
     (result) => {
       const authView = document.getElementById('authView');
       const mainView = document.getElementById('mainView');
       const saveBtn = document.getElementById('saveBtn');
 
-      const email = result[`${prefix}_hvel_auth_email`];
-      const token = result[`${prefix}_hvel_auth_token`];
-      const plan = result[`${prefix}_hvel_plan`];
-      const usage = result[`${prefix}_hvel_usage`];
-      const planDetails = result[`${prefix}_hvel_plan_details`];
+      const email = result.hvel_auth_email;
+      const token = result.hvel_auth_token;
+      const plan = result.hvel_plan;
+      const usage = result.hvel_usage;
+      const planDetails = result.hvel_plan_details;
+      const isAlias = result.hvel_is_alias;
+      const primaryEmail = result.hvel_primary_email;
+      const pendingEmail = result.hvel_auth_otp_pending_email;
 
       if (token && email) {
         authView.style.display = 'none';
         mainView.style.display = 'block';
         if (saveBtn) saveBtn.style.display = 'block';
 
-        updateAccountUI(email, plan, usage, planDetails);
+        updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail);
 
         // Fetch fresh plan status in background
         chrome.runtime.sendMessage({
@@ -468,7 +499,7 @@ function checkAuthStatus() {
           siteType: currentSiteType
         }, (res) => {
           if (res && res.success) {
-            updateAccountUI(res.email, res.plan, res.usage, res.planDetails);
+            updateAccountUI(res.email, res.plan, res.usage, res.planDetails, res.isAlias, res.primaryEmail);
           }
         });
 
@@ -482,12 +513,51 @@ function checkAuthStatus() {
         mainView.style.display = 'none';
         authView.style.display = 'block';
         if (saveBtn) saveBtn.style.display = 'none';
+
+        // Restore pending login OTP state if exists
+        if (pendingEmail) {
+          const emailInput = document.getElementById('authEmail');
+          const otpInput = document.getElementById('authOtpInput');
+          const authOtpArea = document.getElementById('authOtpArea');
+          const authLinksArea = document.getElementById('authLinksArea');
+          const authSubmitBtn = document.getElementById('authSubmitBtn');
+
+          if (emailInput) {
+            emailInput.value = pendingEmail;
+            emailInput.disabled = true;
+          }
+          if (authOtpArea) authOtpArea.style.display = 'block';
+          if (authLinksArea) authLinksArea.style.display = 'flex';
+          if (authSubmitBtn) authSubmitBtn.innerText = 'Verify & Log In';
+          showAuthMessage('✓ Verification code sent to your email. Enter it below.', false);
+        } else {
+          // Explicit reset back to initial state if no active pending OTP request
+          const emailInput = document.getElementById('authEmail');
+          const otpInput = document.getElementById('authOtpInput');
+          const authOtpArea = document.getElementById('authOtpArea');
+          const authLinksArea = document.getElementById('authLinksArea');
+          const authSubmitBtn = document.getElementById('authSubmitBtn');
+          const msgDiv = document.getElementById('authMessage');
+
+          if (emailInput) emailInput.disabled = false;
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.disabled = false;
+          }
+          if (authOtpArea) authOtpArea.style.display = 'none';
+          if (authLinksArea) authLinksArea.style.display = 'none';
+          if (authSubmitBtn) {
+            authSubmitBtn.innerText = 'Send Verification Code';
+            authSubmitBtn.disabled = false;
+          }
+          if (msgDiv) msgDiv.style.display = 'none';
+        }
       }
     }
   );
 }
 
-function updateAccountUI(email, plan, usage, planDetails) {
+function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail) {
   const emailSpan = document.getElementById('userEmailSpan');
   const planBadge = document.getElementById('userPlanBadge');
   const usageSpan = document.getElementById('userUsageSpan');
@@ -524,7 +594,7 @@ function updateAccountUI(email, plan, usage, planDetails) {
   }
   
   // Update the aliases view (locked vs active) based on the loaded plan
-  updateAliasesUI();
+  updateAliasesUI(isAlias, primaryEmail);
 }
 
 function showAuthMessage(text, isError = true) {
@@ -546,54 +616,86 @@ function showAuthMessage(text, isError = true) {
 
 function handleAuthSubmit() {
   const emailInput = document.getElementById('authEmail');
-  const passwordInput = document.getElementById('authPassword');
+  const otpInput = document.getElementById('authOtpInput');
+  const authOtpArea = document.getElementById('authOtpArea');
+  const authLinksArea = document.getElementById('authLinksArea');
   const authSubmitBtn = document.getElementById('authSubmitBtn');
 
-  if (!emailInput || !passwordInput) return;
+  if (!emailInput || !authSubmitBtn) return;
 
   const email = emailInput.value.trim();
-  const password = passwordInput.value;
-
-  if (!email || !password) {
-    showAuthMessage('Please fill in all fields.');
-    return;
-  }
 
   // Basic email validation regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    showAuthMessage('Please enter a valid email address.');
+  if (!email || !emailRegex.test(email)) {
+    showAuthMessage('Please enter a valid email address.', true);
     return;
   }
 
-  if (password.length < 6) {
-    showAuthMessage('Password must be at least 6 characters.');
-    return;
-  }
+  const isOtpVisible = authOtpArea && authOtpArea.style.display !== 'none';
 
-  // Disable button and inputs during loading
-  authSubmitBtn.disabled = true;
-  authSubmitBtn.innerText = activeTab === 'login' ? 'Signing In...' : 'Registering...';
+  if (!isOtpVisible) {
+    // Phase 1: Request OTP
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.innerText = 'Sending Code...';
+    emailInput.disabled = true;
 
-  const action = activeTab === 'login' ? 'login' : 'signup';
-
-  chrome.runtime.sendMessage({
-    action,
-    email,
-    password,
-    siteType: currentSiteType
-  }, (res) => {
-    authSubmitBtn.disabled = false;
-    authSubmitBtn.innerText = activeTab === 'login' ? 'Sign In' : 'Create Account';
-
-    if (res && res.success) {
-      // Clear password field
-      passwordInput.value = '';
-      checkAuthStatus();
-    } else {
-      showAuthMessage(res?.message || res?.error || 'Authentication request failed.');
+    chrome.runtime.sendMessage({
+      action: 'sendLoginOtp',
+      email: email
+    }, (res) => {
+      authSubmitBtn.disabled = false;
+      if (res && res.success) {
+        chrome.storage.local.set({ hvel_auth_otp_pending_email: email }, () => {
+          authSubmitBtn.innerText = 'Verify & Log In';
+          if (authOtpArea) authOtpArea.style.display = 'block';
+          if (authLinksArea) authLinksArea.style.display = 'flex';
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.focus();
+          }
+          showAuthMessage('✓ Verification code sent to your email.', false);
+        });
+      } else {
+        emailInput.disabled = false;
+        authSubmitBtn.innerText = 'Send Verification Code';
+        showAuthMessage(res?.message || res?.error || 'Failed to send verification code.', true);
+      }
+    });
+  } else {
+    // Phase 2: Verify OTP
+    if (!otpInput) return;
+    const otp = otpInput.value.trim();
+    if (otp.length !== 6 || isNaN(otp)) {
+      showAuthMessage('Please enter a 6-digit verification code.', true);
+      return;
     }
-  });
+
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.innerText = 'Verifying...';
+    otpInput.disabled = true;
+
+    chrome.runtime.sendMessage({
+      action: 'verifyLoginOtp',
+      email: email,
+      otp: otp,
+      siteType: currentSiteType
+    }, (res) => {
+      authSubmitBtn.disabled = false;
+      otpInput.disabled = false;
+
+      if (res && res.success) {
+        chrome.storage.local.remove(['hvel_auth_otp_pending_email'], () => {
+          resetAuthForm();
+          emailInput.value = '';
+          checkAuthStatus();
+        });
+      } else {
+        authSubmitBtn.innerText = 'Verify & Log In';
+        showAuthMessage(res?.message || res?.error || 'The code entered is invalid or expired.', true);
+      }
+    });
+  }
 }
 
 // Update the Brand Sub header tag in HTML too
@@ -660,58 +762,109 @@ function updateAuditUI() {
     let html = '';
     auditLog.forEach(entry => {
       const timeStr = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      
+      const dateStr = new Date(entry.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
       let badgeHtml = '';
       let typeLabel = '';
+      let rowAccent = '';
       if (entry.type === 'sent_stamped_link') {
-        badgeHtml = '<span style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;">STAMP (LINK)</span>';
-        typeLabel = 'Sent';
+        badgeHtml = '<span style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">STAMP (LINK)</span>';
+        typeLabel = 'Sent'; rowAccent = '#10b981';
       } else if (entry.type === 'sent_stamped_hash') {
-        badgeHtml = '<span style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;">STAMP (HASH)</span>';
-        typeLabel = 'Sent';
+        badgeHtml = '<span style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">STAMP (HASH)</span>';
+        typeLabel = 'Sent'; rowAccent = '#0369a1';
       } else if (entry.type === 'sent_unstamped') {
-        badgeHtml = '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;">UNSTAMPED</span>';
-        typeLabel = 'Sent';
+        badgeHtml = '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">UNSTAMPED</span>';
+        typeLabel = 'Sent'; rowAccent = '#94a3b8';
       } else if (entry.type === 'received_stamped') {
-        badgeHtml = '<span style="background:#d1fae5;color:#166534;border:1px solid #bbf7d0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;">VERIFIED</span>';
-        typeLabel = 'Recv';
+        badgeHtml = '<span style="background:#d1fae5;color:#166534;border:1px solid #bbf7d0;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">VERIFIED</span>';
+        typeLabel = 'Recv'; rowAccent = '#10b981';
       } else if (entry.type === 'received_unstamped') {
-        badgeHtml = '<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;">UNVERIFIED</span>';
-        typeLabel = 'Recv';
+        badgeHtml = '<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;">UNVERIFIED</span>';
+        typeLabel = 'Recv'; rowAccent = '#f59e0b';
       }
 
+      const encodedEntry = encodeURIComponent(JSON.stringify(entry));
+
       html += `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #f1f5f9;gap:8px;">
-          <div style="display:flex;flex-direction:column;gap:2px;overflow:hidden;flex:1;">
+        <div class="audit-log-row"
+          data-entry="${encodedEntry}"
+          style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #f1f5f9;gap:8px;cursor:pointer;transition:background 0.15s ease;border-left:3px solid ${rowAccent};">
+          <div style="display:flex;flex-direction:column;gap:2px;overflow:hidden;flex:1;min-width:0;">
             <div style="font-size:10px;color:#0f172a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               <span style="color:#64748b;font-weight:500;">${typeLabel} to/from:</span> ${entry.email}
             </div>
-            <div style="font-size:9px;color:#94a3b8;">${timeStr}</div>
+            <div style="font-size:9px;color:#94a3b8;">${dateStr} · ${timeStr}</div>
           </div>
-          <div style="flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
             ${badgeHtml}
+            <span style="color:#cbd5e1;font-size:11px;font-weight:600;">›</span>
           </div>
         </div>
       `;
     });
 
     logList.innerHTML = html;
+
+    // Bind click listeners — use data-entry to avoid ID lookup failures
+    logList.querySelectorAll('.audit-log-row').forEach(row => {
+      row.addEventListener('mouseenter', () => { row.style.background = '#f8fafc'; });
+      row.addEventListener('mouseleave', () => { row.style.background = ''; });
+      row.addEventListener('click', () => {
+        try {
+          const entry = JSON.parse(decodeURIComponent(row.getAttribute('data-entry')));
+          if (entry) showAuditDetailModal(entry);
+        } catch(e) { console.error('[HVEL Popup] Failed to parse audit entry:', e); }
+      });
+    });
   });
 }
 
-function updateAliasesUI() {
-  const prefix = currentSiteType;
-  chrome.storage.local.get([`${prefix}_hvel_plan`], (res) => {
-    const plan = res[`${prefix}_hvel_plan`] || 'free';
+function updateAliasesUI(isAlias, primaryEmail) {
+  chrome.storage.local.get(['hvel_plan', 'hvel_is_alias', 'hvel_primary_email'], (res) => {
+    const plan = res.hvel_plan || 'free';
+    const resolvedIsAlias = typeof isAlias !== 'undefined' ? isAlias : !!res.hvel_is_alias;
+    const resolvedPrimaryEmail = primaryEmail || res.hvel_primary_email || '';
+
     const lockedArea = document.getElementById('aliasesLockedArea');
     const activeArea = document.getElementById('aliasesActiveArea');
+    const aliasArea = document.getElementById('aliasesAliasArea');
+    const aliasOwnerSpan = document.getElementById('aliasPrimaryOwnerSpan');
+
+    if (lockedArea) lockedArea.style.display = 'none';
+    if (activeArea) activeArea.style.display = 'none';
+    if (aliasArea) aliasArea.style.display = 'none';
 
     if (plan !== 'professional') {
       if (lockedArea) lockedArea.style.display = 'flex';
-      if (activeArea) activeArea.style.display = 'none';
+    } else if (resolvedIsAlias) {
+      if (aliasArea) aliasArea.style.display = 'flex';
+      if (aliasOwnerSpan) aliasOwnerSpan.innerText = resolvedPrimaryEmail;
     } else {
-      if (lockedArea) lockedArea.style.display = 'none';
       if (activeArea) activeArea.style.display = 'flex';
+
+      // Restore pending alias OTP state if exists
+      chrome.storage.local.get(['hvel_alias_otp_pending_email'], (aliasRes) => {
+        const pendingAlias = aliasRes.hvel_alias_otp_pending_email;
+        const aliasEmailInput = document.getElementById('aliasEmailInput');
+        const btnAddAlias = document.getElementById('btnAddAlias');
+        const aliasOtpArea = document.getElementById('aliasOtpArea');
+        const aliasOtpInput = document.getElementById('aliasOtpInput');
+
+        if (pendingAlias) {
+          if (aliasEmailInput) {
+            aliasEmailInput.value = pendingAlias;
+            aliasEmailInput.disabled = true;
+          }
+          if (btnAddAlias) {
+            btnAddAlias.innerText = 'Cancel';
+            btnAddAlias.disabled = false;
+          }
+          if (aliasOtpArea) {
+            aliasOtpArea.style.display = 'flex';
+          }
+        }
+      });
 
       // Load aliases from backend
       chrome.runtime.sendMessage({ action: 'getAliases', siteType: currentSiteType }, (res) => {
@@ -721,6 +874,7 @@ function updateAliasesUI() {
 
         if (res && res.success && res.aliases) {
           const aliases = res.aliases;
+          chrome.storage.local.set({ hvel_linked_aliases: aliases });
           if (countSpan) countSpan.innerText = aliases.length;
 
           if (aliases.length === 0) {
@@ -759,4 +913,120 @@ function updateAliasesUI() {
       });
     }
   });
+}
+
+function showAuditDetailModal(entry) {
+  const modal = document.getElementById('auditDetailModal');
+  const headerIcon = document.getElementById('modalHeaderIcon');
+  const statusBadge = document.getElementById('modalStatusBadge');
+  const eventTypeEl = document.getElementById('modalEventType');
+  const sender = document.getElementById('modalSender');
+  const recipient = document.getElementById('modalRecipient');
+  const timestamp = document.getElementById('modalTimestamp');
+  const hashSection = document.getElementById('modalHashSection');
+  const hashSpan = document.getElementById('modalHash');
+  const urlSection = document.getElementById('modalUrlSection');
+  const urlAnchor = document.getElementById('modalUrl');
+  const closeBtn = document.getElementById('closeAuditModal');
+
+  if (!modal) return;
+
+  // Wire close button (once)
+  if (closeBtn && !closeBtn._hvelBound) {
+    closeBtn._hvelBound = true;
+    closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+  }
+  // Close on backdrop click
+  if (!modal._hvelBound) {
+    modal._hvelBound = true;
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.style.display = 'none';
+    });
+  }
+
+  // Event type definitions
+  const TYPE_MAP = {
+    sent_stamped_link: {
+      label: 'Outgoing — Verified Stamp (Link)',
+      icon: '📤',
+      badge: '<span style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;display:inline-block;">✅ Secure Stamp (Link)</span>'
+    },
+    sent_stamped_hash: {
+      label: 'Outgoing — Verified Stamp (Hash Only)',
+      icon: '📤',
+      badge: '<span style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;display:inline-block;">🔒 Secure Stamp (Hash)</span>'
+    },
+    sent_unstamped: {
+      label: 'Outgoing — Sent Without Stamp',
+      icon: '📤',
+      badge: '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;display:inline-block;">⬜ Unstamped Email</span>'
+    },
+    received_stamped: {
+      label: 'Incoming — Sender is Human Verified',
+      icon: '📥',
+      badge: '<span style="background:#d1fae5;color:#166534;border:1px solid #bbf7d0;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;display:inline-block;">✅ Verified Human Sender</span>'
+    },
+    received_unstamped: {
+      label: 'Incoming — Sender Not Verified',
+      icon: '📥',
+      badge: '<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;display:inline-block;">⚠️ Unverified Sender</span>'
+    }
+  };
+
+  const def = TYPE_MAP[entry.type] || { label: entry.type, icon: '📋', badge: '<span>' + entry.type + '</span>' };
+
+  if (headerIcon) headerIcon.innerText = def.icon;
+  if (statusBadge) statusBadge.innerHTML = def.badge;
+  if (eventTypeEl) eventTypeEl.innerText = def.label;
+
+  // Resolve Sender & Recipient from extra metadata or fallbacks
+  const extra = entry.extra || {};
+  chrome.storage.local.get(['hvel_auth_email'], (res) => {
+    const userEmail = res.hvel_auth_email || 'You';
+    let resolvedSender = extra.sender || '';
+    let resolvedRecipient = extra.recipient || '';
+
+    if (!resolvedSender || !resolvedRecipient) {
+      if (entry.type && entry.type.startsWith('sent')) {
+        resolvedSender = userEmail;
+        resolvedRecipient = entry.email;
+      } else {
+        resolvedSender = entry.email;
+        resolvedRecipient = userEmail;
+      }
+    }
+
+    if (sender) sender.innerText = resolvedSender || '—';
+    if (recipient) recipient.innerText = resolvedRecipient || '—';
+  });
+
+  // Timestamp — full locale string
+  if (timestamp) timestamp.innerText = new Date(entry.timestamp).toLocaleString([], {
+    weekday: 'short', year: 'numeric', month: 'short',
+    day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+
+  // Crypto Hash
+  if (extra.contentHash) {
+    if (hashSpan) hashSpan.innerText = extra.contentHash;
+    if (hashSection) hashSection.style.display = 'flex';
+  } else {
+    if (hashSection) hashSection.style.display = 'none';
+  }
+
+  // Trust Page URL
+  const verificationId = extra.verificationId;
+  if (verificationId) {
+    const verificationUrl = `https://attest.page/v/${verificationId}`;
+    if (urlAnchor) {
+      urlAnchor.href = verificationUrl;
+      urlAnchor.innerText = `attest.page/v/${verificationId} ↗`;
+    }
+    if (urlSection) urlSection.style.display = 'flex';
+  } else {
+    if (urlSection) urlSection.style.display = 'none';
+  }
+
+  // Show modal
+  modal.style.display = 'flex';
 }

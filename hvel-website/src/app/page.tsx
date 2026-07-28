@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import VideoShowcase from '@/components/VideoShowcase';
 import { EXTENSION_DOWNLOAD_URL } from '@/lib/constants';
 
 interface MousePoint {
@@ -638,7 +639,7 @@ export default function Home() {
                 </a>
                 <button
                   onClick={() => {
-                    const el = document.getElementById('problem-intro-section');
+                    const el = document.getElementById('demo-video');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
                   style={{
@@ -848,7 +849,8 @@ export default function Home() {
         </div>
       </section>
 
-
+      {/* ── VIDEO DEMONSTRATION SHOWCASE ── */}
+      <VideoShowcase id="demo-video" />
 
       {/* ── THE PROBLEM & THE SOLUTION UNIFIED FLOW ── */}
       <section id="flow-section" style={{ padding: '96px 24px', background: '#F9FBF8', borderBottom: '1px solid #E4EBE3', overflow: 'hidden' }}>
