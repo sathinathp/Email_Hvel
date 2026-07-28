@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "HVEL - Attest Approved Email Layer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Add a visible trust signal to your emails. Verify as Human, AI Assisted, or Automated.",
   "icons": {
     "16": "icon-16.png",
