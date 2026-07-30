@@ -57,9 +57,20 @@ function removePrefixedValues(siteType, keys, callback) {
 function checkBackendUrl() {
   fetch('http://localhost:5000/health')
     .then((r) => {
-      if (r.ok && API_BASE_URL !== 'http://localhost:5000') {
-        API_BASE_URL = 'http://localhost:5000';
-        console.log('[HVEL BG] 📡 Localhost backend detected! Routing API requests to: http://localhost:5000');
+      if (!r.ok) throw new Error('Not OK');
+      return r.json();
+    })
+    .then((data) => {
+      if (data && (data.service === 'hvel-backend' || data.message === 'HVEL Backend is running')) {
+        if (API_BASE_URL !== 'http://localhost:5000') {
+          API_BASE_URL = 'http://localhost:5000';
+          console.log('[HVEL BG] 📡 Localhost HVEL backend detected! Routing API requests to: http://localhost:5000');
+        }
+      } else {
+        if (API_BASE_URL !== 'https://api.attest.page') {
+          API_BASE_URL = 'https://api.attest.page';
+          console.log('[HVEL BG] 🌐 Service on port 5000 is not HVEL backend. Using production API: https://api.attest.page');
+        }
       }
     })
     .catch(() => {

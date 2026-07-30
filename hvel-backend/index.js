@@ -98,7 +98,7 @@ app.get('/auth', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ success: true, status: 'ok' });
+  res.json({ success: true, status: 'ok', service: 'hvel-backend', message: 'HVEL Backend is running' });
 });
 
 const net = require('net');
@@ -349,7 +349,7 @@ async function initDB() {
 }
 initDB();
 
-app.get('/health', (req, res) => res.json({ status: 'ok', message: 'HVEL Backend is running' }));
+app.get('/health', (req, res) => res.json({ success: true, status: 'ok', service: 'hvel-backend', message: 'HVEL Backend is running' }));
 app.post('/api/heartbeat', (req, res) => res.json({ success: true }));
 
 // ─── AUTHENTICATION CRYPTO HELPERS ──────────────────────────────────────────
