@@ -1419,14 +1419,50 @@ app.post('/api/check-sent-verified', async (req, res) => {
 app.post('/api/check-user-verified', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ verified: false, error: 'Email required' });
+
+  const emailLower = email.toLowerCase().trim();
+
   try {
-    const totpResult = await pool.query(`SELECT is_verified FROM totp_secrets WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
-    const passkeyResult = await pool.query(`SELECT id FROM passkeys WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]);
+    // 1. Check primary users table
+    const userResult = await pool.query(`SELECT email FROM users WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    if (userResult.rows.length > 0) {
+      console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = true (users table)`);
+      return res.json({ verified: true });
+    }
 
-    const isVerified = (totpResult.rows.length > 0 && totpResult.rows[0].is_verified) || (passkeyResult.rows.length > 0);
+    // 2. Check linked email aliases table (multi-account linking)
+    const aliasResult = await pool.query(`SELECT alias_email FROM user_aliases WHERE LOWER(alias_email) = $1 OR LOWER(primary_email) = $1 LIMIT 1`, [emailLower]);
+    if (aliasResult.rows.length > 0) {
+      console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = true (user_aliases table)`);
+      return res.json({ verified: true });
+    }
 
-    console.log(`[HVEL API] 👤 check-user-verified: ${email} = ${isVerified}`);
-    res.json({ verified: isVerified });
+    // 3. Check active user sessions table
+    const sessionResult = await pool.query(`SELECT email FROM user_sessions WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    if (sessionResult.rows.length > 0) {
+      console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = true (user_sessions table)`);
+      return res.json({ verified: true });
+    }
+
+    // 4. Check profiles table
+    const profileResult = await pool.query(`SELECT email FROM profiles WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    if (profileResult.rows.length > 0) {
+      console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = true (profiles table)`);
+      return res.json({ verified: true });
+    }
+
+    // 5. Check totp_secrets and passkeys tables
+    const totpResult = await pool.query(`SELECT is_verified FROM totp_secrets WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    const passkeyResult = await pool.query(`SELECT id FROM passkeys WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    const isTotpPasskeyVerified = (totpResult.rows.length > 0 && totpResult.rows[0].is_verified) || (passkeyResult.rows.length > 0);
+
+    if (isTotpPasskeyVerified) {
+      console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = true (totp/passkey table)`);
+      return res.json({ verified: true });
+    }
+
+    console.log(`[HVEL API] 👤 check-user-verified: ${emailLower} = false`);
+    res.json({ verified: false });
   } catch (err) {
     console.error('Error checking user verification:', err);
     res.status(500).json({ verified: false, error: 'Server error' });

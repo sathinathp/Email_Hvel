@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
       if (verifyCheckbox) {
-        verifyCheckbox.checked = result.hvel_verify_received !== false;
+        verifyCheckbox.checked = !!result.hvel_verify_received;
       }
     });
 
@@ -355,12 +355,6 @@ function saveSettings() {
   chrome.storage.local.set({ 
     hvel_stamp_mode: currentMode,
     hvel_verify_received: verifyReceived
-  }, () => {
-    const toast = document.getElementById('toast');
-    if (toast) {
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
-    }
   });
 }
 
@@ -736,9 +730,35 @@ function updateAuditUI() {
     `${prefix}_hvel_stats_received_unstamped`,
     `${prefix}_hvel_audit_log`
   ], (res) => {
-    const linkSent = res[`${prefix}_hvel_stats_sent_stamped_link`] || 0;
-    const hashSent = res[`${prefix}_hvel_stats_sent_stamped_hash`] || 0;
-    const totalSentStamped = linkSent + hashSent;
+    const auditLog = res[`${prefix}_hvel_audit_log`] || [];
+
+    // Dynamically compute counts from audit log entries as fallback/sync protection
+    let computedLink = 0;
+    let computedHash = 0;
+    let computedSentUnstamped = 0;
+    let computedRecvStamped = 0;
+    let computedRecvUnstamped = 0;
+
+    auditLog.forEach(entry => {
+      if (entry.type === 'sent_stamped_link') computedLink++;
+      else if (entry.type === 'sent_stamped_hash') computedHash++;
+      else if (entry.type === 'sent_unstamped') computedSentUnstamped++;
+      else if (entry.type === 'received_stamped') computedRecvStamped++;
+      else if (entry.type === 'received_unstamped') computedRecvUnstamped++;
+    });
+
+    const storedLink = res[`${prefix}_hvel_stats_sent_stamped_link`] || 0;
+    const storedHash = res[`${prefix}_hvel_stats_sent_stamped_hash`] || 0;
+    const totalSentStamped = Math.max(storedLink + storedHash, computedLink + computedHash);
+
+    const storedSentUnstamped = res[`${prefix}_hvel_stats_sent_unstamped`] || 0;
+    const totalSentUnstamped = Math.max(storedSentUnstamped, computedSentUnstamped);
+
+    const storedRecvStamped = res[`${prefix}_hvel_stats_received_stamped`] || 0;
+    const totalRecvStamped = Math.max(storedRecvStamped, computedRecvStamped);
+
+    const storedRecvUnstamped = res[`${prefix}_hvel_stats_received_unstamped`] || 0;
+    const totalRecvUnstamped = Math.max(storedRecvUnstamped, computedRecvUnstamped);
 
     const elSentStamped = document.getElementById('statSentStamped');
     const elSentUnstamped = document.getElementById('statSentUnstamped');
@@ -746,14 +766,13 @@ function updateAuditUI() {
     const elRecvUnstamped = document.getElementById('statRecvUnstamped');
 
     if (elSentStamped) elSentStamped.innerText = totalSentStamped;
-    if (elSentUnstamped) elSentUnstamped.innerText = res[`${prefix}_hvel_stats_sent_unstamped`] || 0;
-    if (elRecvStamped) elRecvStamped.innerText = res[`${prefix}_hvel_stats_received_stamped`] || 0;
-    if (elRecvUnstamped) elRecvUnstamped.innerText = res[`${prefix}_hvel_stats_received_unstamped`] || 0;
+    if (elSentUnstamped) elSentUnstamped.innerText = totalSentUnstamped;
+    if (elRecvStamped) elRecvStamped.innerText = totalRecvStamped;
+    if (elRecvUnstamped) elRecvUnstamped.innerText = totalRecvUnstamped;
 
     const logList = document.getElementById('auditLogList');
     if (!logList) return;
 
-    const auditLog = res[`${prefix}_hvel_audit_log`] || [];
     if (auditLog.length === 0) {
       logList.innerHTML = '<div style="font-size: 11px; color: #64748b; padding: 24px; text-align: center;">No audit history found</div>';
       return;

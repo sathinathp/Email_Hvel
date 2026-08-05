@@ -53,6 +53,18 @@ function removePrefixedValues(siteType, keys, callback) {
   chrome.storage.local.remove(prefixedKeys, callback);
 }
 
+// Set default extension settings upon initial installation (Sender Trust Dots OFF by default)
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get(['hvel_verify_received', 'hvel_stamp_mode'], (res) => {
+    if (typeof res.hvel_verify_received === 'undefined') {
+      chrome.storage.local.set({ hvel_verify_received: false });
+    }
+    if (typeof res.hvel_stamp_mode === 'undefined') {
+      chrome.storage.local.set({ hvel_stamp_mode: 'with_link' });
+    }
+  });
+});
+
 // Dynamically check if the local server is running on port 5000; if so, route requests to it first
 function checkBackendUrl() {
   fetch('http://localhost:5000/health')
@@ -366,14 +378,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+const userVerificationCache = new Map();
+
   if (request.action === 'checkUserVerified') {
+    const normEmail = (request.email || '').toLowerCase().trim();
+    if (userVerificationCache.has(normEmail)) {
+      sendResponse({ success: true, verified: userVerificationCache.get(normEmail) });
+      return true;
+    }
+
     fetch(`${API_BASE_URL}/api/check-user-verified`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: request.email })
+      body: JSON.stringify({ email: normEmail })
     })
     .then(r => r.json())
-    .then(data => sendResponse(data))
+    .then(data => {
+      const isVerified = !!(data && data.verified);
+      userVerificationCache.set(normEmail, isVerified);
+      sendResponse(data);
+    })
     .catch(err => sendResponse({ success: false, verified: false, error: err.message }));
     return true;
   }
@@ -492,6 +516,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(err => sendResponse({ success: false, error: err.message }));
     });
     return true;
+  }
+
+  if (request.action === 'verifyHumanity') {
+    const points = request.points || [];
+    const keystrokes = request.keystrokes || [];
+    const tabNavigations = request.tabNavigations || 0;
+
+    // 1. Mouse movement validation
+    let mouseValid = false;
+    if (points.length >= 5) {
+      let nonZeroCount = 0;
+      for (let i = 1; i < points.length; i++) {
+        const dx = points[i].x - points[i-1].x;
+        const dy = points[i].y - points[i-1].y;
+        if (Math.sqrt(dx*dx + dy*dy) > 0) nonZeroCount++;
+      }
+      if (nonZeroCount >= 3) mouseValid = true;
+    }
+
+    // 2. Keyboard & Tab key biometric validation
+    let keyboardValid = false;
+    if (tabNavigations > 0 || keystrokes.length >= 2) {
+      keyboardValid = true;
+    }
+
+    const isHuman = mouseValid || keyboardValid || (points.length + keystrokes.length + tabNavigations) >= 2;
+    sendResponse({ success: isHuman });
+    return false;
   }
 
   if (request.action === 'logAuditEvent') {

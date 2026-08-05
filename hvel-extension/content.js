@@ -28,6 +28,24 @@ style.textContent = `
         70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
+    @keyframes hvel-dot-green-pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+        50% { transform: scale(1.15); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+    }
+    @keyframes hvel-dot-red-pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+        50% { transform: scale(1.15); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+    }
+    @keyframes hvel-guide-slide-in {
+        from { opacity: 0; transform: translateX(20px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes hvel-guide-fade-out {
+        to { opacity: 0; transform: translateY(-8px); }
+    }
+    @keyframes hvel-cursor-blink {
+        0%, 100% { opacity: 1; } 50% { opacity: 0; }
+    }
 `;
 document.head.appendChild(style);
 
@@ -247,7 +265,7 @@ async function updateComposeStampLive(composeBody) {
             if (stampMode === 'hash_only') {
                 badgeInnerHtml = `
                     <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                     </div>
                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
@@ -257,7 +275,7 @@ async function updateComposeStampLive(composeBody) {
             } else {
                 badgeInnerHtml = `
                     <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
-                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                     </a>
@@ -309,7 +327,7 @@ async function injectComposeStamp(dialog) {
             if (stampMode === 'hash_only') {
                 badgeInnerHtml = `
                     <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                     </div>
                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
@@ -319,7 +337,7 @@ async function injectComposeStamp(dialog) {
             } else {
                 badgeInnerHtml = `
                     <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
-                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                         <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                     </a>
@@ -465,13 +483,33 @@ document.addEventListener('click', async (e) => {
                         return; // Stop — do NOT send the email
                     }
 
-                    // Quota & Identity OK — proceed with mouse tracking
+// Keyboard & Tab Biometric Tracking Engine
+let keyboardEvents = [];
+let tabNavigations = 0;
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        tabNavigations++;
+    }
+    keyboardEvents.push({
+        key: e.key,
+        code: e.code,
+        time: Date.now()
+    });
+    if (keyboardEvents.length > 50) {
+        keyboardEvents.shift();
+    }
+}, true);
+
+                    // Quota & Identity OK — proceed with combined mouse & keyboard biometric verification
                     const pointsToSend = (activeComposeDialog && composeMousePoints.length >= 10)
                         ? composeMousePoints
                         : mousePoints;
                     chrome.runtime.sendMessage({
                         action: 'verifyHumanity',
-                        points: pointsToSend
+                        points: pointsToSend,
+                        keystrokes: keyboardEvents,
+                        tabNavigations: tabNavigations
                     }, async (response) => {
                     try {
                         const isHuman = !!(response && response.success);
@@ -511,7 +549,7 @@ document.addEventListener('click', async (e) => {
                                     if (stampMode === 'hash_only') {
                                         badgeInnerHtml = `
                                             <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                 <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                             </div>
                                             <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -521,7 +559,7 @@ document.addEventListener('click', async (e) => {
                                     } else {
                                         badgeInnerHtml = `
                                             <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                 <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                             </div>
                                         `;
@@ -570,7 +608,7 @@ document.addEventListener('click', async (e) => {
                                             if (stampMode === 'hash_only') {
                                                 badgeInnerHtml = `
                                                     <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                         <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                                     </div>
                                                     <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -580,7 +618,7 @@ document.addEventListener('click', async (e) => {
                                             } else {
                                                 badgeInnerHtml = `
                                                     <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                         <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
                                                     </div>
                                                 `;
@@ -619,7 +657,7 @@ document.addEventListener('click', async (e) => {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -629,7 +667,7 @@ document.addEventListener('click', async (e) => {
                                                 } else {
                                                     badgeInnerHtml = `
                                                         <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
-                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
                                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                                         </a>
@@ -639,7 +677,7 @@ document.addEventListener('click', async (e) => {
                                                 if (stampMode === 'hash_only' || !recordUrl) {
                                                     badgeInnerHtml = `
                                                         <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic Sender</span>
                                                         </div>
                                                         <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
@@ -649,7 +687,7 @@ document.addEventListener('click', async (e) => {
                                                 } else {
                                                     badgeInnerHtml = `
                                                         <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
-                                                            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
+                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
                                                             <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Robotic Sender</span>
                                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                                         </a>
@@ -942,10 +980,10 @@ function showVerificationSuccessToast(message) {
     
     toast.innerHTML = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #e6fbf1; border-radius: 50%; border: 1px solid #a7f3d0; animation: hvel-ring-pulse 2s infinite; flex-shrink: 0;">
-            <img src="https://api.attest.page/stamp-icon.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
         </div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest Verified</span>
+            <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest</span>
             <span style="font-size: 11px; color: #047857; font-weight: 500; opacity: 0.9;">Secure human intent verified</span>
         </div>
     `;
@@ -1076,7 +1114,8 @@ async function scanIncomingMessages() {
     const messages = document.querySelectorAll('.adn, .ads');
 
     messages.forEach(async (msg) => {
-        if (msg.hasAttribute('data-hvel-scanned')) return;
+        const existingBadge = msg.querySelector('.hvel-header-badge');
+        if (msg.hasAttribute('data-hvel-scanned') && existingBadge) return;
         // Ignore autocomplete dropdown lists, compose dialogs, and suggestions popups
         if (msg.closest('[role="listbox"]') || msg.closest('[role="dialog"]') || msg.closest('.am') || msg.closest('.aqj')) return;
         msg.setAttribute('data-hvel-scanned', 'true');
@@ -1269,7 +1308,7 @@ async function scanIncomingMessages() {
 
         console.log(`[HVEL Gmail] Message detected. Sender: "${senderEmail}", Domain Ignored: ${isIgnoredDomain}, Recipient: "${recipientEmail}"`);
 
-        if (senderEmail && senderEmail.toLowerCase() !== recipientEmail.toLowerCase() && !isIgnoredDomain) {
+        if (senderEmail && !isIgnoredDomain) {
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
                 const verifyReceived = res.hvel_verify_received !== false;
                 console.log(`[HVEL Gmail] Checking storage for hvel_verify_received: ${verifyReceived}`);
@@ -1306,12 +1345,23 @@ async function scanIncomingMessages() {
                         }
                     });
                 } else {
-                    console.log(`[HVEL Gmail] No trust badge link found. Showing unverified notice for: ${senderEmail}`);
-                    showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                    if (!msg.hasAttribute('data-hvel-audited')) {
-                        msg.setAttribute('data-hvel-audited', 'true');
-                        logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
-                    }
+                    console.log(`[HVEL Gmail] No trust badge link found. Checking user verification status for: ${senderEmail}`);
+                    chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userRes) => {
+                        const isVerifiedSender = !!(userRes && userRes.verified);
+                        if (isVerifiedSender) {
+                            showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
+                            if (!msg.hasAttribute('data-hvel-audited')) {
+                                msg.setAttribute('data-hvel-audited', 'true');
+                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                            }
+                        } else {
+                            showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
+                            if (!msg.hasAttribute('data-hvel-audited')) {
+                                msg.setAttribute('data-hvel-audited', 'true');
+                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                            }
+                        }
+                    });
                     
                     if (msg.offsetParent !== null) {
                         const normSender = senderEmail.toLowerCase().trim();
@@ -1346,100 +1396,93 @@ async function scanIncomingMessages() {
 }
 
 function showTrustStatus(msgElement, status, text) {
-    const existing = msgElement.querySelector('.hvel-trust-notice');
-    if (existing) existing.remove();
-    const existingStamp = msgElement.querySelector('.hvel-untrusted-stamp');
-    if (existingStamp) existingStamp.remove();
+    const existing = msgElement.querySelectorAll('.hvel-trust-notice, .hvel-untrusted-stamp, .hvel-header-badge');
+    existing.forEach(el => el.remove());
 
     // Ensure we clean up any legacy background styling from previous sessions
     msgElement.style.removeProperty('background-color');
     msgElement.style.removeProperty('backgroundColor');
 
-    const notice = document.createElement('div');
-    notice.className = 'hvel-trust-notice';
-    notice.style.cssText = 'display: block !important; width: 100% !important; clear: both !important; margin: 12px 0 !important;';
+    const badge = document.createElement('span');
+    badge.className = 'hvel-header-badge';
 
     if (status === 'verified') {
-        notice.innerHTML = `
-            <div style="
-                margin: 8px 0;
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-                display: block;
-                clear: both;
-            ">
-                <div style="
-                    display: inline-flex;
-                    align-items: center;
-                    background: #f0fdf4;
-                    border: 1px solid #bbf7d0;
-                    border-radius: 9999px;
-                    padding: 4px 12px;
-                    gap: 6px;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                ">
-                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">✅</span>
-                    <span style="color: #166534; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">Attest Verified</span>
-                </div>
-                <div style="margin-top: 5px; font-size: 10px; color: #14532d; opacity: 0.85; line-height: 1.4;">
-                    ${text}
-                </div>
-            </div>`;
+        badge.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #166534;
+            vertical-align: middle;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        `;
+        badge.title = text || 'Verified Human Sender with Attest';
+        badge.innerHTML = `<span>✅</span><span>Attest</span>`;
     } else if (status === 'tampered' || status === 'invalid') {
-        const title = 'Critical: ID Mismatch Detected';
-        notice.innerHTML = `
-            <div style="
-                margin: 8px 0;
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-                display: block;
-                clear: both;
-            ">
-                <div style="
-                    display: inline-flex;
-                    align-items: center;
-                    background: #fff1f2;
-                    border: 1px solid #fecaca;
-                    border-radius: 9999px;
-                    padding: 4px 12px;
-                    gap: 6px;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                ">
-                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">⚠️</span>
-                    <span style="color: #991b1b; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">${title}</span>
-                </div>
-                <div style="margin-top: 5px; font-size: 10px; color: #7f1d1d; opacity: 0.9; line-height: 1.4;">
-                    ${text}
-                </div>
-            </div>`;
+        badge.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: #fff1f2;
+            border: 1px solid #fecaca;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #991b1b;
+            vertical-align: middle;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        `;
+        badge.title = text || 'Critical: ID Mismatch Detected';
+        badge.innerHTML = `<span>⚠️</span><span>ID Mismatch</span>`;
     } else {
-        // 'unverified' — not a threat, just not registered. Small stamp style at the bottom of the email.
-        notice.innerHTML = `
-            <div style="
-                margin: 8px 0;
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-                display: block;
-                clear: both;
-            ">
-                <div style="
-                    display: inline-flex;
-                    align-items: center;
-                    background: #fffbeb;
-                    border: 1px solid #fde68a;
-                    border-radius: 9999px;
-                    padding: 4px 12px;
-                    gap: 6px;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                ">
-                    <span style="font-size: 11px; display: inline-flex; align-items: center; user-select: none;">⚠️</span>
-                    <span style="color: #b45309; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;">Sender Not Yet Verified</span>
-                </div>
-                <div style="margin-top: 5px; font-size: 10px; color: #78350f; opacity: 0.75; line-height: 1.4;">
-                    This sender hasn't installed Attest yet. Treat with normal caution.
-                </div>
-            </div>`;
+        badge.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #b45309;
+            vertical-align: middle;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        `;
+        badge.title = 'This sender hasn\'t installed Attest yet. Treat with normal caution.';
+        badge.innerHTML = `<span>⚠️</span><span>Sender Not Yet Verified</span>`;
     }
 
-    const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
-    insertTarget.insertBefore(notice, insertTarget.firstChild);
+    // Target the email header row element right next to <sender@email.com>
+    const headerSenderEl = msgElement.querySelector('span.go') || 
+                           msgElement.querySelector('span.gD') || 
+                           msgElement.querySelector('h3.iw') || 
+                           msgElement.querySelector('.gE.iv.gt') ||
+                           msgElement.querySelector('.gD');
+
+    if (headerSenderEl) {
+        headerSenderEl.after(badge);
+    } else {
+        // Fallback: top of email body
+        const notice = document.createElement('div');
+        notice.className = 'hvel-trust-notice';
+        notice.style.cssText = 'display: block !important; width: 100% !important; clear: both !important; margin: 12px 0 !important;';
+        notice.appendChild(badge);
+        const insertTarget = msgElement.querySelector('.a3s.aiL') || msgElement.querySelector('.a3s') || msgElement.querySelector('.ii.gt') || msgElement;
+        insertTarget.insertBefore(notice, insertTarget.firstChild);
+    }
 }
 
 // Compute SHA-256 hash of email body contents
@@ -1473,97 +1516,167 @@ function getRecipientEmail(sendBtn) {
 
 
 function updateListBadge(badge, isVerified) {
+    badge.innerHTML = '';
+    const dot = document.createElement('span');
+    dot.className = isVerified ? 'hvel-dot-green' : 'hvel-dot-red';
     if (isVerified) {
-        badge.innerText = 'Attest';
-        badge.style.setProperty('background', '#e6fbf1', 'important');
-        badge.style.setProperty('border', '1px solid #a7f3d0', 'important');
-        badge.style.setProperty('color', '#065f46', 'important');
+        dot.title = 'Attest Verified — confirmed human sender';
+        dot.style.cssText = `
+            display: block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+            flex-shrink: 0;
+        `;
     } else {
-        badge.innerText = 'Not Verified';
-        badge.style.setProperty('background', '#fff1f2', 'important');
-        badge.style.setProperty('border', '1px solid #fecaca', 'important');
-        badge.style.setProperty('color', '#991b1b', 'important');
+        dot.title = 'Sender not verified by Attest';
+        dot.style.cssText = `
+            display: block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+            flex-shrink: 0;
+        `;
     }
+    badge.appendChild(dot);
+    badge.style.removeProperty('background');
+    badge.style.removeProperty('border');
+    badge.style.removeProperty('color');
 }
 
 function scanGmailInboxList() {
-    const rows = document.querySelectorAll('tr.zA');
-    rows.forEach(row => {
-        const senderEl = row.querySelector('[email], [data-hovercard-id], span.zF');
-        let email = null;
-        if (senderEl) {
-            email = senderEl.getAttribute('email') || senderEl.getAttribute('data-hovercard-id');
-        }
-        if (!email || !email.includes('@')) {
-            const childWithEmail = row.querySelector('[email]');
-            if (childWithEmail) email = childWithEmail.getAttribute('email');
+    // Proactively clean up any legacy row pills from the list view
+    document.querySelectorAll('.hvel-row-pill').forEach(pill => pill.remove());
+
+    chrome.storage.local.get(['hvel_verify_received'], (res) => {
+        const isEnabled = res.hvel_verify_received !== false;
+        if (!isEnabled) {
+            document.querySelectorAll('.hvel-list-badge').forEach(badge => badge.remove());
+            return;
         }
 
-        if (!email || !email.includes('@')) return;
-        email = email.toLowerCase().trim();
-
-        const dateCell = row.querySelector('td.xW');
-        if (!dateCell) return;
-
-        let badge = dateCell.querySelector('.hvel-list-badge');
-        if (badge) {
-            if (badge.getAttribute('data-email') === email) {
-                return;
+        const rows = document.querySelectorAll('tr.zA');
+        rows.forEach(row => {
+            const senderEl = row.querySelector('[email], [data-hovercard-id], span.zF, span.yP, span.bAq, td.yX span');
+            let email = null;
+            if (senderEl) {
+                email = senderEl.getAttribute('email') || senderEl.getAttribute('data-hovercard-id');
             }
-            badge.setAttribute('data-email', email);
-        } else {
-            badge = document.createElement('span');
-            badge.className = 'hvel-list-badge';
-            badge.setAttribute('data-email', email);
-            badge.style.cssText = `
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 10px;
-                font-weight: 700;
-                margin-right: 8px;
-                vertical-align: middle;
-                user-select: none;
-                line-height: 1;
-                font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            `;
-            dateCell.insertBefore(badge, dateCell.firstChild);
-        }
-
-        dateCell.style.setProperty('min-width', '150px', 'important');
-        dateCell.style.setProperty('text-align', 'right', 'important');
-        dateCell.style.setProperty('white-space', 'nowrap', 'important');
-
-        if (checkedEmailsCache.has(email)) {
-            const cached = checkedEmailsCache.get(email);
-            if (!cached.checking) {
-                updateListBadge(badge, cached.verified);
-            }
-        } else {
-            updateListBadge(badge, false);
-            checkedEmailsCache.set(email, { verified: false, checking: true });
-            
-            chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
-                const isVerified = !!(response && response.verified);
-                checkedEmailsCache.set(email, { verified: isVerified, checking: false });
-                if (badge.parentElement && badge.getAttribute('data-email') === email) {
-                    updateListBadge(badge, isVerified);
+            if (!email || !email.includes('@')) {
+                const childWithEmail = row.querySelector('[email], [data-hovercard-id], a[href^="mailto:"]');
+                if (childWithEmail) {
+                    email = childWithEmail.getAttribute('email') || 
+                            childWithEmail.getAttribute('data-hovercard-id') || 
+                            childWithEmail.getAttribute('href')?.replace('mailto:', '');
                 }
-            });
-        }
+            }
+            if (!email || !email.includes('@')) {
+                const titleEl = row.querySelector('[title*="@"], [aria-label*="@"]');
+                if (titleEl) {
+                    const titleStr = titleEl.getAttribute('title') || titleEl.getAttribute('aria-label') || '';
+                    const match = titleStr.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    if (match) email = match[0];
+                }
+            }
+            // Fallback: Handle senders like "me", "Google", "Attest" where Gmail does not attach email attributes
+            if (!email) {
+                const senderTextEl = row.querySelector('span.zF, span.yP, span.bAq, td.yX span, td.yX');
+                if (senderTextEl) {
+                    const rawName = senderTextEl.innerText.trim();
+                    if (rawName) {
+                        if (rawName.toLowerCase() === 'me') {
+                            email = (typeof getCurrentUserEmail === 'function' ? getCurrentUserEmail() : null) || cachedUserEmail || 'me@gmail.com';
+                        } else {
+                            const safeSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            email = safeSlug ? `${safeSlug}@domain.com` : 'unknown@domain.com';
+                        }
+                    }
+                }
+            }
+
+            if (!email) return;
+            email = email.toLowerCase().trim();
+
+            const dateCell = row.querySelector('td.xW');
+            if (!dateCell) return;
+
+            // Enable relative positioning on dateCell to anchor absolute dot placement
+            dateCell.style.setProperty('position', 'relative', 'important');
+
+            let badge = dateCell.querySelector('.hvel-list-badge');
+            if (badge) {
+                if (badge.getAttribute('data-email') === email) {
+                    return;
+                }
+                badge.setAttribute('data-email', email);
+            } else {
+                badge = document.createElement('span');
+                badge.className = 'hvel-list-badge';
+                badge.setAttribute('data-email', email);
+                badge.style.cssText = `
+                    position: absolute;
+                    right: 82px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    user-select: none;
+                    z-index: 2;
+                    pointer-events: auto;
+                `;
+                dateCell.appendChild(badge);
+            }
+
+            if (checkedEmailsCache.has(email)) {
+                const cached = checkedEmailsCache.get(email);
+                if (!cached.checking) {
+                    updateListBadge(badge, cached.verified);
+                }
+            } else {
+                updateListBadge(badge, false);
+                checkedEmailsCache.set(email, { verified: false, checking: true });
+                
+                chrome.runtime.sendMessage({ action: 'checkUserVerified', email: email }, (response) => {
+                    const isVerified = !!(response && response.verified);
+                    checkedEmailsCache.set(email, { verified: isVerified, checking: false });
+                    if (badge.parentElement && badge.getAttribute('data-email') === email) {
+                        updateListBadge(badge, isVerified);
+                    }
+                });
+            }
+        });
     });
 }
 
-// Interval loops to catch dynamically loaded view changes
+// Real-time listener: remove or render dots immediately when user toggles setting
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.hvel_verify_received) {
+        if (changes.hvel_verify_received.newValue === false) {
+            document.querySelectorAll('.hvel-list-badge, .hvel-row-pill').forEach(badge => badge.remove());
+        } else {
+            scanGmailInboxList();
+        }
+    }
+});
+
+// Fast interval loops and instant scroll listener to eliminate latency completely
 function runHvelIntervals() {
     scanIncomingMessages();
     scanAndStyleComposeRecipients();
     scanGmailInboxList();
 }
 
-setInterval(runHvelIntervals, 1500);
+setInterval(runHvelIntervals, 300);
+
+// Instant scroll listener for zero-latency dot rendering
+window.addEventListener('scroll', () => {
+    requestAnimationFrame(scanGmailInboxList);
+}, { passive: true, capture: true });
 
 let mutationTimeout = null;
 const observer = new MutationObserver(() => {
@@ -1571,7 +1684,7 @@ const observer = new MutationObserver(() => {
     mutationTimeout = setTimeout(() => {
         runHvelIntervals();
         mutationTimeout = null;
-    }, 150);
+    }, 16);
 });
 observer.observe(document.body, { childList: true, subtree: true });
 
@@ -1752,6 +1865,278 @@ function scanAndStyleComposeRecipients() {
         }
     });
 }
+
+// ─── FIRST-TIME ONBOARDING GUIDE ──────────────────────────────────────────
+// Shows a single, dismissible tooltip with a typing animation explaining the
+// green/red dot system and the Attest stamp — only on the very first install.
+function showFirstTimeGuide() {
+    chrome.storage.local.get(['hvel_guide_shown'], (res) => {
+        if (res.hvel_guide_shown) return; // Already shown — skip
+        chrome.storage.local.set({ hvel_guide_shown: true });
+
+        // Wait briefly for Gmail UI to fully settle
+        setTimeout(() => _renderGuide(), 1800);
+    });
+}
+
+function _renderGuide() {
+    if (document.getElementById('hvel-onboard-guide')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'hvel-onboard-guide';
+    overlay.style.cssText = `position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.42);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:hvel-guide-slide-in 0.35s cubic-bezier(0.16,1,0.3,1) forwards;`;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `background:#fff;border-radius:24px;width:100%;max-width:660px;box-shadow:0 40px 80px rgba(0,0,0,0.25);position:relative;overflow:hidden;`;
+
+    modal.innerHTML = `
+    <button id="hvel-gc" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:#f3f4f6;border:none;cursor:pointer;font-size:19px;color:#6b7280;display:flex;align-items:center;justify-content:center;z-index:2;">×</button>
+    <!-- HERO -->
+    <div style="display:flex;align-items:center;padding:32px 32px 24px;gap:20px;border-bottom:1px solid #f0f0f0;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,0.07),transparent 70%);pointer-events:none;"></div>
+      <div style="flex:1;">
+        <div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 4px 14px rgba(16,185,129,0.2);">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width:34px;height:34px;border-radius:50%;object-fit:contain;" onerror="this.style.display='none'" />
+        </div>
+        <div style="font-size:16px;font-weight:600;color:#374151;">Welcome to</div>
+        <div style="font-size:42px;font-weight:900;color:#059669;letter-spacing:-0.04em;line-height:1;margin-bottom:8px;">Attest</div>
+        <div style="font-size:13px;color:#9ca3af;margin-bottom:20px;">Human-first email verification</div>
+        <button id="hvel-qsg" style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #10b981;border-radius:9999px;background:#fff;color:#059669;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;transition:all 0.2s;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+          Quick Start Guide &nbsp;→
+        </button>
+      </div>
+      <div style="flex-shrink:0;width:230px;position:relative;">
+        <div style="position:absolute;top:-6px;left:-6px;z-index:1;background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;padding:7px 11px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,0.09);">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width:18px;height:18px;border-radius:50%;object-fit:contain;" onerror="this.style.display='none'" />
+          <div><div style="font-size:11px;font-weight:700;color:#065f46;">Attest</div><div style="font-size:10px;color:#10b981;font-weight:600;">Verified ✓</div></div>
+        </div>
+        <svg viewBox="0 0 230 185" width="230" height="185" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="122" cy="103" r="74" fill="#f0fdf4"/>
+          <rect x="50" y="122" width="124" height="7" rx="3" fill="#d1d5db"/>
+          <rect x="60" y="89" width="104" height="36" rx="5" fill="#e5e7eb"/>
+          <rect x="63" y="92" width="98" height="30" rx="4" fill="#fff"/>
+          <rect x="69" y="97" width="52" height="3" rx="2" fill="#d1fae5"/>
+          <rect x="69" y="103" width="38" height="3" rx="2" fill="#e5e7eb"/>
+          <rect x="69" y="109" width="46" height="3" rx="2" fill="#e5e7eb"/>
+          <rect x="98" y="55" width="48" height="62" rx="11" fill="#059669"/>
+          <circle cx="122" cy="43" r="18" fill="#fde68a"/>
+          <path d="M105 36 Q110 19 122 17 Q135 15 142 34 Q133 24 122 26 Q111 28 105 36" fill="#1f2937"/>
+          <circle cx="117" cy="41" r="2" fill="#1f2937"/>
+          <circle cx="127" cy="41" r="2" fill="#1f2937"/>
+          <path d="M117 50 Q122 55 127 50" stroke="#92400e" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <rect x="140" y="90" width="16" height="9" rx="4" fill="#059669"/>
+          <rect x="147" y="85" width="14" height="17" rx="4" fill="#fff" stroke="#d1d5db" stroke-width="1.5"/>
+          <rect x="38" y="75" width="24" height="17" rx="3" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+          <path d="M38 78 L50 86 L62 78" stroke="#10b981" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M176 55 L185 65 L166 72 Z" fill="#10b981" opacity="0.7"/>
+          <circle cx="154" cy="35" r="3" fill="#10b981" opacity="0.5"/>
+          <circle cx="45" cy="50" r="2" fill="#10b981" opacity="0.4"/>
+          <circle cx="190" cy="84" r="2.5" fill="#10b981" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+    <!-- TWO CARDS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:20px 24px 24px;">
+      <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:14px;padding:16px 14px;">
+        <div style="font-size:10px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:12px;">What the dots mean</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#f0fdf4;border-radius:9px;margin-bottom:8px;">
+          <span style="width:12px;height:12px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0;animation:hvel-dot-green-pulse 1.8s ease-in-out infinite;"></span>
+          <span style="font-size:12px;color:#374151;font-weight:500;">Sender is <strong style="color:#059669;">Attest verified</strong> — confirmed human</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#fff5f5;border-radius:9px;">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0;animation:hvel-dot-red-pulse 2.2s ease-in-out infinite;"></span>
+          <span style="font-size:12px;color:#374151;font-weight:500;">Sender has <strong style="color:#dc2626;">not been verified</strong> by Attest yet</span>
+        </div>
+      </div>
+      <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:14px;padding:16px 14px;">
+        <div style="font-size:10px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;">The Attest Stamp</div>
+        <div style="font-size:12px;color:#374151;line-height:1.65;">● When you compose an email, Attest automatically adds a stamp at the bottom.<br/><br/>● The stamp proves you are a real human — not a bot.</div>
+      </div>
+    </div>
+    <!-- GOT IT -->
+    <div style="padding:0 24px 24px;">
+      <button id="hvel-gg" style="width:100%;background:linear-gradient(135deg,#16a34a,#059669);color:#fff;font-size:15px;font-weight:700;border:none;border-radius:12px;padding:14px;cursor:pointer;box-shadow:0 5px 20px rgba(16,185,129,0.35);display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Got it, let's go!
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const dismiss = () => { overlay.style.animation='hvel-guide-fade-out 0.3s ease forwards'; setTimeout(()=>overlay.remove(),300); };
+    modal.querySelector('#hvel-gc').onclick = dismiss;
+    modal.querySelector('#hvel-gg').onclick = dismiss;
+    overlay.onclick = (e) => { if(e.target===overlay) dismiss(); };
+
+    const qsg = modal.querySelector('#hvel-qsg');
+    qsg.onmouseenter = ()=>qsg.style.background='#f0fdf4';
+    qsg.onmouseleave = ()=>qsg.style.background='#fff';
+    qsg.onclick = () => { dismiss(); setTimeout(()=>_runQuickStartTour(), 350); };
+
+    const gg = modal.querySelector('#hvel-gg');
+    gg.onmouseenter = ()=>{gg.style.filter='brightness(1.08)';gg.style.transform='translateY(-1px)';};
+    gg.onmouseleave = ()=>{gg.style.filter='';gg.style.transform='';};  
+}
+// ─── INTERACTIVE QUICK START TOUR ────────────────────────────────────────────
+function _runQuickStartTour() {
+    if (document.getElementById('hvel-tour-backdrop')) return;
+
+    if (!document.getElementById('hvel-tour-styles')) {
+        const style = document.createElement('style');
+        style.id = 'hvel-tour-styles';
+        style.textContent = `
+            @keyframes hvel-tour-fade-in {
+                from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+                to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            }
+            @keyframes hvel-stamp-pop {
+                0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+                100% { opacity: 1; transform: translateY(0) scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'hvel-tour-backdrop';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:99999990;background:rgba(0,0,0,0.52);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
+
+    const card = document.createElement('div');
+    card.id = 'hvel-tour-card';
+    card.style.cssText = `
+        position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+        z-index:99999999;width:460px;max-width:92vw;
+        background:#ffffff;border-radius:24px;
+        box-shadow:0 30px 70px rgba(0,0,0,0.3);
+        padding:28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+        box-sizing:border-box;animation:hvel-tour-fade-in 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(card);
+
+    let currentStep = 0;
+
+    const steps = [
+        {
+            title: '1. Unverified Senders (Red Dot)',
+            subtitle: 'INBOX VERIFICATION SYSTEM',
+            desc: 'Senders who have <strong>not verified with Attest</strong> appear with a small red dot in your Gmail inbox.',
+            preview: `
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px;margin:18px 0;">
+                    <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:12px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);border:1px solid #f3f4f6;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0;animation:hvel-dot-red-pulse 2s ease-in-out infinite;"></span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:13px;color:#1f2937;">unverified-sender@external.com</div>
+                            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Not verified by Attest</div>
+                        </div>
+                        <span style="font-size:11px;color:#9ca3af;">10:42 AM</span>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: '2. Verified Humans (Green Dot)',
+            subtitle: 'INBOX VERIFICATION SYSTEM',
+            desc: 'Senders verified by Attest show a <strong>pulsing green dot</strong>, confirming they are real human senders.',
+            preview: `
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:14px 16px;margin:18px 0;">
+                    <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:12px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(16,185,129,0.1);border:1px solid #d1fae5;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0;animation:hvel-dot-green-pulse 1.8s ease-in-out infinite;"></span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:13px;color:#111827;">verified-human@company.com</div>
+                            <div style="font-size:11px;color:#059669;font-weight:500;margin-top:2px;">✓ Verified Human by Attest</div>
+                        </div>
+                        <span style="font-size:11px;color:#9ca3af;">10:45 AM</span>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: '3. Composing & Auto-Stamping',
+            subtitle: 'AUTOMATIC ATTEST STAMP INJECTION',
+            desc: 'When you click <strong>Compose</strong>, Attest automatically injects a verified trust stamp into your email.',
+            preview: `
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;position:relative;overflow:hidden;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <div style="background:#059669;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;display:flex;align-items:center;gap:6px;">
+                            <span>+ Compose</span>
+                        </div>
+                        <span style="font-size:11px;color:#6b7280;">Clicking Compose...</span>
+                    </div>
+                    <div style="background:#fff;border:1px dashed #10b981;padding:12px;border-radius:10px;animation:hvel-stamp-pop 0.6s cubic-bezier(0.16,1,0.3,1) forwards;">
+                        <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">Email Body:</div>
+                        <div style="display:inline-flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:9999px;padding:5px 12px;">
+                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSxFZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width:16px;height:16px;border-radius:50%;" onerror="this.style.display='none'" />
+                            <span style="font-size:13px;font-weight:800;color:#065f46;">Attest</span>
+                        </div>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: '4. Ready to Use Attest!',
+            subtitle: 'YOU ARE ALL SET',
+            desc: 'Your emails will now be automatically verified as human-sent. Enjoy bot-free, trusted communication.',
+            preview: `
+                <div style="text-align:center;padding:24px 16px;background:linear-gradient(135deg, #f0fdf4, #ecfdf5);border-radius:16px;margin:18px 0;border:1px solid #a7f3d0;">
+                    <div style="width:54px;height:54px;border-radius:50%;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:26px;box-shadow:0 8px 20px rgba(16,185,129,0.3);">✓</div>
+                    <div style="font-size:16px;font-weight:800;color:#065f46;">Attest Security Active</div>
+                    <div style="font-size:12px;color:#047857;margin-top:4px;">Protected against automated email spoofing</div>
+                </div>
+            `
+        }
+    ];
+
+    function renderStep() {
+        const s = steps[currentStep];
+        card.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:10px;font-weight:800;color:#10b981;letter-spacing:0.08em;text-transform:uppercase;">${s.subtitle}</span>
+                <span style="font-size:11px;font-weight:700;color:#9ca3af;">Step ${currentStep + 1} of ${steps.length}</span>
+            </div>
+            <h3 style="font-size:18px;font-weight:800;color:#111827;margin:0 0 8px;line-height:1.3;">${s.title}</h3>
+            <p style="font-size:13px;color:#4b5563;line-height:1.55;margin:0;">${s.desc}</p>
+            ${s.preview}
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:10px;">
+                ${currentStep > 0 ? `<button id="hvel-tour-prev" style="background:#f3f4f6;color:#374151;border:none;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">← Back</button>` : '<div></div>'}
+                <div style="display:flex;gap:8px;">
+                    <button id="hvel-tour-skip" style="background:transparent;color:#9ca3af;border:none;padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer;">Skip</button>
+                    <button id="hvel-tour-next" style="background:linear-gradient(135deg,#16a34a,#059669);color:#ffffff;border:none;padding:10px 22px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.3);">
+                        ${currentStep === steps.length - 1 ? 'Finish Tour' : 'Next →'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const prevBtn = card.querySelector('#hvel-tour-prev');
+        if (prevBtn) prevBtn.onclick = () => { currentStep--; renderStep(); };
+
+        card.querySelector('#hvel-tour-next').onclick = () => {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                renderStep();
+            } else {
+                closeTour();
+            }
+        };
+
+        card.querySelector('#hvel-tour-skip').onclick = closeTour;
+    }
+
+    function closeTour() {
+        card.remove();
+        backdrop.remove();
+    }
+
+    renderStep();
+}
+
+showFirstTimeGuide();
 
 function logAuditEvent(type, emailDetail, extra = null) {
     const key = `gmail_hvel_stats_${type}`;
