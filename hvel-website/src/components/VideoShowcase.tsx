@@ -190,13 +190,7 @@ export default function VideoShowcase({ id = 'demo-video' }: VideoShowcaseProps)
 
         {/* ── SIDE-BY-SIDE MAIN CONTAINER: 3D HOLOGRAPHIC SHIELD ANIMATION ON LEFT, VIDEO ON RIGHT ── */}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-            gap: 28,
-            alignItems: 'stretch',
-            marginBottom: 48,
-          }}
+          className="responsive-video-showcase-grid"
         >
           {/* ── LEFT COLUMN: SEAMLESS GLASSMORPHIC STAGE WITH WEBSITE LOGO & SECURITY NODES ── */}
           <div
@@ -211,10 +205,11 @@ export default function VideoShowcase({ id = 'demo-video' }: VideoShowcaseProps)
               alignItems: 'center',
               position: 'relative',
               padding: 24,
-              minHeight: 360,
+              minHeight: 380,
               overflow: 'hidden',
             }}
           >
+            <div className="hologram-content-wrapper" style={{ width: 400, height: 340, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {/* Dynamic SVG Energy Laser Lines connecting Shield to 4 Nodes */}
             <svg
               viewBox="0 0 400 340"
@@ -430,6 +425,7 @@ export default function VideoShowcase({ id = 'demo-video' }: VideoShowcaseProps)
                   <span style={{ fontWeight: 900, color: '#8B5CF6' }}>Attached</span>
                 </div>
               </div>
+            </div>
           </div>
 
           {/* ── RIGHT COLUMN: THE REAL VIDEO PLAYER ── */}

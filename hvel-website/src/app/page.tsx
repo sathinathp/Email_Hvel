@@ -409,7 +409,7 @@ export default function Home() {
           }
         });
       },
-      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.01, rootMargin: '0px 0px 150px 0px' }
     );
 
     els.forEach((el) => observer.observe(el));
@@ -480,19 +480,8 @@ export default function Home() {
         <div className="container-custom" style={{ position: 'relative', zIndex: 2 }}>
 
           {/* Social Proof Reviews Badge */}
-          <div className="animate-on-scroll" style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              background: '#ffffff',
-              border: '1px solid #E4EBE3',
-              borderRadius: 9999,
-              padding: '6px 20px',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
-              gap: 16,
-              flexWrap: 'wrap',
-              justifyContent: 'center'
-            }}>
+          <div className="animate-on-scroll hero-badge-scroll-wrapper" style={{ marginBottom: 40 }}>
+            <div className="hero-badge-inner">
               {/* Overlapping Senders replaced with Gmail & Outlook logos */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -510,7 +499,10 @@ export default function Home() {
                     <text x="3.5" y="15" fill="#FFFFFF" fontSize="9" fontWeight="950" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">O</text>
                   </svg>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>Emails Verified</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>
+                  <span className="mobile-hide">Emails Verified</span>
+                  <span className="mobile-show">Verified</span>
+                </span>
               </div>
 
               {/* Divider */}
@@ -522,7 +514,10 @@ export default function Home() {
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
-                <span>Zero-Knowledge Privacy</span>
+                <span>
+                  <span className="mobile-hide">Zero-Knowledge Privacy</span>
+                  <span className="mobile-show">Zero-Knowledge</span>
+                </span>
               </div>
 
               {/* Divider */}
@@ -534,12 +529,15 @@ export default function Home() {
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                   <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
-                <span>Gmail &amp; Outlook Integrated</span>
+                <span>
+                  <span className="mobile-hide">Gmail &amp; Outlook Integrated</span>
+                  <span className="mobile-show">Gmail &amp; Outlook</span>
+                </span>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 64, alignItems: 'center' }}>
+          <div className="responsive-hero-grid">
 
             {/* Left Column: Authentic Copy & Typography */}
             <div className="animate-from-left">
@@ -894,7 +892,7 @@ export default function Home() {
 
           {/* 3-Column flowchart container */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+            <div className="responsive-flow-grid">
 
               {/* COLUMN 1: Problem */}
               <div className="card-hover-lift animate-from-left" style={{
@@ -1509,7 +1507,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 64, alignItems: 'stretch' }}>
+          <div className="responsive-sandbox-grid">
 
             {/* Left Side: Interactive canvas */}
             <div className="animate-from-left" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -1531,7 +1529,8 @@ export default function Home() {
                   overflow: 'hidden',
                   flexGrow: 1,
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  touchAction: 'none'
                 }}
                 className="premium-shadow"
               >
@@ -1664,17 +1663,7 @@ export default function Home() {
           </div>
 
           {/* 3-Card Step Layout */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))',
-            gap: 20,
-            marginTop: 28,
-            paddingTop: 20,
-            paddingBottom: 16,
-            paddingLeft: 8,
-            paddingRight: 8,
-            overflowX: 'auto'
-          }}>
+          <div className="responsive-steps-grid">
 
             {/* STEP 1: Install Attest */}
             <div style={{
@@ -2141,12 +2130,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: 24,
-            marginTop: 48
-          }}>
+          <div className="responsive-industries-grid">
             {[
               {
                 title: 'Finance & Banking',
@@ -3007,7 +2991,7 @@ export default function Home() {
       <section style={{ padding: '96px 24px', background: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
         <div className="container-custom">
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 64, alignItems: 'center' }}>
+          <div className="responsive-privacy-grid">
 
             {/* Left side: Bold Title & Subtext */}
             <div>
@@ -3143,13 +3127,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: 24,
-            maxWidth: 1000,
-            margin: '0 auto'
-          }}>
+          <div className="responsive-roadmap-grid">
             {[
               {
                 title: 'Mobile Attest Keyboard',
@@ -3325,6 +3303,7 @@ export default function Home() {
             {/* Left and Right navigation buttons */}
             <button
               onClick={() => setActiveTestimonial((prev) => (prev - 1 + 5) % 5)}
+              className="testimonial-nav-btn"
               style={{
                 position: 'absolute',
                 top: 'calc(50% - 20px)',
@@ -3352,6 +3331,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => setActiveTestimonial((prev) => (prev + 1) % 5)}
+              className="testimonial-nav-btn"
               style={{
                 position: 'absolute',
                 top: 'calc(50% - 20px)',

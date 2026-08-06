@@ -127,6 +127,12 @@ export default function Footer() {
           gap: 40px 32px;
         }
         .footer-brand { grid-column: span 2; }
+        @media (max-width: 480px) {
+          .footer-grid {
+            grid-template-columns: 1fr;
+          }
+          .footer-brand { grid-column: span 1; }
+        }
         @media (min-width: 768px) {
           .footer-grid {
             grid-template-columns: 2fr 1fr 1fr 1fr;
