@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSiteTypeUI();
 
     // Load global settings
-    chrome.storage.local.get(['hvel_stamp_mode', 'hvel_verify_received'], (result) => {
+    chrome.storage.local.get(['hvel_stamp_mode', 'hvel_verify_received', 'hvel_enable_nudge'], (result) => {
       currentMode = result.hvel_stamp_mode || 'with_link';
       applyModeUI(currentMode);
       
@@ -31,12 +31,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (verifyCheckbox) {
         verifyCheckbox.checked = !!result.hvel_verify_received;
       }
+
+      const nudgeCheckbox = document.getElementById('enableNudgeCheckbox');
+      if (nudgeCheckbox) {
+        nudgeCheckbox.checked = !!result.hvel_enable_nudge;
+      }
     });
 
     const linkCard = document.getElementById('optionLink');
     const hashCard = document.getElementById('optionHash');
     const saveBtn = document.getElementById('saveBtn');
     const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
+    const nudgeCheckbox = document.getElementById('enableNudgeCheckbox');
 
     if (linkCard) {
       linkCard.addEventListener('click', () => selectMode('with_link'));
@@ -46,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (verifyCheckbox) {
       verifyCheckbox.addEventListener('change', saveSettings);
+    }
+    if (nudgeCheckbox) {
+      nudgeCheckbox.addEventListener('change', saveSettings);
     }
     if (saveBtn) {
       saveBtn.addEventListener('click', saveSettings);
@@ -352,9 +361,13 @@ function saveSettings() {
   const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
   const verifyReceived = verifyCheckbox ? verifyCheckbox.checked : false;
 
+  const nudgeCheckbox = document.getElementById('enableNudgeCheckbox');
+  const enableNudge = nudgeCheckbox ? nudgeCheckbox.checked : false;
+
   chrome.storage.local.set({ 
     hvel_stamp_mode: currentMode,
-    hvel_verify_received: verifyReceived
+    hvel_verify_received: verifyReceived,
+    hvel_enable_nudge: enableNudge
   });
 }
 

@@ -55,12 +55,15 @@ function removePrefixedValues(siteType, keys, callback) {
 
 // Set default extension settings upon initial installation (Sender Trust Dots OFF by default)
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get(['hvel_verify_received', 'hvel_stamp_mode'], (res) => {
+  chrome.storage.local.get(['hvel_verify_received', 'hvel_stamp_mode', 'hvel_enable_nudge'], (res) => {
     if (typeof res.hvel_verify_received === 'undefined') {
       chrome.storage.local.set({ hvel_verify_received: false });
     }
     if (typeof res.hvel_stamp_mode === 'undefined') {
       chrome.storage.local.set({ hvel_stamp_mode: 'with_link' });
+    }
+    if (typeof res.hvel_enable_nudge === 'undefined') {
+      chrome.storage.local.set({ hvel_enable_nudge: false });
     }
   });
 });
