@@ -371,39 +371,6 @@ export default function PortalPage() {
     }
   };
 
-      const userProfile: UserProfile = {
-        id: 'usr_' + Math.random().toString(36).substring(2, 8),
-        email: email,
-        name: name,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=004D40`,
-        provider: provider,
-        company: cleanDomain.charAt(0).toUpperCase() + cleanDomain.slice(1),
-        title: 'Attest Security Member',
-        plan: plan,
-        planRenewal: planExpiry ? new Date(planExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Active Plan',
-        planExpiresAt: planExpiry,
-        dailyUsage: 0,
-        dailyLimit: plan === 'free' ? 3 : 'unlimited',
-        aliases: [],
-        securityKeys: [
-          { id: 'key_sso', name: `${provider === 'google' ? 'Google Workspace' : 'Microsoft 365'} Token`, type: 'OAuth 2.0 / OIDC', lastUsed: 'Active Session' }
-        ]
-      };
-
-      setAuthToken(token);
-      localStorage.setItem('hvel_token', token);
-      setCurrentUser(userProfile);
-      localStorage.setItem('hvel_portal_user', JSON.stringify(userProfile));
-      triggerToast(`Welcome to Attest Portal, ${name}!`);
-      await fetchUserData(email, token);
-    } catch (err) {
-      console.error('[SSO Login Error]', err);
-      triggerToast('Authentication error. Please try again.');
-    } finally {
-      setIsLoadingAuth(false);
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('hvel_portal_user');
     localStorage.removeItem('hvel_token');
