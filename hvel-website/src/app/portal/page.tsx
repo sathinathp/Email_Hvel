@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-// API Base URL Detection (localhost:5000 with fallbacks)
-const API_BASE = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+// API Base URL Detection (localhost:5000 with production fallbacks)
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:5000'
-  : '';
+  : 'https://api.attest.page');
 
 // User Profile Interface
 interface UserProfile {
@@ -347,42 +347,29 @@ export default function PortalPage() {
     setIsLoadingAuth(true);
 
     try {
-      // 1. Check if backend has live OAuth client credentials configured with callback
+      // 1. Fetch live SSO configuration & URL from backend
       const configRes = await fetch(`${API_BASE}/api/auth/sso/config`).catch(() => null);
       if (configRes && configRes.ok) {
         const config = await configRes.json();
-        if (provider === 'google' && config.google?.enabled && config.google?.clientId) {
+        if (provider === 'google' && config.google?.authUrl) {
           window.location.href = config.google.authUrl;
           return;
         }
-        if (provider === 'microsoft' && config.microsoft?.enabled && config.microsoft?.clientId) {
+        if (provider === 'microsoft' && config.microsoft?.authUrl) {
           window.location.href = config.microsoft.authUrl;
           return;
         }
       }
 
-      // 2. Direct authentication to Attest User Profile Portal with user database sync
-      const email = provider === 'microsoft' ? 'sathinath@petabytz.com' : 'sathinathpadhi8@gmail.com';
-      const name = 'Sathinath';
-      const cleanDomain = email.split('@')[1];
-      let token = `sso_${provider}_${Math.random().toString(36).substring(2, 10)}`;
-      let plan: 'free' | 'professional' | 'enterprise' = 'professional';
-      let planExpiry: string | null = null;
-
-      // Save session and query user in backend database
-      try {
-        const ssoRes = await fetch(`${API_BASE}/api/auth/sso/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, provider, name })
-        });
-        if (ssoRes && ssoRes.ok) {
-          const ssoData = await ssoRes.json();
-          if (ssoData.token) token = ssoData.token;
-          if (ssoData.plan) plan = ssoData.plan;
-          if (ssoData.plan_expires_at) planExpiry = ssoData.plan_expires_at;
-        }
-      } catch {}
+      // Direct fallback to backend OAuth endpoint
+      window.location.href = `${API_BASE}/api/auth/${provider}`;
+    } catch (err) {
+      console.error('[SSO Error]', err);
+      window.location.href = `${API_BASE}/api/auth/${provider}`;
+    } finally {
+      setIsLoadingAuth(false);
+    }
+  };
 
       const userProfile: UserProfile = {
         id: 'usr_' + Math.random().toString(36).substring(2, 8),

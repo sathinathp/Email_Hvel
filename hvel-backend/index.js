@@ -800,7 +800,7 @@ app.post('/api/auth/logout', async (req, res) => {
 // GET /api/auth/google — Direct redirect to official Google Login / Create page
 app.get('/api/auth/google', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
   if (clientId) {
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile&prompt=select_account`;
     return res.redirect(authUrl);
@@ -812,7 +812,7 @@ app.get('/api/auth/google', (req, res) => {
 app.get('/api/auth/microsoft', (req, res) => {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const tenant = process.env.MICROSOFT_TENANT_ID || 'common';
-  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/auth/microsoft/callback';
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/microsoft/callback`;
   if (clientId) {
     const authUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile%20User.Read&prompt=select_account`;
     return res.redirect(authUrl);
@@ -822,16 +822,19 @@ app.get('/api/auth/microsoft', (req, res) => {
 
 // GET /api/auth/sso/config — returns available OAuth provider configurations
 app.get('/api/auth/sso/config', (req, res) => {
+  const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+  const msRedirectUri = process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/microsoft/callback`;
+
   res.json({
     google: {
       enabled: !!process.env.GOOGLE_CLIENT_ID,
       clientId: process.env.GOOGLE_CLIENT_ID || null,
-      authUrl: process.env.GOOGLE_CLIENT_ID ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback')}&response_type=code&scope=openid%20email%20profile&prompt=select_account` : 'https://accounts.google.com/signin'
+      authUrl: process.env.GOOGLE_CLIENT_ID ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(googleRedirectUri)}&response_type=code&scope=openid%20email%20profile&prompt=select_account` : `${req.protocol}://${req.get('host')}/api/auth/google`
     },
     microsoft: {
       enabled: !!process.env.MICROSOFT_CLIENT_ID,
       clientId: process.env.MICROSOFT_CLIENT_ID || null,
-      authUrl: process.env.MICROSOFT_CLIENT_ID ? `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID || 'common'}/oauth2/v2.0/authorize?client_id=${process.env.MICROSOFT_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/auth/microsoft/callback')}&response_type=code&scope=openid%20email%20profile%20User.Read&prompt=select_account` : 'https://login.microsoftonline.com/'
+      authUrl: process.env.MICROSOFT_CLIENT_ID ? `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID || 'common'}/oauth2/v2.0/authorize?client_id=${process.env.MICROSOFT_CLIENT_ID}&redirect_uri=${encodeURIComponent(msRedirectUri)}&response_type=code&scope=openid%20email%20profile%20User.Read&prompt=select_account` : `${req.protocol}://${req.get('host')}/api/auth/microsoft`
     }
   });
 });
