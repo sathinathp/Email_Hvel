@@ -1761,14 +1761,14 @@ function logAuditEvent(type, emailDetail, extra = null) {
             [key]: count,
             outlook_hvel_audit_log: updatedLog
         }, () => {
-            if (res.hvel_auth_token) {
+            try {
                 chrome.runtime.sendMessage({
                     action: 'logAuditEvent',
                     type: type,
                     email: emailDetail,
                     extra: extra
                 });
-            }
+            } catch (err) {}
         });
     });
 }

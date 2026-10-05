@@ -1152,3 +1152,18 @@ function showAuditDetailModal(entry) {
   // Show modal
   modal.style.display = 'flex';
 }
+
+// ─── SYNC WEB PORTAL ACCESS ────────────────────────────────────────────────
+const openPortalBtn = document.getElementById('openPortalBtn');
+if (openPortalBtn) {
+  openPortalBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.storage.local.get(['hvel_auth_token', 'hvel_auth_email'], (res) => {
+      let portalUrl = 'https://attest.page/portal';
+      if (res.hvel_auth_token && res.hvel_auth_email) {
+        portalUrl = `https://attest.page/portal?token=${encodeURIComponent(res.hvel_auth_token)}&email=${encodeURIComponent(res.hvel_auth_email)}`;
+      }
+      chrome.tabs.create({ url: portalUrl });
+    });
+  });
+}

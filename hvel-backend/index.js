@@ -1249,6 +1249,33 @@ app.post('/api/verify', async (req, res) => {
       [verificationId, senderEmail, recipientEmail || null, type, contentHash || null]
     );
 
+    // Automatically record in audit_logs table so portal immediately reflects this sent email
+    try {
+      const logType = (type === 'human' || type === 'verified') ? 'sent_stamped_link' : 'sent_unstamped';
+      const auditMeta = {
+        verificationId,
+        contentHash,
+        sender: senderEmail,
+        recipient: recipientEmail || 'Recipient',
+        subject: req.body.subject || 'Outgoing Attested Communication',
+        status: (type === 'human' || type === 'verified') ? 'VERIFIED' : 'WARNING',
+        proof: (type === 'human' || type === 'verified') ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'
+      };
+      await pool.query(
+        `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata) 
+         VALUES ($1, $2, $3, NOW(), $4)`,
+        [
+          quotaOwnerEmail,
+          logType,
+          (recipientEmail || 'recipient@verified.com').toLowerCase(),
+          JSON.stringify(auditMeta)
+        ]
+      );
+      console.log(`[HVEL API] 📝 Auto-inserted audit log for ${quotaOwnerEmail} -> ${recipientEmail}`);
+    } catch (auditErr) {
+      console.warn('[HVEL API] ⚠️ Audit log auto-insert notice:', auditErr.message);
+    }
+
     // Log / increment the user's daily verification quota
     await incrementQuota(quotaOwnerEmail, 'totp_verify');
 
@@ -2386,7 +2413,7 @@ app.post('/api/aliases/request-otp', async (req, res) => {
     return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
   }
 
-  const aliasEmail = (req.body.aliasEmail || '').trim().toLowerCase();
+  const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
   if (!aliasEmail || !aliasEmail.includes('@')) {
     return res.status(400).json({ error: 'VALID_EMAIL_REQUIRED', message: 'A valid email address is required.' });
   }
@@ -2401,7 +2428,7 @@ app.post('/api/aliases/request-otp', async (req, res) => {
     // Check if the primary account is on the Professional plan
     const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
     const planKey = userRes.rows[0]?.plan || 'free';
-    if (planKey !== 'professional') {
+    if (planKey !== 'professional' && planKey !== 'enterprise') {
       return res.status(403).json({
         error: 'UPGRADE_REQUIRED',
         message: 'Only Professional plan users can link email aliases to share their plan. Please upgrade your plan.'
@@ -2495,7 +2522,8 @@ app.post('/api/aliases', async (req, res) => {
     return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
   }
 
-  const { aliasEmail, otp } = req.body;
+  const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
+  const otp = (req.body.otp || '').trim();
   if (!aliasEmail || !aliasEmail.includes('@')) {
     return res.status(400).json({ error: 'VALID_EMAIL_REQUIRED', message: 'A valid email address is required.' });
   }
@@ -2513,7 +2541,7 @@ app.post('/api/aliases', async (req, res) => {
     // Check if the primary account is on the Professional plan
     const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
     const planKey = userRes.rows[0]?.plan || 'free';
-    if (planKey !== 'professional') {
+    if (planKey !== 'professional' && planKey !== 'enterprise') {
       return res.status(403).json({
         error: 'UPGRADE_REQUIRED',
         message: 'Only Professional plan users can link email aliases to share their plan. Please upgrade your plan.'
@@ -2531,9 +2559,9 @@ app.post('/api/aliases', async (req, res) => {
     }
 
     // Check if the alias email is already registered as a primary email or linked alias
-    const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail.toLowerCase()]);
-    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail.toLowerCase()]);
-    if (existingUser.rows.length > 0 && aliasEmail.toLowerCase() !== authEmail) {
+    const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail]);
+    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail]);
+    if (existingUser.rows.length > 0 && aliasEmail !== authEmail) {
       return res.status(400).json({
         error: 'EMAIL_ALREADY_REGISTERED',
         message: 'This email is already registered as a separate Attest account.'
@@ -2549,10 +2577,10 @@ app.post('/api/aliases', async (req, res) => {
     // Verify OTP
     const otpRes = await pool.query(
       'SELECT otp, expires_at FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
-      [aliasEmail.toLowerCase(), 'link_alias']
+      [aliasEmail, 'link_alias']
     );
 
-    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp.trim()) {
+    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp) {
       return res.status(400).json({ error: 'INVALID_OTP', message: 'The verification code entered is incorrect.' });
     }
 
@@ -2563,13 +2591,13 @@ app.post('/api/aliases', async (req, res) => {
     // Delete used OTP
     await pool.query(
       'DELETE FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
-      [aliasEmail.toLowerCase(), 'link_alias']
+      [aliasEmail, 'link_alias']
     );
 
     // Add the alias
     await pool.query(
       'INSERT INTO user_aliases (primary_email, alias_email) VALUES ($1, $2)',
-      [authEmail, aliasEmail.toLowerCase()]
+      [authEmail, aliasEmail]
     );
 
     // Update count in users table
@@ -2593,7 +2621,10 @@ app.delete('/api/aliases', async (req, res) => {
     return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
   }
 
-  const aliasEmail = (req.body.aliasEmail || '').trim().toLowerCase();
+  const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
+  if (!aliasEmail) {
+    return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required to unlink.' });
+  }
   if (!aliasEmail) {
     return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required to unlink.' });
   }
@@ -2642,32 +2673,82 @@ app.get('/api/audit-logs', async (req, res) => {
     }
     const email = sessionRes.rows[0].email.toLowerCase();
 
-    // Get all logs for the user, limited to latest 100 for performance
+    // Collect all primary & alias emails for this user
+    const aliasRes = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [email]);
+    const userEmails = [email, ...aliasRes.rows.map(r => r.alias_email.toLowerCase())];
+
+    // Backfill any existing verifications from verifications table into audit_logs
+    try {
+      const verifRes = await pool.query(
+        `SELECT id, sender_email, recipient_email, type, content_hash, created_at 
+         FROM verifications 
+         WHERE LOWER(sender_email) = ANY($1)
+         ORDER BY created_at DESC LIMIT 50`,
+        [userEmails]
+      );
+
+      for (const v of verifRes.rows) {
+        const vId = v.id;
+        const existsCheck = await pool.query(
+          `SELECT 1 FROM audit_logs WHERE LOWER(user_email) = ANY($1) AND (metadata->>'verificationId' = $2) LIMIT 1`,
+          [userEmails, vId]
+        );
+        if (existsCheck.rows.length === 0) {
+          const vType = (v.type === 'human' || v.type === 'verified') ? 'sent_stamped_link' : 'sent_unstamped';
+          await pool.query(
+            `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              email,
+              vType,
+              (v.recipient_email || 'recipient@verified.com').toLowerCase(),
+              v.created_at || new Date(),
+              JSON.stringify({
+                verificationId: v.id,
+                contentHash: v.content_hash,
+                sender: v.sender_email,
+                recipient: v.recipient_email || 'Recipient',
+                subject: 'Outgoing Attested Communication',
+                status: (v.type === 'human' || v.type === 'verified') ? 'VERIFIED' : 'WARNING',
+                proof: (v.type === 'human' || v.type === 'verified') ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'
+              })
+            ]
+          );
+        }
+      }
+    } catch (backfillErr) {
+      console.warn('[AUDIT LOGS] Verification backfill notice:', backfillErr.message);
+    }
+
+    // Get all logs for the user (including aliases), limited to latest 100 for performance
     const logsRes = await pool.query(
       `SELECT type, email, timestamp, metadata FROM audit_logs 
-       WHERE LOWER(user_email) = $1 
+       WHERE LOWER(user_email) = ANY($1) 
        ORDER BY timestamp DESC LIMIT 100`,
-      [email]
+      [userEmails]
     );
 
     // Get aggregated counts of each log type
     const statsRes = await pool.query(
       `SELECT type, COUNT(*) as count FROM audit_logs 
-       WHERE LOWER(user_email) = $1 
+       WHERE LOWER(user_email) = ANY($1) 
        GROUP BY type`,
-      [email]
+      [userEmails]
     );
 
     const stats = {
       sent_stamped_link: 0,
       sent_stamped_hash: 0,
+      sent_stamped: 0,
       sent_unstamped: 0,
       received_stamped: 0,
-      received_unstamped: 0
+      received_unstamped: 0,
+      recv_verified: 0,
+      recv_unverified: 0
     };
 
     statsRes.rows.forEach(row => {
-      const typeKey = row.type.toLowerCase();
+      const typeKey = (row.type || '').toLowerCase();
       if (typeKey in stats) {
         stats[typeKey] = parseInt(row.count) || 0;
       }
@@ -2692,8 +2773,8 @@ app.get('/api/audit-logs', async (req, res) => {
 // POST /api/audit-logs/log — logs a new audit event
 app.post('/api/audit-logs/log', async (req, res) => {
   const { type, email: targetEmail, extra } = req.body;
-  if (!type || !targetEmail) {
-    return res.status(400).json({ error: 'type and email are required' });
+  if (!type) {
+    return res.status(400).json({ error: 'type is required' });
   }
 
   const authHeader = req.headers['authorization'];
@@ -2708,12 +2789,13 @@ app.post('/api/audit-logs/log', async (req, res) => {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
     const userEmail = sessionRes.rows[0].email.toLowerCase();
+    const cleanTarget = (targetEmail || extra?.recipient || 'recipient@verified.com').toLowerCase();
 
     const insertRes = await pool.query(
       `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata) 
        VALUES ($1, $2, $3, NOW(), $4) 
        RETURNING type, email, timestamp, metadata`,
-      [userEmail, type, targetEmail.toLowerCase(), extra ? JSON.stringify(extra) : null]
+      [userEmail, type, cleanTarget, extra ? JSON.stringify(extra) : null]
     );
 
     res.json({

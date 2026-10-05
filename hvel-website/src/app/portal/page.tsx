@@ -74,7 +74,11 @@ export default function PortalPage() {
 
   // Alias form
   const [isAddingAlias, setIsAddingAlias] = useState(false);
+  const [aliasStep, setAliasStep] = useState<'email' | 'otp'>('email');
   const [newAliasEmail, setNewAliasEmail] = useState('');
+  const [aliasOtpInput, setAliasOtpInput] = useState('');
+  const [isLoadingAlias, setIsLoadingAlias] = useState(false);
+  const [aliasError, setAliasError] = useState('');
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -116,18 +120,18 @@ export default function PortalPage() {
         if (Array.isArray(auditData.logs)) {
           const mappedLogs: AuditLog[] = auditData.logs.map((l: any, idx: number) => {
             const extra = l.extra || l.metadata || {};
-            const isSent = l.type.startsWith('sent');
-            const isVerified = l.type.includes('stamped') || l.type.includes('verified');
-            const isWarning = l.type.includes('unverified') || l.type.includes('warning');
+            const isSent = (l.type || '').startsWith('sent');
+            const isVerified = (l.type || '').includes('stamped') || (l.type || '').includes('verified');
+            const isWarning = (l.type || '').includes('unverified') || (l.type || '').includes('warning');
 
             return {
               id: `log_${idx}_${l.timestamp || Date.now()}`,
               type: l.type,
               subject: extra.subject || (isSent ? 'Outgoing Attested Communication' : 'Incoming Verified Communication'),
-              sender: isSent ? email : (l.email || extra.sender || 'partner@enterprise-verified.com'),
-              recipient: isSent ? (l.email || extra.recipient || 'recipient@verified-domain.com') : email,
+              sender: isSent ? (extra.sender || email) : (l.email || extra.sender || 'sender@domain.com'),
+              recipient: isSent ? (l.email || extra.recipient || 'recipient@domain.com') : (extra.recipient || email),
               timestamp: l.timestamp ? new Date(l.timestamp).toLocaleString() : 'Recent',
-              hash: extra.hash || (extra.totp ? `TOTP-SHA256-${extra.totp}` : 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'),
+              hash: extra.contentHash || extra.hash || (extra.totp ? `TOTP-SHA256-${extra.totp}` : '—'),
               securityProof: extra.proof || (isVerified ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'),
               status: isVerified ? 'VERIFIED' : (isWarning ? 'WARNING' : 'UNVERIFIED')
             };
@@ -381,59 +385,125 @@ export default function PortalPage() {
     triggerToast('Logged out of Attest User Portal.');
   };
 
-  const handleAddAlias = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStartAddAlias = () => {
+    if (!currentUser) return;
+    if (currentUser.plan === 'free') {
+      triggerToast('Multi-inbox linking requires a Professional plan. Please upgrade to link accounts.');
+      setShowPlanModal(true);
+      return;
+    }
+    setAliasStep('email');
+    setNewAliasEmail('');
+    setAliasOtpInput('');
+    setAliasError('');
+    setIsAddingAlias(true);
+  };
+
+  const handleRequestAliasOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!currentUser) return;
     const email = newAliasEmail.trim().toLowerCase();
     if (!email || !email.includes('@')) {
-      triggerToast('Please enter a valid email.');
+      setAliasError('Please enter a valid email address.');
       return;
     }
-    if (currentUser.aliases.includes(email) || email === currentUser.email) {
-      triggerToast('This email is already linked.');
+    if (currentUser.aliases.map(a => a.toLowerCase()).includes(email) || email === currentUser.email.toLowerCase()) {
+      setAliasError('This email is already linked to your account.');
       return;
     }
 
-    // Try backend API
+    setIsLoadingAlias(true);
+    setAliasError('');
     try {
-      await fetch(`${API_BASE}/api/aliases`, {
+      const bearer = authToken || (typeof window !== 'undefined' ? localStorage.getItem('hvel_token') : null);
+      const res = await fetch(`${API_BASE}/api/aliases/request-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${bearer}`
         },
-        body: JSON.stringify({ alias_email: email })
+        body: JSON.stringify({ aliasEmail: email })
       });
-    } catch {}
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAliasStep('otp');
+        triggerToast(`Verification code sent to ${email}`);
+      } else {
+        setAliasError(data.message || data.error || 'Failed to send verification code.');
+        if (data.error === 'UPGRADE_REQUIRED') {
+          setShowPlanModal(true);
+        }
+      }
+    } catch (err: any) {
+      setAliasError(err.message || 'Failed to connect to backend server.');
+    } finally {
+      setIsLoadingAlias(false);
+    }
+  };
 
-    const updated: UserProfile = {
-      ...currentUser,
-      aliases: [...currentUser.aliases, email]
-    };
-    setCurrentUser(updated);
-    localStorage.setItem('hvel_portal_user', JSON.stringify(updated));
-    setNewAliasEmail('');
-    setIsAddingAlias(false);
-    triggerToast(`Linked secondary account: ${email}`);
+  const handleVerifyAndLinkAlias = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    const email = newAliasEmail.trim().toLowerCase();
+    const otp = aliasOtpInput.trim();
+    if (!otp || otp.length < 4) {
+      setAliasError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setIsLoadingAlias(true);
+    setAliasError('');
+    try {
+      const bearer = authToken || (typeof window !== 'undefined' ? localStorage.getItem('hvel_token') : null);
+      const res = await fetch(`${API_BASE}/api/aliases`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${bearer}`
+        },
+        body: JSON.stringify({ aliasEmail: email, otp })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const updated: UserProfile = {
+          ...currentUser,
+          aliases: [...currentUser.aliases.filter(a => a.toLowerCase() !== email), email]
+        };
+        setCurrentUser(updated);
+        localStorage.setItem('hvel_portal_user', JSON.stringify(updated));
+        setIsAddingAlias(false);
+        setNewAliasEmail('');
+        setAliasOtpInput('');
+        triggerToast(`Successfully linked ${email}!`);
+        fetchUserData(currentUser.email, bearer || undefined);
+      } else {
+        setAliasError(data.message || data.error || 'Invalid verification code.');
+      }
+    } catch (err: any) {
+      setAliasError(err.message || 'Failed to verify code.');
+    } finally {
+      setIsLoadingAlias(false);
+    }
   };
 
   const handleRemoveAlias = async (alias: string) => {
     if (!currentUser) return;
 
     try {
+      const bearer = authToken || (typeof window !== 'undefined' ? localStorage.getItem('hvel_token') : null);
       await fetch(`${API_BASE}/api/aliases`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${bearer}`
         },
-        body: JSON.stringify({ alias_email: alias })
+        body: JSON.stringify({ aliasEmail: alias })
       });
     } catch {}
 
     const updated: UserProfile = {
       ...currentUser,
-      aliases: currentUser.aliases.filter(a => a !== alias)
+      aliases: currentUser.aliases.filter(a => a.toLowerCase() !== alias.toLowerCase())
     };
     setCurrentUser(updated);
     localStorage.setItem('hvel_portal_user', JSON.stringify(updated));
@@ -1308,56 +1378,275 @@ export default function PortalPage() {
             </div>
           )}
 
-          {/* TAB 2: LINKED EMAIL ACCOUNTS (No LinkedIn) */}
+          {/* TAB 2: LINKED EMAIL ACCOUNTS (With Multi-Step OTP Verification) */}
           {activeTab === 'accounts' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                   <div>
-                    <h4 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>Linked Email Accounts (Gmail & Outlook)</h4>
-                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>Share your Attest Pro verification quota across inboxes</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <h4 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>Linked Email Accounts (Gmail & Outlook)</h4>
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 9999,
+                        background: currentUser.plan === 'free' ? '#F1F5F9' : '#F0FDF4',
+                        color: currentUser.plan === 'free' ? '#64748B' : '#166534',
+                        border: currentUser.plan === 'free' ? '1px solid #CBD5E1' : '1px solid #BBF7D0'
+                      }}>
+                        {1 + currentUser.aliases.length} of {currentUser.plan === 'free' ? '1 (Free Plan)' : '5 Inboxes'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 3 }}>
+                      {currentUser.plan === 'free' 
+                        ? 'Free tier includes 1 verified inbox. Upgrade to Professional to link up to 5 Gmail & Outlook accounts.'
+                        : 'Share your Attest Pro human verification quota across multiple personal and work inboxes.'}
+                    </div>
                   </div>
+
                   <button
-                    onClick={() => setIsAddingAlias(true)}
-                    style={{ padding: '8px 14px', background: '#004D40', color: '#FFFFFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    onClick={handleStartAddAlias}
+                    style={{
+                      padding: '9px 16px',
+                      background: currentUser.plan === 'free' ? '#0F172A' : '#004D40',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                    }}
                   >
-                    + Link Inbox
+                    <span>+ Link Inbox</span>
+                    {currentUser.plan === 'free' && (
+                      <span style={{ fontSize: 10, background: '#10B981', color: '#FFFFFF', padding: '1px 6px', borderRadius: 4, fontWeight: 800 }}>PRO</span>
+                    )}
                   </button>
                 </div>
 
+                {/* MODAL / CARD: MULTI-STEP OTP VERIFICATION FLOW */}
                 {isAddingAlias && (
-                  <form onSubmit={handleAddAlias} style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                    <input
-                      type="email"
-                      placeholder="secondary-inbox@company.com"
-                      value={newAliasEmail}
-                      onChange={(e) => setNewAliasEmail(e.target.value)}
-                      style={{ flex: 1, padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 8, fontSize: 13 }}
-                    />
-                    <button type="submit" style={{ padding: '8px 16px', background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                      Link
-                    </button>
-                    <button type="button" onClick={() => setIsAddingAlias(false)} style={{ padding: '8px 12px', background: '#F1F5F9', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-                      Cancel
-                    </button>
-                  </form>
+                  <div style={{
+                    background: '#F8FAFC',
+                    border: '1.5px solid #007A5E',
+                    borderRadius: 12,
+                    padding: 20,
+                    marginBottom: 20,
+                    boxShadow: '0 4px 12px rgba(0, 122, 94, 0.08)'
+                  }}>
+                    {aliasStep === 'email' ? (
+                      /* STEP 1: ENTER SECONDARY EMAIL */
+                      <form onSubmit={handleRequestAliasOtp}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
+                          Link Additional Email Inbox
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 14 }}>
+                          Enter the Outlook, work, or secondary Gmail address you want to link. A 6-digit one-time code (OTP) will be sent to verify ownership.
+                        </div>
+
+                        {aliasError && (
+                          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626', padding: '8px 12px', borderRadius: 6, fontSize: 12, marginBottom: 12 }}>
+                            ⚠️ {aliasError}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          <input
+                            type="email"
+                            required
+                            placeholder="e.g. name@outlook.com or work@company.com"
+                            value={newAliasEmail}
+                            onChange={(e) => { setNewAliasEmail(e.target.value); setAliasError(''); }}
+                            style={{
+                              flex: 1,
+                              minWidth: 260,
+                              padding: '10px 14px',
+                              border: '1px solid #CBD5E1',
+                              borderRadius: 8,
+                              fontSize: 13,
+                              outline: 'none',
+                              background: '#FFFFFF'
+                            }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={isLoadingAlias}
+                            style={{
+                              padding: '10px 18px',
+                              background: '#007A5E',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              borderRadius: 8,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: isLoadingAlias ? 'not-allowed' : 'pointer',
+                              opacity: isLoadingAlias ? 0.7 : 1
+                            }}
+                          >
+                            {isLoadingAlias ? 'Sending Code...' : 'Send Verification Code ↗'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setIsAddingAlias(false); setAliasError(''); }}
+                            style={{
+                              padding: '10px 14px',
+                              background: '#FFFFFF',
+                              border: '1px solid #CBD5E1',
+                              color: '#475569',
+                              borderRadius: 8,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      /* STEP 2: ENTER 6-DIGIT OTP */
+                      <form onSubmit={handleVerifyAndLinkAlias}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
+                          Enter Verification Code (OTP)
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginBottom: 14, lineHeight: 1.4 }}>
+                          We sent a 6-digit verification code to <strong>{newAliasEmail}</strong>. Please check that inbox and enter the code below:
+                        </div>
+
+                        {aliasError && (
+                          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626', padding: '8px 12px', borderRadius: 6, fontSize: 12, marginBottom: 12 }}>
+                            ⚠️ {aliasError}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            required
+                            placeholder="••••••"
+                            value={aliasOtpInput}
+                            onChange={(e) => { setAliasOtpInput(e.target.value); setAliasError(''); }}
+                            style={{
+                              width: 160,
+                              padding: '10px 14px',
+                              border: '2px solid #007A5E',
+                              borderRadius: 8,
+                              fontSize: 16,
+                              fontWeight: 800,
+                              letterSpacing: '6px',
+                              textAlign: 'center',
+                              background: '#FFFFFF',
+                              outline: 'none'
+                            }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={isLoadingAlias}
+                            style={{
+                              padding: '10px 20px',
+                              background: '#10B981',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              borderRadius: 8,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: isLoadingAlias ? 'not-allowed' : 'pointer',
+                              opacity: isLoadingAlias ? 0.7 : 1
+                            }}
+                          >
+                            {isLoadingAlias ? 'Verifying...' : '✓ Verify & Link Inbox'}
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: '#64748B' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestAliasOtp()}
+                            disabled={isLoadingAlias}
+                            style={{ background: 'none', border: 'none', color: '#007A5E', fontWeight: 700, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                          >
+                            Resend Code
+                          </button>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => { setAliasStep('email'); setAliasOtpInput(''); setAliasError(''); }}
+                            style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                          >
+                            Change Email
+                          </button>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={() => { setIsAddingAlias(false); setAliasError(''); }}
+                            style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 0 }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{currentUser.email}</div>
-                      <div style={{ fontSize: 11, color: '#166534' }}>Primary Verified Account</div>
+                {/* INBOXES LIST */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Primary Account */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#166534', fontWeight: 800, fontSize: 14 }}>
+                        {currentUser.email.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0F172A' }}>{currentUser.email}</div>
+                        <div style={{ fontSize: 11, color: '#166534', fontWeight: 600 }}>Primary Verified Account • Default Attest Ledger</div>
+                      </div>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, background: '#DCFCE7', color: '#166534', padding: '2px 8px', borderRadius: 9999 }}>PRIMARY</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, background: '#DCFCE7', color: '#166534', padding: '3px 10px', borderRadius: 9999, border: '1px solid #86EFAC' }}>
+                      PRIMARY
+                    </span>
                   </div>
 
+                  {/* Linked Aliases */}
                   {currentUser.aliases.map(a => (
-                    <div key={a} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{a}</div>
-                      <button onClick={() => handleRemoveAlias(a)} style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                        Remove
-                      </button>
+                    <div key={a} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontWeight: 800, fontSize: 14 }}>
+                          {a.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0F172A' }}>{a}</div>
+                          <div style={{ fontSize: 11, color: '#64748B' }}>
+                            {a.includes('outlook') || a.includes('hotmail') || a.includes('office') ? 'Microsoft Outlook Inbox' : 'Secondary Gmail Inbox'} • Verified via OTP
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, background: '#F1F5F9', color: '#475569', padding: '3px 8px', borderRadius: 6, border: '1px solid #E2E8F0' }}>
+                          LINKED
+                        </span>
+                        <button
+                          onClick={() => handleRemoveAlias(a)}
+                          style={{
+                            padding: '4px 10px',
+                            background: '#FFFFFF',
+                            border: '1px solid #FCA5A5',
+                            color: '#DC2626',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Unlink
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
