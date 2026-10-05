@@ -680,7 +680,7 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
 
   if (upgradeBtn) {
     upgradeBtn.style.display = isPro ? 'none' : 'inline-block';
-    upgradeBtn.href = `http://localhost:3000/pricing?email=${encodeURIComponent(email)}`;
+    upgradeBtn.href = `https://attest.page/pricing?email=${encodeURIComponent(email)}`;
   }
   if (proActiveLabel) {
     proActiveLabel.style.display = isPro ? 'inline-block' : 'none';
