@@ -13,23 +13,7 @@ interface MousePoint {
 }
 
 export default function Home() {
-  // Load premium typography fonts & Tabler Icons
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
 
-    const iconsLink = document.createElement('link');
-    iconsLink.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
-    iconsLink.rel = 'stylesheet';
-    document.head.appendChild(iconsLink);
-
-    return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(iconsLink);
-    };
-  }, []);
 
   // Scenario Tab State
   const [activeScenario, setActiveScenario] = useState('ceo');

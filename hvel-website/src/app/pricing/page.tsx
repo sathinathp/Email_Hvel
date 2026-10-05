@@ -135,7 +135,7 @@ export default function Pricing() {
         }}>
           <span style={{ fontSize: 18 }}>{statusMsg.type === 'success' ? '✅' : '❌'}</span>
           <span style={{ flexGrow: 1, lineHeight: 1.5 }}>{statusMsg.text}</span>
-          <button 
+          <button
             onClick={() => setStatusMsg(null)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold', fontSize: 16, padding: '0 4px' }}
           >
@@ -225,7 +225,7 @@ export default function Pricing() {
                 </li>
               ))}
             </ul>
-            <button 
+            <button
               onClick={() => setShowModal(true)}
               style={{ display: 'block', width: '100%', padding: '15px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #007A5E 0%, #059669 100%)', color: 'white', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,122,94,0.3)' }}
             >
@@ -319,7 +319,7 @@ export default function Pricing() {
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease-out' }}>
           <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: 24, padding: 36, maxWidth: 440, width: '90%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative' }}>
-            <button 
+            <button
               onClick={() => setShowModal(false)}
               style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}
             >
@@ -332,17 +332,17 @@ export default function Pricing() {
             <form onSubmit={handleCheckoutSubmit}>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Email Address</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
-                  placeholder="name@company.com" 
+                  placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E2E8F0', fontSize: 15, outline: 'none', transition: 'border-color 0.15s', color: '#0F172A' }}
                 />
               </div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading}
                 style={{ display: 'block', width: '100%', padding: '14px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #007A5E 0%, #059669 100%)', color: 'white', fontWeight: 800, fontSize: 15, cursor: 'pointer', transition: 'background 0.15s', boxShadow: '0 4px 14px rgba(0,122,94,0.3)' }}
               >

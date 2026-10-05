@@ -237,12 +237,28 @@ function getCurrentUserEmail() {
     return getSenderEmail();
 }
 
-// ─── SILENT MOUSE TRACKING ENGINE ───
+// ─── SILENT MOUSE & KEYBOARD TRACKING ENGINE ───
 let mousePoints = [];
 document.addEventListener('mousemove', (e) => {
     mousePoints.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (mousePoints.length > 50) mousePoints.shift();
 });
+
+let keyboardEvents = [];
+let tabNavigations = 0;
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        tabNavigations++;
+    }
+    keyboardEvents.push({
+        key: e.key,
+        code: e.code,
+        time: Date.now()
+    });
+    if (keyboardEvents.length > 50) {
+        keyboardEvents.shift();
+    }
+}, true);
 
 // ─── COMPOSE SESSION TRACKING ENGINE ───
 let composeMousePoints = [];
@@ -308,6 +324,46 @@ function flashComposeVerified(container) {
     setTimeout(() => indicator.remove(), 2000);
 }
 
+// ─── STAMP HTML GENERATOR ───
+function generateStampHTML({ status = 'human', recordUrl = null, contentHash = '', stampMode = 'with_link' } = {}) {
+    const isRobotic = status === 'robotic' || status === 'ai' || status === 'automated';
+    const isOffline = status === 'offline' || status === 'unverified';
+    
+    let bg = '#f0fdf4';
+    let border = '#bbf7d0';
+    let textColor = '#065f46';
+    let label = 'Attest';
+    let title = 'Attest Verified Human Sender';
+    let arrowColor = '#059669';
+
+    if (isRobotic) {
+        bg = '#fef2f2';
+        border = '#fca5a5';
+        textColor = '#991b1b';
+        label = 'Robotic Sender';
+        title = 'Attest Security: Robotic Sender Detected';
+        arrowColor = '#dc2626';
+    } else if (isOffline) {
+        bg = '#f8fafc';
+        border = '#cbd5e1';
+        textColor = '#334155';
+        label = 'Attest (Unverified)';
+        title = 'Attest Trust Record';
+        arrowColor = '#64748b';
+    }
+
+    const targetUrl = recordUrl || 'https://attest.page/verify';
+
+    return `
+        <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; background: ${bg}; border: 1px solid ${border}; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer; vertical-align: middle; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;" title="${title}">
+            <img src="https://attest.page/favicon-32x32.png" alt="✓" width="16" height="16" style="width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; display: inline-block; border: 0;" />
+            <span style="color: ${textColor}; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; vertical-align: middle;">${label}</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="${arrowColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px; vertical-align: middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+        ${contentHash ? `<div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container"><span class="hvel-stamp-hash">Hash: ${contentHash}</span></div>` : ''}
+    `;
+}
+
 function updateOrAppendStamp(composeBody, badgeInnerHtml) {
     if (!composeBody || !isEmailBodyEditor(composeBody)) return;
 
@@ -347,26 +403,12 @@ async function updateComposeStampLive(composeBody) {
             const existing = composeBody.querySelector('.hvel-badge-wrapper');
             if (!existing) return;
             
-            let badgeInnerHtml = '';
-            if (stampMode === 'hash_only') {
-                badgeInnerHtml = `
-                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                    </div>
-                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
-                        <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
-                    </div>
-                `;
-            } else {
-                badgeInnerHtml = `
-                    <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
-                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    </a>
-                `;
-            }
+            const badgeInnerHtml = generateStampHTML({
+                status: 'human',
+                recordUrl: 'https://attest.page/verify',
+                contentHash: contentHash,
+                stampMode: stampMode
+            });
             updateOrAppendStamp(composeBody, badgeInnerHtml);
         });
     }, 300);
@@ -419,26 +461,12 @@ async function injectComposeStamp(container) {
         chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
             const stampMode = prefs.hvel_stamp_mode || 'with_link';
             
-            let badgeInnerHtml = '';
-            if (stampMode === 'hash_only') {
-                badgeInnerHtml = `
-                    <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                    </div>
-                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;" class="hvel-stamp-hash-container">
-                        <span class="hvel-stamp-hash">Hash: ${contentHash}</span>
-                    </div>
-                `;
-            } else {
-                badgeInnerHtml = `
-                    <a href="#" onclick="return false;" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: default;" title="Attest Trust Record">
-                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                        <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    </a>
-                `;
-            }
+            const badgeInnerHtml = generateStampHTML({
+                status: 'human',
+                recordUrl: 'https://attest.page/verify',
+                contentHash: contentHash,
+                stampMode: stampMode
+            });
             
             updateOrAppendStamp(composeBody, badgeInnerHtml);
             
@@ -621,25 +649,12 @@ document.addEventListener('click', async (e) => {
                             if (composeBody) {
                                 chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                     const stampMode = prefs.hvel_stamp_mode || 'with_link';
-                                    let badgeInnerHtml = '';
-                                    if (stampMode === 'hash_only') {
-                                        badgeInnerHtml = `
-                                            <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSXHZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHpCzMTEyipD1haWCCKjKecy9TNaUFGGw8tAMEox0GuZPOtxyW4V17GKyHak6oXCB/uh7r6evSxsWMsgAwY6zkEc0aPxafrVXj6sgrxyhlcVVy+V4B2bSyg95AukaYFICGKh+3M26DmzT+UPzIovXxwqegO8gmUs40tclQbsGvWAvy2PBHj+g/GxE3xyCstRsrshSh98ZwalRq1b99QWc4T1RmctQCkx4I3HLvaQE29n2G78qAQSydMRSGFYMCKL7mQxPgFc66P3pGECxSGWOoXLGy2naxQVlXJJWUbMzOpZr21YQDMIrEqunQjo9Pwtq6Oi/XV+4VInjEPDlZdMSYhDqqj+7HowE6kXvsdvW16IGn6bKTn/gETKst3Gg1paP5nGIBEbl9ONvz69MPl+wVUBfaIO7QHxxapMMypDxKoRf9ADYeV34aI2aiufQ0NGa6oeQ2rdpZgZSxRZXDZLICYUcHoZ++APGqn9aTc3U6B1VR+qQTCS+HEeSbWfxyy8q/jFeWLhbk5hakU9uQl6w4dDRqVEnkAQsylB+LalEqrvLqKq/0t9MWbSo2H5cXdp49x6Is4zPQNwCplFIrLn+JhRTm8nfvilroEAxS9sClyrqjG6MwDEGJujCt6ZAB20yc4ecZ8LKFezxrRuhOH0Z5KzN1WgdySYvi6enC54O/mCTnlgOlHJmDgjekU6TwAtmvCC+w4iWK8L+cMllO3Y59h9oeEfaQ8ezriR8qDydR2q2peUfmVImL4aCbSolcLQMLeYARMvDIarKxcKOM/ph7xL30p2TvIwZnLkTgCN4lad8igYRJtTS+1ACRhkMmovenKse5JZPZ37LORgVxlrJ8eAx+KeRz1B/YVZEB0xZrbawE0x0nGORYBnLmpKbdlrVYmEw6NeI5jNDI0DaC1CkUgRowZIjcNQFdhawEZsqhD0wIwpJzFXSrAABnik/K0cq0FwJS3RLilfC3RRTw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                            </div>
-                                            <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                <span>Hash: ${contentHash}</span>
-                                            </div>
-                                        `;
-                                    } else {
-                                        badgeInnerHtml = `
-                                            <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                            </div>
-                                        `;
-                                    }
+                                    const badgeInnerHtml = generateStampHTML({
+                                        status: 'offline',
+                                        recordUrl: 'https://attest.page/verify',
+                                        contentHash: contentHash,
+                                        stampMode: stampMode
+                                    });
                                     updateOrAppendStamp(composeBody, badgeInnerHtml);
                                 });
                             }
@@ -678,25 +693,12 @@ document.addEventListener('click', async (e) => {
                                     if (composeBody) {
                                         chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                             const stampMode = prefs.hvel_stamp_mode || 'with_link';
-                                            let badgeInnerHtml = '';
-                                            if (stampMode === 'hash_only') {
-                                                badgeInnerHtml = `
-                                                    <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                        <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                                    </div>
-                                                    <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                        <span>Hash: ${contentHash}</span>
-                                                    </div>
-                                                `;
-                                            } else {
-                                                badgeInnerHtml = `
-                                                    <div style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                        <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                        <span style="color: #334155; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Unverified Sender (Offline)</span>
-                                                    </div>
-                                                `;
-                                            }
+                                            const badgeInnerHtml = generateStampHTML({
+                                                status: 'offline',
+                                                recordUrl: 'https://attest.page/verify',
+                                                contentHash: contentHash,
+                                                stampMode: stampMode
+                                            });
                                             updateOrAppendStamp(composeBody, badgeInnerHtml);
                                         });
                                     }
@@ -726,48 +728,12 @@ document.addEventListener('click', async (e) => {
                                         }
 
                                         if (composeBody) {
-                                            let badgeInnerHtml;
-                                            if (isHuman) {
-                                                if (stampMode === 'hash_only' || !recordUrl) {
-                                                    badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                                                        </div>
-                                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                            <span>Hash: ${contentHash}</span>
-                                                        </div>
-                                                    `;
-                                                } else {
-                                                    badgeInnerHtml = `
-                                                        <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
-                                                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAGF0lEQVR4AaRWCVSNaRh+7p0WGbJMKCq3VKIiZCsSbcMhdEVajBFHzAzOnIMsd44GmWTPjOFkO84c24xCtBhnCMMYRxFKSLpCyhRqhim3eb9/mft3lxb+c/9veb93eb53+69co9E0aDQf8L4TZMW5lbrk+NBHRgoaGgA2Q3jYXljqTTpn7wdARwlkgnWRLu71rBOBnYl8tH0/AEwJCev9jNF1GSV8TQMgzzaSlSBvRP+AjXEAzDjzrNQoIS99UYFNGccQ+X0ipm//DuHb12FqcgKWHd6La8VF+lCk8vqnaAxAysyMMwEyyqbK1y8RuycZCccPwcNWgc9HBSHIYyAC3Dwxi9aTvbxx/PoVTNm6BkXPypgI/wrykOrmT7ixMQCRmTvSDrkl9xGzazMivf3Q1swcKeeyUFBWCpuOnaGwsoa6sgKbM1PxsrYGq0KjyBt7kHXzGq9Aali65k/JA8zVwoabdJgePn+GxPSjmB84ARtOH4NyiA+8HJ1xvjAf+y/8SmAykEnGfHu7I3pEABYfTIFqUgR3dvXBXfxfIexy7EXjRw5ZYwJ0mKzplnPHjMOBS2exICgEiSePor+9I7k9GB52CgxydMGS8WH4pL0lVqf9hK3RsVhO+bAmbCa2Z5/glN94VMzNhgY5R9T1Akfkh7p39diSmYZZvkHYRzdeSsaSSXHZX5UIdB+IkS5uSM+7iowbf2ItGV18cDcSw2Ow82w6ds/5GmvSDsKybVtemYGRB6DrBQnjxtO/YGHwRGzOSMVXgSFIzjoO1cRwnLmdi23ZaUg69TM+kssR5e2PHWdPYcqQEbipfoi4CeEI27YW/m794dDFGjBySR6AxKB0qaF8uEPJlq8uwfyA8Ug4eRiq0AisO3kEKwiEU7fuCBvqyxnIe/QAcgrfMCdXDO3liuCklVAO9ka3Dp14lUYu2SSAasrqUCqvHEq4Hp2t0LeHHfaez8Y3kyMQsjEe35J7I3espwrT4GLRbSwLmcbdNHTrangTkAifMVh5ZD8PwMhoGADdnPFX/10L1+72ZKABd8oewbNnLxQ8UcPc1BSPqyoYC2fw4t3b8HHpCzMTEyipD1haWCCKjKecy9TNaUFGGw8tAMEox0GuZPOtxyW4V17GKyHak6oXCB/uh7r6evSxsWMsgAwY6zkEc0aPxafrVXj6sgrxyhlcVVy+V4B2bSyg95AukaYFICGKh+3M26DmzT+UPzIovXxwqegO8gmUs40tclQbsGvWAvy2PBHj+g/GxE3xyCstRsrshSh98ZwalRq1b99QWc4T1RmctQCkx4I3HLvaQE29n2G78qAQSydMRSGFYMCKL7mQxPgFc66P3pGECxSGWOoXLGy2naxQVlXJJWUbMzOpZr21YQDMIrEqunQjo9Pwtq6Oi/XV+4VInjEPDlZdMSYhDqqj+7HowE6kXvsdvW16IGn6bKTn/gETKst3Gg1paP5nGIBEbl9ONvz69MPl+wVUBfaIO7QHxxapMMypDxKoRf9ADYeV34aI2aiufQ0NGa6oeQ2rdpZgZSxRZXDZLICYUcHoZ++APGqn9aTc3U6B1VR+qQTCS+HEeSbWfxyy8q/jFeWLhbk5hakU9uQl6w4dDRqVEnkAQsylB+LalEqrvLqKq/0t9MWbSo2H5cXdp49x6Is4zPQNwCplFIrLn+JhRTm8nfvilroEAxS9sClyrqjG6MwDEGJujCt6ZAB20yc4ecZ8LKFezxrRuhOH0Z5KzN1WgdySYvi6enC54O/mCTnlgOlHJmDgjekU6TwAtmvCC+w4iWK8L+cMllO3Y59h9oeEfaQ8ezriR8qDydR2q2peUfmVImL4aCbSolcLQMLeYARMvDIarKxcKOM/ph7xL30p2TvIwZnLkTgCN4lad8igYRJtTS+1ACRhkMmovenKse5JZPZ37LORgVxlrJ8eAx+KeRz1B/YVZEB0xZrbawE0x0nGORYBnLmpKbdlrVYmEw6NeI5jNDI0DaC1CkUgRowZIjcNQFdhawEZsqhD0wIwpJzFXSrAABnik/K0cq0FwJS3RLilfC3RRTw8APGm4kwH3E/ILW79nkNzYv8BAAD//5GoiggAAAAGSURBVAMAMV6HfcKh9B0AAAAASUVORK5CYII=" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #065f46; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest</span>
-                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                        </a>
-                                                    `;
-                                                }
-                                            } else {
-                                                if (stampMode === 'hash_only' || !recordUrl) {
-                                                    badgeInnerHtml = `
-                                                        <div style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                            <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest (Robotic)</span>
-                                                        </div>
-                                                        <div style="margin-top: 5px; font-size: 9px; color: #94a3b8;">
-                                                            <span>Hash: ${contentHash}</span>
-                                                        </div>
-                                                    `;
-                                                } else {
-                                                    badgeInnerHtml = `
-                                                        <a href="${recordUrl}" target="_blank" style="display: inline-flex; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 9999px; padding: 4px 12px; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none; cursor: pointer;" title="Click to view Attest Trust Record">
-                                                            <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain; vertical-align: middle; flex-shrink: 0;" />
-                                                            <span style="color: #991b1b; font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Attest (Robotic)</span>
-                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 1px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                        </a>
-                                                    `;
-                                                }
-                                            }
+                                            const badgeInnerHtml = generateStampHTML({
+                                                status: isHuman ? 'human' : 'robotic',
+                                                recordUrl: recordUrl || 'https://attest.page/verify',
+                                                contentHash: contentHash,
+                                                stampMode: stampMode
+                                            });
                                             updateOrAppendStamp(composeBody, badgeInnerHtml);
                                         }
 
@@ -1042,7 +1008,7 @@ function showVerificationSuccessToast(message) {
     
     toast.innerHTML = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #e6fbf1; border-radius: 50%; border: 1px solid #a7f3d0; animation: hvel-ring-pulse 2s infinite; flex-shrink: 0;">
-            <img src="data:image/png;base64,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" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
+            <img src="https://attest.page/favicon-32x32.png" style="width: 18px; height: 18px; border-radius: 50%; object-fit: contain;" />
         </div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
             <span style="font-size: 14px; font-weight: 700; color: #065f46; letter-spacing: -0.01em;">Attest</span>

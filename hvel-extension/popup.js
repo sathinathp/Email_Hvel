@@ -25,11 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load global settings
     chrome.storage.local.get(['hvel_stamp_mode', 'hvel_verify_received', 'hvel_enable_nudge'], (result) => {
       currentMode = result.hvel_stamp_mode || 'with_link';
-      applyModeUI(currentMode);
+      
+      const stampModeSelect = document.getElementById('stampModeSelect');
+      if (stampModeSelect) {
+        stampModeSelect.value = currentMode;
+      }
       
       const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
       if (verifyCheckbox) {
-        verifyCheckbox.checked = !!result.hvel_verify_received;
+        // Default to true (ON) unless explicitly turned off
+        verifyCheckbox.checked = result.hvel_verify_received !== false;
       }
 
       const nudgeCheckbox = document.getElementById('enableNudgeCheckbox');
@@ -38,17 +43,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    const linkCard = document.getElementById('optionLink');
-    const hashCard = document.getElementById('optionHash');
+    const stampModeSelect = document.getElementById('stampModeSelect');
     const saveBtn = document.getElementById('saveBtn');
     const verifyCheckbox = document.getElementById('verifyReceivedCheckbox');
     const nudgeCheckbox = document.getElementById('enableNudgeCheckbox');
+    const userPlanBtn = document.getElementById('userPlanBtn');
+    const closePlanDrawerBtn = document.getElementById('closePlanDrawerBtn');
+    const planDetailsDrawer = document.getElementById('planDetailsDrawer');
 
-    if (linkCard) {
-      linkCard.addEventListener('click', () => selectMode('with_link'));
+    if (stampModeSelect) {
+      stampModeSelect.addEventListener('change', () => {
+        currentMode = stampModeSelect.value;
+        saveSettings();
+      });
     }
-    if (hashCard) {
-      hashCard.addEventListener('click', () => selectMode('hash_only'));
+    if (userPlanBtn && planDetailsDrawer) {
+      userPlanBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isVisible = planDetailsDrawer.style.display === 'flex';
+        planDetailsDrawer.style.display = isVisible ? 'none' : 'flex';
+      });
+    }
+    if (closePlanDrawerBtn && planDetailsDrawer) {
+      closePlanDrawerBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        planDetailsDrawer.style.display = 'none';
+      });
     }
     if (verifyCheckbox) {
       verifyCheckbox.addEventListener('change', saveSettings);
@@ -305,35 +325,83 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateSiteTypeUI() {
-  const brandSub = document.getElementById('brandSub');
-  const statusDot = document.getElementById('statusDot');
+  const activePlatformBadge = document.getElementById('activePlatformBadge');
+  const platformIconArea = document.getElementById('platformIconArea');
+  const platformNameArea = document.getElementById('platformNameArea');
+  const platformTick = document.getElementById('platformTick');
   const emailInput = document.getElementById('authEmail');
-  const footerText = document.querySelector('.footer-text');
+  const footerPlatformText = document.getElementById('footerPlatformText');
+  const footerPlatformDot = document.getElementById('footerPlatformDot');
 
   if (currentSiteType === 'outlook') {
-    if (brandSub) brandSub.innerText = 'Attest Outlook Profile';
-    if (statusDot) {
-      statusDot.setAttribute('title', 'Active on Outlook');
-      statusDot.style.background = '#0078d4'; // Outlook Blue
+    if (activePlatformBadge) {
+      activePlatformBadge.className = 'platform-badge';
+    }
+    if (platformIconArea) {
+      platformIconArea.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;">
+          <rect x="3" y="4" width="18" height="16" rx="3.5" fill="#0078D4"/>
+          <path d="M3.5 5.5L12 12.5L20.5 5.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="14" r="3.2" fill="#ffffff"/>
+          <text x="12" y="16.1" font-family="'Segoe UI', system-ui, sans-serif" font-size="5.2" font-weight="800" fill="#0078D4" text-anchor="middle">O</text>
+        </svg>
+      `;
+    }
+    if (platformNameArea) {
+      platformNameArea.innerText = 'Outlook';
+      platformNameArea.style.color = '#0078D4';
+    }
+    if (platformTick) {
+      platformTick.style.color = '#0078D4';
     }
     if (emailInput) {
       emailInput.placeholder = 'you@outlook.com';
     }
-    if (footerText) {
-      footerText.innerText = 'v1.0.0 · Active on Outlook';
+    if (footerPlatformText) {
+      footerPlatformText.innerText = 'Active on Outlook';
+    }
+    if (footerPlatformDot) {
+      footerPlatformDot.style.background = '#0078D4';
     }
   } else {
-    if (brandSub) brandSub.innerText = 'Attest Gmail Profile';
-    if (statusDot) {
-      statusDot.setAttribute('title', 'Active on Gmail');
-      statusDot.style.background = '#10b981'; // Gmail Active Green
+    if (activePlatformBadge) {
+      activePlatformBadge.className = 'platform-badge';
+    }
+    if (platformIconArea) {
+      platformIconArea.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;">
+          <rect x="2.5" y="4.5" width="19" height="15" rx="3" fill="#ffffff" stroke="#EA4335" stroke-width="1.6"/>
+          <path d="M2.5 5.5L12 12.8L21.5 5.5" stroke="#EA4335" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2.5 18.5L8.5 12" stroke="#4285F4" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M21.5 18.5L15.5 12" stroke="#34A853" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+    if (platformNameArea) {
+      platformNameArea.innerText = 'Gmail';
+      platformNameArea.style.color = '#EA4335';
+    }
+    if (platformTick) {
+      platformTick.style.color = '#EA4335';
     }
     if (emailInput) {
       emailInput.placeholder = 'you@gmail.com';
     }
-    if (footerText) {
-      footerText.innerText = 'v1.0.0 · Active on Gmail';
+    if (footerPlatformText) {
+      footerPlatformText.innerText = 'Active on Gmail';
     }
+    if (footerPlatformDot) {
+      footerPlatformDot.style.background = '#10B981';
+    }
+  }
+}
+
+function showToast(message = 'Settings updated') {
+  const toast = document.getElementById('toast');
+  if (toast) {
+    toast.innerText = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
   }
 }
 
@@ -344,16 +412,9 @@ function selectMode(mode) {
 }
 
 function applyModeUI(mode) {
-  const linkCard = document.getElementById('optionLink');
-  const hashCard = document.getElementById('optionHash');
-  if (linkCard && hashCard) {
-    if (mode === 'with_link') {
-      linkCard.classList.add('active');
-      hashCard.classList.remove('active');
-    } else {
-      hashCard.classList.add('active');
-      linkCard.classList.remove('active');
-    }
+  const stampModeSelect = document.getElementById('stampModeSelect');
+  if (stampModeSelect) {
+    stampModeSelect.value = mode;
   }
 }
 
@@ -368,6 +429,8 @@ function saveSettings() {
     hvel_stamp_mode: currentMode,
     hvel_verify_received: verifyReceived,
     hvel_enable_nudge: enableNudge
+  }, () => {
+    showToast('Preferences saved');
   });
 }
 
@@ -566,37 +629,64 @@ function checkAuthStatus() {
 
 function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail) {
   const emailSpan = document.getElementById('userEmailSpan');
-  const planBadge = document.getElementById('userPlanBadge');
+  const userPlanBtn = document.getElementById('userPlanBtn');
+  const userPlanText = document.getElementById('userPlanText');
+  const planDetailTier = document.getElementById('planDetailTier');
+  const planDetailLimit = document.getElementById('planDetailLimit');
+  const planDetailInboxes = document.getElementById('planDetailInboxes');
   const usageSpan = document.getElementById('userUsageSpan');
   const upgradeBtn = document.getElementById('upgradeBtn');
   const proActiveLabel = document.getElementById('proActiveLabel');
 
+  const avatarInitial = document.getElementById('userAvatarInitial');
+  if (avatarInitial) {
+    avatarInitial.innerText = email ? email.trim()[0].toUpperCase() : 'U';
+  }
+
   if (emailSpan) emailSpan.innerText = email;
 
   const planKey = plan || 'free';
-  if (planBadge) {
-    planBadge.innerText = planKey;
-    if (planKey.toLowerCase() === 'professional') {
-      planBadge.style.background = '#f0fdf4';
-      planBadge.style.color = '#166534';
-      planBadge.style.borderColor = '#bbf7d0';
-      if (upgradeBtn) upgradeBtn.style.display = 'none';
-      if (proActiveLabel) proActiveLabel.style.display = 'inline-block';
+  const isPro = planKey.toLowerCase() === 'professional' || planKey.toLowerCase() === 'enterprise';
+
+  if (userPlanText) {
+    userPlanText.innerText = isPro ? 'Plan' : 'Free Plan';
+  }
+  if (userPlanBtn) {
+    if (isPro) {
+      userPlanBtn.style.background = '#f0fdf4';
+      userPlanBtn.style.color = '#166534';
+      userPlanBtn.style.borderColor = '#bbf7d0';
     } else {
-      planBadge.style.background = '#f1f5f9';
-      planBadge.style.color = '#475569';
-      planBadge.style.borderColor = '#cbd5e1';
-      if (upgradeBtn) {
-        upgradeBtn.style.display = 'inline-block';
-        upgradeBtn.href = `https://attest.page/pricing?email=${encodeURIComponent(email)}`;
-      }
-      if (proActiveLabel) proActiveLabel.style.display = 'none';
+      userPlanBtn.style.background = '#f1f5f9';
+      userPlanBtn.style.color = '#475569';
+      userPlanBtn.style.borderColor = '#cbd5e1';
     }
   }
 
+  if (planDetailTier) {
+    planDetailTier.innerText = isPro ? (planKey === 'enterprise' ? 'Enterprise' : 'Professional') : 'Free';
+    planDetailTier.style.color = isPro ? '#166534' : '#475569';
+  }
+
+  const limit = planDetails?.totp_daily_limit === Infinity || planDetails?.totp_daily_limit === 'unlimited' ? 'unlimited' : (planDetails?.totp_daily_limit || (isPro ? 'unlimited' : 3));
+  const used = usage?.totp_used_today || 0;
+
+  if (planDetailLimit) {
+    planDetailLimit.innerText = limit === 'unlimited' ? 'Unlimited' : `${limit} per day`;
+  }
+  if (planDetailInboxes) {
+    planDetailInboxes.innerText = isPro ? 'Up to 5 Inboxes' : '1 Primary Inbox';
+  }
+
+  if (upgradeBtn) {
+    upgradeBtn.style.display = isPro ? 'none' : 'inline-block';
+    upgradeBtn.href = `http://localhost:3000/pricing?email=${encodeURIComponent(email)}`;
+  }
+  if (proActiveLabel) {
+    proActiveLabel.style.display = isPro ? 'inline-block' : 'none';
+  }
+
   if (usageSpan) {
-    const limit = planDetails?.totp_daily_limit === Infinity || planDetails?.totp_daily_limit === 'unlimited' ? 'unlimited' : (planDetails?.totp_daily_limit || 3);
-    const used = usage?.totp_used_today || 0;
     usageSpan.innerText = `Daily verifications: ${used} / ${limit} used`;
   }
   

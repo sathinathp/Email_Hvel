@@ -368,14 +368,37 @@ function verifyPassword(password, storedValue) {
   return hash === checkHash;
 }
 
+function validatePasswordPolicy(password) {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, message: 'Password is required.' };
+  }
+  if (password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters long.' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one uppercase letter (A-Z).' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one lowercase letter (a-z).' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one number (0-9).' };
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one special character (e.g. !@#$%^&*).' };
+  }
+  return { valid: true };
+}
+
 // ─── AUTHENTICATION ENDPOINTS ────────────────────────────────────────────────
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email and password are required' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters' });
+  const policyCheck = validatePasswordPolicy(password);
+  if (!policyCheck.valid) {
+    return res.status(400).json({ error: 'WEAK_PASSWORD', message: policyCheck.message });
   }
 
   const emailLower = email.toLowerCase().trim();
@@ -411,8 +434,12 @@ app.post('/api/auth/signup', async (req, res) => {
       [emailLower, token]
     );
 
-    console.log(`[AUTH] 👤 User signed up and logged in: ${emailLower}`);
-    res.json({ success: true, email: emailLower, token });
+    const userDetails = await pool.query('SELECT plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
+    const plan = userDetails.rows[0]?.plan || 'free';
+    const plan_expires_at = userDetails.rows[0]?.plan_expires_at || null;
+
+    console.log(`[AUTH] 👤 User signed up and logged in: ${emailLower} | Plan: ${plan}`);
+    res.json({ success: true, email: emailLower, token, plan, plan_expires_at });
   } catch (err) {
     console.error('[AUTH SIGNUP] Error:', err);
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Signup failed. Please try again.' });
@@ -428,7 +455,7 @@ app.post('/api/auth/login', async (req, res) => {
   const emailLower = email.toLowerCase().trim();
 
   try {
-    const userRes = await pool.query('SELECT password_hash FROM users WHERE email = $1', [emailLower]);
+    const userRes = await pool.query('SELECT password_hash, plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
     if (userRes.rows.length === 0 || !userRes.rows[0].password_hash) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
     }
@@ -444,8 +471,11 @@ app.post('/api/auth/login', async (req, res) => {
       [emailLower, token]
     );
 
-    console.log(`[AUTH] 🔑 User logged in: ${emailLower}`);
-    res.json({ success: true, email: emailLower, token });
+    const plan = userRes.rows[0].plan || 'free';
+    const plan_expires_at = userRes.rows[0].plan_expires_at || null;
+
+    console.log(`[AUTH] 🔑 User logged in: ${emailLower} | Plan: ${plan}`);
+    res.json({ success: true, email: emailLower, token, plan, plan_expires_at });
   } catch (err) {
     console.error('[AUTH LOGIN] Error:', err);
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Login failed. Please try again.' });
@@ -571,6 +601,185 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 });
 
 
+// POST /api/auth/forgot-password/send-otp
+app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'MISSING_EMAIL', message: 'Email address is required.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailLower)) {
+    return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Please enter a valid email address.' });
+  }
+
+  try {
+    // 1. Check if the email exists in the users table
+    const userRes = await pool.query('SELECT email FROM users WHERE LOWER(email) = $1', [emailLower]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'USER_NOT_REGISTERED',
+        message: 'This email is not registered yet. Please check your email or sign up.'
+      });
+    }
+
+    // 2. Generate a secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await pool.query(
+      `INSERT INTO user_otps (email, otp, type, expires_at)
+       VALUES ($1, $2, 'password_reset', $3)
+       ON CONFLICT (email, type)
+       DO UPDATE SET otp = $2, expires_at = $3`,
+      [emailLower, otp, expiresAt]
+    );
+
+    // 3. Send professional email
+    const otpHtml = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background:linear-gradient(135deg, #004D40 0%, #007A5E 100%);padding:28px 24px;text-align:center;">
+          <div style="display:inline-block;padding:8px 16px;background:rgba(255,255,255,0.15);border-radius:20px;margin-bottom:8px;">
+            <span style="color:#ffffff;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">HVEL Security Portal</span>
+          </div>
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Password Reset Code</h1>
+        </div>
+        <div style="padding:32px 28px;">
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello,</p>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155;">We received a request to reset the password for your HVEL account (<strong>${emailLower}</strong>). Use the verification code below to proceed:</p>
+          
+          <div style="text-align:center;margin:28px 0;">
+            <div style="display:inline-block;background:#F0FDF4;border:2px dashed #059669;border-radius:10px;padding:16px 32px;">
+              <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:8px;color:#004D40;">${otp}</span>
+            </div>
+            <p style="margin:10px 0 0;font-size:12.5px;color:#64748B;">This code will expire in <strong>10 minutes</strong>.</p>
+          </div>
+
+          <div style="background:#F8FAFC;border-left:4px solid #007A5E;padding:12px 16px;border-radius:0 8px 8px 0;margin:24px 0 0;">
+            <p style="margin:0;font-size:13px;color:#475569;line-height:1.5;"><strong>Security Tip:</strong> If you did not request this password reset, no changes have been made. You can safely ignore this email.</p>
+          </div>
+        </div>
+        <div style="background:#F1F5F9;padding:16px 24px;text-align:center;border-top:1px solid #E2E8F0;">
+          <p style="margin:0;font-size:12px;color:#94A3B8;">HumanAttest Zero-Trust Authentication Protocol · info@attest.page</p>
+        </div>
+      </div>
+    `;
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      mainTransporter.sendMail({
+        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        replyTo: process.env.EMAIL_USER,
+        to: emailLower,
+        subject: `[HVEL Security] Your Password Reset Code: ${otp}`,
+        text: `Your HVEL password reset verification code is: ${otp}. It will expire in 10 minutes.`,
+        html: otpHtml,
+        headers: {
+          'X-Priority': '1 (Highest)',
+          'Importance': 'high'
+        }
+      }, (err) => {
+        if (err) console.error('[FORGOT PASSWORD] Email error:', err);
+        else console.log(`[FORGOT PASSWORD] ✅ Reset OTP sent to ${emailLower}`);
+      });
+    } else {
+      console.log(`[FORGOT PASSWORD] ⚠️ Mailer not configured. Reset OTP for ${emailLower} is: ${otp}`);
+    }
+
+    res.json({ success: true, message: 'OTP has been sent to your registered email address.' });
+  } catch (err) {
+    console.error('[FORGOT PASSWORD] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to process password reset request.' });
+  }
+});
+
+// POST /api/auth/forgot-password/verify-otp
+app.post('/api/auth/forgot-password/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email and OTP are required.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    const otpRes = await pool.query(
+      'SELECT otp, expires_at FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [emailLower, 'password_reset']
+    );
+
+    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp.trim()) {
+      return res.status(400).json({ error: 'INVALID_OTP', message: 'The verification code entered is incorrect.' });
+    }
+
+    if (new Date() > new Date(otpRes.rows[0].expires_at)) {
+      return res.status(400).json({ error: 'EXPIRED_OTP', message: 'The verification code has expired. Please request a new one.' });
+    }
+
+    res.json({ success: true, message: 'OTP verified successfully.' });
+  } catch (err) {
+    console.error('[FORGOT PASSWORD VERIFY] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to verify OTP.' });
+  }
+});
+
+// POST /api/auth/forgot-password/reset-password
+app.post('/api/auth/forgot-password/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email, OTP, and new password are required.' });
+  }
+
+  const policyCheck = validatePasswordPolicy(newPassword);
+  if (!policyCheck.valid) {
+    return res.status(400).json({ error: 'WEAK_PASSWORD', message: policyCheck.message });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    // 1. Verify OTP again
+    const otpRes = await pool.query(
+      'SELECT otp, expires_at FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [emailLower, 'password_reset']
+    );
+
+    if (otpRes.rows.length === 0 || otpRes.rows[0].otp !== otp.trim()) {
+      return res.status(400).json({ error: 'INVALID_OTP', message: 'The verification code entered is invalid or expired.' });
+    }
+
+    if (new Date() > new Date(otpRes.rows[0].expires_at)) {
+      return res.status(400).json({ error: 'EXPIRED_OTP', message: 'The verification code has expired.' });
+    }
+
+    // 2. Hash new password
+    const newPasswordHash = hashPassword(newPassword);
+
+    // 3. Update password in database
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2',
+      [newPasswordHash, emailLower]
+    );
+
+    // 4. Invalidate used OTP
+    await pool.query(
+      'DELETE FROM user_otps WHERE LOWER(email) = $1 AND type = $2',
+      [emailLower, 'password_reset']
+    );
+
+    // 5. Invalidate existing sessions for security
+    await pool.query('DELETE FROM user_sessions WHERE LOWER(email) = $1', [emailLower]);
+
+    console.log(`[FORGOT PASSWORD] 🔒 Password successfully reset for: ${emailLower}`);
+    res.json({ success: true, message: 'Your password has been reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error('[FORGOT PASSWORD RESET] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to reset password.' });
+  }
+});
+
+
 app.post('/api/auth/logout', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -584,9 +793,213 @@ app.post('/api/auth/logout', async (req, res) => {
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (err) {
     console.error('[AUTH LOGOUT] Error:', err);
-    res.status(500).json({ error: 'SERVER_ERROR', message: 'Logout failed.' });
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to logout' });
   }
 });
+
+// GET /api/auth/google — Direct redirect to official Google Login / Create page
+app.get('/api/auth/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback';
+  if (clientId) {
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile&prompt=select_account`;
+    return res.redirect(authUrl);
+  }
+  res.redirect('https://accounts.google.com/signin');
+});
+
+// GET /api/auth/microsoft — Direct redirect to official Microsoft 365 Login / Create page
+app.get('/api/auth/microsoft', (req, res) => {
+  const clientId = process.env.MICROSOFT_CLIENT_ID;
+  const tenant = process.env.MICROSOFT_TENANT_ID || 'common';
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/auth/microsoft/callback';
+  if (clientId) {
+    const authUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile%20User.Read&prompt=select_account`;
+    return res.redirect(authUrl);
+  }
+  res.redirect('https://login.microsoftonline.com/');
+});
+
+// GET /api/auth/sso/config — returns available OAuth provider configurations
+app.get('/api/auth/sso/config', (req, res) => {
+  res.json({
+    google: {
+      enabled: !!process.env.GOOGLE_CLIENT_ID,
+      clientId: process.env.GOOGLE_CLIENT_ID || null,
+      authUrl: process.env.GOOGLE_CLIENT_ID ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback')}&response_type=code&scope=openid%20email%20profile&prompt=select_account` : 'https://accounts.google.com/signin'
+    },
+    microsoft: {
+      enabled: !!process.env.MICROSOFT_CLIENT_ID,
+      clientId: process.env.MICROSOFT_CLIENT_ID || null,
+      authUrl: process.env.MICROSOFT_CLIENT_ID ? `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID || 'common'}/oauth2/v2.0/authorize?client_id=${process.env.MICROSOFT_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/auth/microsoft/callback')}&response_type=code&scope=openid%20email%20profile%20User.Read&prompt=select_account` : 'https://login.microsoftonline.com/'
+    }
+  });
+});
+
+// POST /api/auth/sso/login — Direct enterprise SSO authentication for Google & Microsoft
+app.post('/api/auth/sso/login', async (req, res) => {
+  const { email, provider, name } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'INVALID_EMAIL', message: 'A valid email is required for SSO.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    // 1. Auto-create user in database if they don't exist
+    await pool.query(
+      `INSERT INTO users (email, plan) 
+       VALUES ($1, 'professional') 
+       ON CONFLICT (email) DO NOTHING`,
+      [emailLower]
+    );
+
+    // 2. Generate secure session token
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, token]
+    );
+
+    // 3. Retrieve user plan details
+    const userRes = await pool.query('SELECT plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
+    const userRow = userRes.rows[0] || { plan: 'professional' };
+
+    console.log(`[AUTH SSO] 🚀 User signed in via ${provider || 'Enterprise SSO'}: ${emailLower}`);
+
+    res.json({
+      success: true,
+      email: emailLower,
+      token,
+      provider: provider || 'google',
+      plan: userRow.plan || 'professional',
+      plan_expires_at: userRow.plan_expires_at || null,
+      name: name || emailLower.split('@')[0]
+    });
+  } catch (err) {
+    console.error('[AUTH SSO] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'SSO Authentication failed.' });
+  }
+});
+
+// GET /api/auth/google/callback — Google OAuth 2.0 Web Callback
+app.get('/api/auth/google/callback', async (req, res) => {
+  const { code } = req.query;
+  const frontendUrl = process.env.ORIGIN || 'http://localhost:3000';
+
+  if (!code || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.redirect(`${frontendUrl}/portal?error=google_oauth_unconfigured`);
+  }
+
+  try {
+    // Exchange authorization code with Google token endpoint
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback',
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      return res.redirect(`${frontendUrl}/portal?error=google_token_failed`);
+    }
+
+    // Fetch user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const userData = await userResponse.json();
+    const emailLower = (userData.email || '').toLowerCase().trim();
+
+    if (!emailLower) {
+      return res.redirect(`${frontendUrl}/portal?error=google_email_missing`);
+    }
+
+    // Ensure user in database
+    await pool.query(
+      `INSERT INTO users (email, plan) VALUES ($1, 'professional') ON CONFLICT (email) DO NOTHING`,
+      [emailLower]
+    );
+
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, sessionToken]
+    );
+
+    console.log(`[AUTH GOOGLE] ✅ OAuth callback authenticated: ${emailLower}`);
+    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(emailLower)}&provider=google&name=${encodeURIComponent(userData.name || '')}`);
+  } catch (err) {
+    console.error('[AUTH GOOGLE CALLBACK] Error:', err);
+    res.redirect(`${frontendUrl}/portal?error=oauth_internal_error`);
+  }
+});
+
+// GET /api/auth/microsoft/callback — Microsoft Entra ID Web Callback
+app.get('/api/auth/microsoft/callback', async (req, res) => {
+  const { code } = req.query;
+  const frontendUrl = process.env.ORIGIN || 'http://localhost:3000';
+
+  if (!code || !process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
+    return res.redirect(`${frontendUrl}/portal?error=microsoft_oauth_unconfigured`);
+  }
+
+  try {
+    const tenant = process.env.MICROSOFT_TENANT_ID || 'common';
+    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.MICROSOFT_CLIENT_ID,
+        client_secret: process.env.MICROSOFT_CLIENT_SECRET,
+        code,
+        redirect_uri: process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/auth/microsoft/callback',
+        grant_type: 'authorization_code',
+        scope: 'openid email profile User.Read'
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      return res.redirect(`${frontendUrl}/portal?error=microsoft_token_failed`);
+    }
+
+    // Fetch user profile from Microsoft Graph
+    const graphResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const graphData = await graphResponse.json();
+    const emailLower = (graphData.mail || graphData.userPrincipalName || '').toLowerCase().trim();
+
+    if (!emailLower) {
+      return res.redirect(`${frontendUrl}/portal?error=microsoft_email_missing`);
+    }
+
+    await pool.query(
+      `INSERT INTO users (email, plan) VALUES ($1, 'professional') ON CONFLICT (email) DO NOTHING`,
+      [emailLower]
+    );
+
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
+      [emailLower, sessionToken]
+    );
+
+    console.log(`[AUTH MICROSOFT] ✅ OAuth callback authenticated: ${emailLower}`);
+    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(emailLower)}&provider=microsoft&name=${encodeURIComponent(graphData.displayName || '')}`);
+  } catch (err) {
+    console.error('[AUTH MICROSOFT CALLBACK] Error:', err);
+    res.redirect(`${frontendUrl}/portal?error=oauth_internal_error`);
+  }
+});
+
 
 // ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
 app.post('/api/auth/forgot-password', async (req, res) => {
