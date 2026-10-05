@@ -626,6 +626,7 @@ document.addEventListener('click', async (e) => {
 
                         const realEmail = getSenderEmail();
                         const recipientEmail = getRecipientEmail(sendBtn);
+                        const emailSubject = getSubjectText(sendBtn);
                         
                         // Find compose body related to this send button
                         let composeBody = document.querySelector('div[role="textbox"][aria-label="Message body"], div[contenteditable="true"][aria-label="Message body"]');
@@ -660,7 +661,7 @@ document.addEventListener('click', async (e) => {
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
+                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -676,6 +677,7 @@ document.addEventListener('click', async (e) => {
                             type: verificationType,
                             senderEmail: realEmail,
                             recipientEmail: recipientEmail,
+                            subject: emailSubject,
                             contentHash: contentHash
                         }, (verifyRes) => {
                             try {
@@ -703,7 +705,7 @@ document.addEventListener('click', async (e) => {
                                         });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
+                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();
@@ -718,8 +720,11 @@ document.addEventListener('click', async (e) => {
                                         const extraData = {
                                             sender: realEmail,
                                             recipient: recipientEmail,
+                                            subject: emailSubject,
                                             verificationId: recordUrl ? recordUrl.split('/v/').pop() : null,
-                                            contentHash: contentHash
+                                            contentHash: contentHash,
+                                            status: isHuman ? 'VERIFIED' : 'WARNING',
+                                            proof: isHuman ? 'Level 3 · Cryptographic Human Verification' : 'Robotic / Automated Dispatch'
                                         };
                                         if (stampMode === 'hash_only' || !recordUrl) {
                                             logAuditEvent('sent_stamped_hash', recipientEmail, extraData);
@@ -1550,32 +1555,55 @@ async function computeHash(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Extract recipient email from Compose elements
+// Extract recipient email from Compose elements (Outlook)
 function getRecipientEmail(sendBtn) {
-    const container = sendBtn.closest('div[role="region"]') || sendBtn.closest('.Ms-BasePicker') || document;
+    const container = (sendBtn ? (sendBtn.closest('div[role="region"]') || sendBtn.closest('.Ms-BasePicker') || sendBtn.closest('div[role="main"]') || sendBtn.closest('form')) : null) || document;
     
-    // Look for Persona chips or elements with data-email
-    const chips = container.querySelectorAll('span[data-email], .ms-PickerPersona-container, .persona-chip, [role="listitem"] span[email]');
-    if (chips.length > 0) {
-        for (let chip of chips) {
-            let email = chip.getAttribute('data-email') || chip.getAttribute('email');
-            if (!email) {
-                const match = chip.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-                if (match) email = match[0];
-            }
-            if (email && email.includes('@')) return email.toLowerCase().trim();
+    // 1. Look for Persona chips or elements with data-email / email attributes
+    const chips = container.querySelectorAll('span[data-email], .ms-PickerPersona-container, .persona-chip, [role="listitem"] span[email], span[email], div[data-hovercard-id], div[data-email]');
+    for (let chip of chips) {
+        let email = chip.getAttribute('data-email') || chip.getAttribute('email') || chip.getAttribute('data-hovercard-id');
+        if (email && email.includes('@')) {
+            const match = email.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (match) return match[0].toLowerCase().trim();
         }
+        const textMatch = (chip.innerText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (textMatch) return textMatch[0].toLowerCase().trim();
     }
     
-    // Fallback to text area inputs
-    const inputs = getRecipientInputs(container);
+    // 2. Fallback to text area inputs
+    const inputs = container.querySelectorAll('input[aria-label*="To"], input[placeholder*="To"], textarea[aria-label*="To"], input[role="combobox"], input[type="text"]');
     for (let input of inputs) {
-        const val = input.value.trim();
+        const val = (input.value || '').trim();
         const match = val.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (match) return match[0].toLowerCase().trim();
     }
 
+    // 3. Fallback across compose container
+    const sender = getSenderEmail();
+    const allMatches = (container.innerText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    for (const m of allMatches) {
+        const clean = m.toLowerCase().trim();
+        if (sender && clean === sender.toLowerCase().trim()) continue;
+        if (clean.includes('attest.page') || clean.includes('hvel.io') || clean.includes('microsoft.com') || clean.includes('office.com')) continue;
+        return clean;
+    }
+
     return null;
+}
+
+// Extract subject line from Outlook compose
+function getSubjectText(sendBtn) {
+    const container = (sendBtn ? (sendBtn.closest('div[role="region"]') || sendBtn.closest('div[role="main"]') || sendBtn.closest('form')) : null) || document;
+    const subjectInput = container.querySelector('input[aria-label="Add a subject"], input[placeholder="Add a subject"], input[aria-label*="Subject"], input[id*="subject"]');
+    if (subjectInput && subjectInput.value && subjectInput.value.trim()) {
+        return subjectInput.value.trim();
+    }
+    const threadHeader = document.querySelector('div[role="heading"], h2');
+    if (threadHeader && threadHeader.innerText && threadHeader.innerText.trim()) {
+        return threadHeader.innerText.trim();
+    }
+    return 'Attested Email Message';
 }
 
 // ─── RECIPIENT TYPING VERIFICATION & STYLE ENGINE ───

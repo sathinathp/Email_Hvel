@@ -22,10 +22,205 @@ const RP_NAME = 'HVEL Security';
 const RP_ID = process.env.RP_ID || 'localhost';
 const ORIGIN = process.env.ORIGIN || `http://${RP_ID}:3000`;
 
+const crypto = require('crypto');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
+
+// ─── SMTP CONFIGURATION & HIGH-DELIVERABILITY MAILER ────────────────────────
+const smtpHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+const smtpPort = parseInt(process.env.EMAIL_PORT || '465');
+const smtpSecure = process.env.EMAIL_SECURE === 'false' ? false : (process.env.EMAIL_SECURE === 'true' ? true : smtpPort === 465);
+
+const mainTransporter = nodemailer.createTransport({
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
+});
+
+const hrmsTransporter = nodemailer.createTransport({
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS || process.env.EMAIL_PASS },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
+});
+
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  mainTransporter.verify((error) => {
+    if (error) console.error('[HVEL API] Main SMTP Error:', error);
+    else console.log(`[HVEL API] ✅ Main SMTP ready — ${process.env.EMAIL_USER}`);
+  });
+}
+if (process.env.HRMS_EMAIL_PASS) {
+  hrmsTransporter.verify((error) => {
+    if (error) console.error('[HVEL API] HRMS SMTP Error:', error);
+    else console.log(`[HVEL API] ✅ HRMS SMTP ready — ${process.env.EMAIL_USER}`);
+  });
+}
+
+// Transactional mail sender designed to prevent spam classification
+async function sendTransactionalMail({ to, subject, preheader, title, mainContent, code, buttonText, buttonUrl, footerNote }) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(`[MAILER] ⚠️ SMTP unconfigured. Simulated mail to ${to}: ${subject}`);
+    return;
+  }
+
+  const senderEmail = process.env.EMAIL_USER.trim();
+  const domain = senderEmail.includes('@') ? senderEmail.split('@')[1] : 'attest.page';
+  const messageId = `<${crypto.randomUUID()}@${domain}>`;
+  const cleanTo = (to || '').toLowerCase().trim();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${subject}</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; color: #1E293B;">
+  <div style="display: none; font-size: 1px; color: #F8FAFC; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+    ${preheader || subject}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+  </div>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #004D40; padding: 24px 32px; text-align: left;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td>
+                    <span style="font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px;">Attest</span>
+                    <span style="font-size: 12px; font-weight: 600; color: #80CBC4; margin-left: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Identity Security</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 32px 32px 24px 32px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 700; color: #0F172A; line-height: 1.3;">${title}</h1>
+              <div style="font-size: 15px; line-height: 1.6; color: #334155; margin-bottom: 24px;">
+                ${mainContent}
+              </div>
+
+              ${code ? `
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0 24px 0;">
+                <tr>
+                  <td align="center" style="background-color: #F0FDF4; border: 1.5px dashed #007A5E; border-radius: 8px; padding: 18px 24px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #004D40; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Verification Code</div>
+                    <div style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 34px; font-weight: 800; letter-spacing: 6px; color: #004D40;">${code}</div>
+                    <div style="font-size: 12px; color: #64748B; margin-top: 6px;">Valid for 10 minutes · Single-use authorization</div>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              ${buttonText && buttonUrl ? `
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${buttonUrl}" target="_blank" style="display: inline-block; background-color: #007A5E; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none; padding: 12px 28px; border-radius: 8px;">${buttonText}</a>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              ${footerNote ? `
+              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.5; color: #64748B;">
+                ${footerNote}
+              </p>
+              ` : ''}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748B; line-height: 1.5;">
+                This transactional email was sent to <strong>${cleanTo}</strong> for account security verification on Attest.
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #94A3B8;">
+                © ${new Date().getFullYear()} Attest Technologies Inc. · Cryptographic Identity Protection · https://attest.page
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const plainText = `
+${title}
+
+${mainContent.replace(/<[^>]*>?/gm, '')}
+
+${code ? `Verification Code: ${code}\n(Valid for 10 minutes)\n` : ''}
+${buttonText && buttonUrl ? `${buttonText}: ${buttonUrl}\n` : ''}
+${footerNote ? footerNote.replace(/<[^>]*>?/gm, '') + '\n' : ''}
+
+This email was sent to ${cleanTo} for account security on Attest (https://attest.page).
+© ${new Date().getFullYear()} Attest Technologies Inc.
+  `.trim();
+
+  const mailOptions = {
+    from: `"Attest Security" <${senderEmail}>`,
+    sender: senderEmail,
+    replyTo: senderEmail,
+    to: cleanTo,
+    subject: subject,
+    text: plainText,
+    html: html,
+    messageId: messageId,
+    headers: {
+      'X-Auto-Response-Suppress': 'All',
+      'Auto-Submitted': 'auto-generated',
+      'Feedback-ID': 'auth:security:attest',
+      'MIME-Version': '1.0'
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    mainTransporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error(`[MAILER] ❌ Error sending email to ${cleanTo}:`, err.message);
+        reject(err);
+      } else {
+        console.log(`[MAILER] ✅ Email successfully delivered to ${cleanTo} | Subject: "${subject}" | MsgID: ${info?.messageId || messageId}`);
+        resolve(info);
+      }
+    });
+  });
+}
 
 // Raw parser for Stripe Webhook signature validation
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -353,8 +548,6 @@ app.get('/health', (req, res) => res.json({ success: true, status: 'ok', service
 app.post('/api/heartbeat', (req, res) => res.json({ success: true }));
 
 // ─── AUTHENTICATION CRYPTO HELPERS ──────────────────────────────────────────
-const crypto = require('crypto');
-
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
@@ -507,40 +700,14 @@ app.post('/api/auth/send-otp', async (req, res) => {
       [emailLower, otp, expiresAt]
     );
 
-    const otpHtml = `
-      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:500px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <div style="background:#007A5E;padding:24px;text-align:center;color:white;">
-          <h2 style="margin:0;font-size:20px;font-weight:700;">HVEL Security OTP</h2>
-        </div>
-        <div style="padding:24px;text-align:center;">
-          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">Use the code below to log in or create your HVEL account. This code will expire in 5 minutes.</p>
-          <div style="background:#f3f4f6;padding:16px;font-size:32px;font-weight:800;letter-spacing:6px;border-radius:8px;color:#0f172a;display:inline-block;margin:10px 0;">${otp}</div>
-          <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">If you did not request this code, you can safely ignore this email.</p>
-        </div>
-      </div>
-    `;
-
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const otpText = `Your HVEL login/signup verification code is: ${otp}. It will expire in 5 minutes.`;
-      
-      mainTransporter.sendMail({
-        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
-        replyTo: process.env.EMAIL_USER,
-        to: emailLower,
-        subject: `HVEL Login Verification Code: ${otp}`,
-        text: otpText,
-        html: otpHtml,
-        headers: {
-          'X-Priority': '3 (Normal)',
-          'Importance': 'normal'
-        }
-      }, (err) => {
-        if (err) console.error('[AUTH OTP] Email error:', err);
-        else console.log(`[AUTH OTP] ✅ OTP email sent to ${emailLower}`);
-      });
-    } else {
-      console.log(`[AUTH OTP] ⚠️ Mailer not configured. OTP for ${emailLower} is: ${otp}`);
-    }
+    await sendTransactionalMail({
+      to: emailLower,
+      subject: `Your Attest verification code is ${otp}`,
+      title: 'Sign in to Attest',
+      mainContent: `We received a request to verify your email address (<strong>${emailLower}</strong>) to access your Attest dashboard.`,
+      code: otp,
+      footerNote: `If you didn't request this code, you can safely ignore this email. Your account remains protected.`
+    }).catch(err => console.error('[AUTH OTP] Send error:', err.message));
 
     res.json({ success: true, message: 'Verification code sent to your email.' });
   } catch (err) {
@@ -637,55 +804,14 @@ app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
       [emailLower, otp, expiresAt]
     );
 
-    // 3. Send professional email
-    const otpHtml = `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-        <div style="background:linear-gradient(135deg, #004D40 0%, #007A5E 100%);padding:28px 24px;text-align:center;">
-          <div style="display:inline-block;padding:8px 16px;background:rgba(255,255,255,0.15);border-radius:20px;margin-bottom:8px;">
-            <span style="color:#ffffff;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">HVEL Security Portal</span>
-          </div>
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Password Reset Code</h1>
-        </div>
-        <div style="padding:32px 28px;">
-          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello,</p>
-          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155;">We received a request to reset the password for your HVEL account (<strong>${emailLower}</strong>). Use the verification code below to proceed:</p>
-          
-          <div style="text-align:center;margin:28px 0;">
-            <div style="display:inline-block;background:#F0FDF4;border:2px dashed #059669;border-radius:10px;padding:16px 32px;">
-              <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:8px;color:#004D40;">${otp}</span>
-            </div>
-            <p style="margin:10px 0 0;font-size:12.5px;color:#64748B;">This code will expire in <strong>10 minutes</strong>.</p>
-          </div>
-
-          <div style="background:#F8FAFC;border-left:4px solid #007A5E;padding:12px 16px;border-radius:0 8px 8px 0;margin:24px 0 0;">
-            <p style="margin:0;font-size:13px;color:#475569;line-height:1.5;"><strong>Security Tip:</strong> If you did not request this password reset, no changes have been made. You can safely ignore this email.</p>
-          </div>
-        </div>
-        <div style="background:#F1F5F9;padding:16px 24px;text-align:center;border-top:1px solid #E2E8F0;">
-          <p style="margin:0;font-size:12px;color:#94A3B8;">HumanAttest Zero-Trust Authentication Protocol · info@attest.page</p>
-        </div>
-      </div>
-    `;
-
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      mainTransporter.sendMail({
-        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
-        replyTo: process.env.EMAIL_USER,
-        to: emailLower,
-        subject: `[HVEL Security] Your Password Reset Code: ${otp}`,
-        text: `Your HVEL password reset verification code is: ${otp}. It will expire in 10 minutes.`,
-        html: otpHtml,
-        headers: {
-          'X-Priority': '1 (Highest)',
-          'Importance': 'high'
-        }
-      }, (err) => {
-        if (err) console.error('[FORGOT PASSWORD] Email error:', err);
-        else console.log(`[FORGOT PASSWORD] ✅ Reset OTP sent to ${emailLower}`);
-      });
-    } else {
-      console.log(`[FORGOT PASSWORD] ⚠️ Mailer not configured. Reset OTP for ${emailLower} is: ${otp}`);
-    }
+    await sendTransactionalMail({
+      to: emailLower,
+      subject: `Your Attest password reset code is ${otp}`,
+      title: 'Reset your Attest password',
+      mainContent: `We received a request to reset the password for your Attest account (<strong>${emailLower}</strong>). Use the verification code below to complete the process:`,
+      code: otp,
+      footerNote: `If you didn't request a password reset, no changes have been made. You can safely ignore this email.`
+    }).catch(err => console.error('[FORGOT PASSWORD] Send error:', err.message));
 
     res.json({ success: true, message: 'OTP has been sent to your registered email address.' });
   } catch (err) {
@@ -1034,54 +1160,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const resetUrl = `${proto}://${host}/reset-password?token=${resetToken}`;
 
-    const resetHtml = `
-      <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;max-width:580px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);">
-        <div style="background:linear-gradient(135deg,#007A5E,#059669);padding:36px 30px;text-align:center;color:white;">
-          <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:12px;border-radius:12px;margin-bottom:16px;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          </div>
-          <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-0.025em;">Reset Your Password</h2>
-          <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">HVEL — Attest Approved Email Layer</p>
-        </div>
-        <div style="padding:32px;">
-          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hello,</p>
-          <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#374151;">We received a request to reset the password for your HVEL account associated with <strong>${emailLower}</strong>. Click the button below to set a new password.</p>
-          <div style="text-align:center;margin:28px 0;">
-            <a href="${resetUrl}" style="display:inline-block;background:#007A5E;color:white;padding:14px 36px;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;box-shadow:0 4px 6px -1px rgba(0,122,94,0.4);letter-spacing:0.01em;">Reset My Password →</a>
-          </div>
-          <div style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 16px;border-radius:4px 10px 10px 4px;margin-bottom:20px;">
-            <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.5;"><strong>⏰ This link expires in 1 hour.</strong> If you didn't request this, you can safely ignore this email — your password won't change.</p>
-          </div>
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">If the button above doesn't work, copy and paste this URL into your browser:<br/><span style="font-family:monospace;font-size:11px;color:#6366f1;word-break:break-all;">${resetUrl}</span></p>
-        </div>
-        <div style="background:#f8fafc;padding:20px 30px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;">Attest Identity Protocol | <a href="https://attest.page" style="color:#007A5E;text-decoration:none;">attest.page</a></p>
-        </div>
-      </div>
-    `;
-
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const resetText = `Hi,\n\nYou recently requested to reset your password for your Attest account (${emailLower}).\n\nClick the link below to set a new password. This link will expire in 1 hour.\n\n${resetUrl}\n\nIf you did not request a password reset, you can safely ignore this email. Your password will not change.\n\n— The Attest Team\nattest.page`;
-
-      mainTransporter.sendMail({
-        from: `"Attest" <${process.env.EMAIL_USER}>`,
-        replyTo: process.env.EMAIL_USER,
-        to: emailLower,
-        subject: `Password reset request for your Attest account`,
-        text: resetText,
-        html: resetHtml,
-        headers: {
-          'X-Priority': '3 (Normal)',
-          'Importance': 'normal',
-          'Precedence': 'bulk',
-          'Auto-Submitted': 'auto-generated',
-          'X-Mailer': 'Attest Mailer'
-        }
-      }, (err) => {
-        if (err) console.error('[AUTH FORGOT] Email error:', err);
-        else console.log(`[AUTH FORGOT] ✅ Reset email sent to ${emailLower}`);
-      });
-    }
+    await sendTransactionalMail({
+      to: emailLower,
+      subject: 'Reset your Attest password',
+      title: 'Password Reset Request',
+      mainContent: `Hi,<br/><br/>You recently requested to reset the password for your Attest account (<strong>${emailLower}</strong>). Click the button below to choose a new password. This link will expire in 1 hour.`,
+      buttonText: 'Reset My Password',
+      buttonUrl: resetUrl,
+      footerNote: `If you did not request a password reset, you can safely ignore this email — your password will not change.`
+    }).catch(err => console.error('[AUTH FORGOT] Send error:', err.message));
 
     console.log(`[AUTH FORGOT] 📧 Reset link generated for: ${emailLower}`);
     res.json({ success: true, message: 'If this email is registered, a reset link has been sent.' });
@@ -1144,49 +1231,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to reset password.' });
   }
 });
-
-const smtpHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
-const smtpPort = parseInt(process.env.EMAIL_PORT || '465');
-const smtpSecure = process.env.EMAIL_SECURE === 'false' ? false : (process.env.EMAIL_SECURE === 'true' ? true : smtpPort === 465);
-
-const mainTransporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-  pool: true,
-  maxConnections: 5,
-  maxMessages: 100
-});
-
-const hrmsTransporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
-  auth: { user: process.env.EMAIL_USER, pass: process.env.HRMS_EMAIL_PASS || process.env.EMAIL_PASS },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-  pool: true,
-  maxConnections: 5,
-  maxMessages: 100
-});
-
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  mainTransporter.verify((error) => {
-    if (error) console.error('[HVEL API] Main SMTP Error:', error);
-    else console.log(`[HVEL API] ✅ Main SMTP ready — ${process.env.EMAIL_USER}`);
-  });
-}
-if (process.env.HRMS_EMAIL_PASS) {
-  hrmsTransporter.verify((error) => {
-    if (error) console.error('[HVEL API] HRMS SMTP Error:', error);
-    else console.log(`[HVEL API] ✅ HRMS SMTP ready — ${process.env.EMAIL_USER}`);
-  });
-}
 
 // Shared domain/email block helper
 const IGNORED_DOMAINS = [
@@ -1294,41 +1338,19 @@ app.post('/api/verify', async (req, res) => {
       );
 
       if (alreadyInvited.rows.length === 0) {
-        const inviteHtml = `
-          <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:580px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-            <div style="background:linear-gradient(135deg,#10b981,#059669);padding:28px 30px;">
-              <h2 style="margin:0;color:white;font-size:20px;font-weight:700;">✅ Human Verified Email Received</h2>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">HVEL — Human Verified Email Layer</p>
-            </div>
-            <div style="padding:28px 30px;">
-              <p style="margin:0 0 16px;font-size:15px;">Hello,</p>
-              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">You have just received an email from <strong>${senderEmail}</strong> that has been <strong>Human Verified</strong> via the HVEL Security Layer.</p>
-              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">HVEL automatically verifies real-time physical human intent (via mouse dynamics and natural composition patterns) during sending, confirming the email was sent by a physical human rather than an AI bot or automated script. It also secures the message fingerprint to prevent content tampering.</p>
-              <div style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
-                <p style="margin:0;font-size:13px;font-weight:600;color:#065f46;">Why did you receive this?</p>
-                <p style="margin:6px 0 0;font-size:13px;color:#047857;line-height:1.5;">The sender is using HVEL to protect your inbox from AI spam and phishing.</p>
-              </div>
-              <p style="margin:0 0 12px;font-size:14px;line-height:1.6;">To verify your own emails and earn the <strong>✅ Human Verified</strong> trust badge, download the free HVEL Chrome extension:</p>
-              <div style="text-align:center;margin:20px 0;">
-                <a href="https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa?utm_source=item-share-cb" style="display:inline-block;background:#6366f1;color:white;padding:13px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Install HVEL Extension — Free</a>
-              </div>
-            </div>
-            <div style="background:#f9fafb;padding:16px 30px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.6;">Verification ID: <strong>${verificationId}</strong><br/>Learn more at <a href="https://hvel.io" style="color:#6366f1;">hvel.io</a></p>
-            </div>
-          </div>`;
-
-        mainTransporter.sendMail({
-          from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
+        await sendTransactionalMail({
           to: recipientEmail,
-          subject: `✅ Human Verified Email Received from ${senderEmail}`,
-          html: inviteHtml
-        }, async (err) => {
-          if (err) { console.error("[HVEL API] ❌ Invite email error:", err); }
-          else {
-            console.log(`[HVEL API] ✅ Invite sent to ${recipientEmail} from ${senderEmail}`);
-            await pool.query(`INSERT INTO invite_log (sender_email, recipient_email) VALUES ($1, $2)`, [senderEmail.toLowerCase(), recipientEmail.toLowerCase()]);
-          }
+          subject: `Verified Email Received from ${senderEmail}`,
+          title: 'Human Verified Email Received',
+          mainContent: `You have just received an email from <strong>${senderEmail}</strong> that has been <strong>Human Verified</strong> via the Attest Security Layer.<br/><br/>Attest validates physical human intent in real time, confirming this email was composed by a physical human rather than an automated script or AI phishing tool.`,
+          buttonText: 'Install Attest Extension — Free',
+          buttonUrl: 'https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa',
+          footerNote: `Verification Reference: ${verificationId}`
+        }).then(() => {
+          console.log(`[HVEL API] ✅ Invite sent to ${recipientEmail} from ${senderEmail}`);
+          return pool.query(`INSERT INTO invite_log (sender_email, recipient_email) VALUES ($1, $2)`, [senderEmail.toLowerCase(), recipientEmail.toLowerCase()]);
+        }).catch(err => {
+          console.error("[HVEL API] ❌ Invite email error:", err.message);
         });
       } else {
         console.log(`[HVEL API] ⏭️ Invite skipped — already sent to ${recipientEmail} from ${senderEmail}`);
@@ -1415,79 +1437,17 @@ app.post('/api/notify-unverified-reply', async (req, res) => {
     const profileRes = await pool.query('SELECT full_name FROM profiles WHERE email = $1', [hvelUserEmail]);
     const senderName = profileRes.rows[0]?.full_name || hvelUserEmail;
 
-    const nudgeHtml = `
-      <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;max-width:600px;margin:20px auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-        <div style="background:linear-gradient(135deg,#007A5E,#059669);padding:40px 30px;text-align:center;color:white;">
-          <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:12px;border-radius:12px;margin-bottom:16px;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-          </div>
-          <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.025em;">Attest Identity Report</h2>
-          <p style="margin:8px 0 0;font-size:14px;opacity:0.9;font-weight:500;">Securing Your Communication with ${senderName}</p>
-        </div>
-        
-        <div style="padding:32px;">
-          <div style="margin-bottom:24px;">
-            <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Incident Details</p>
-            <div style="background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:16px;">
-              <table style="width:100%;font-size:14px;">
-                <tr><td style="color:#64748b;padding-bottom:4px;width:100px;">Recipient:</td><td style="font-weight:600;">${senderName}</td></tr>
-                <tr><td style="color:#64748b;padding-bottom:4px;">Time Detected:</td><td style="font-weight:600;">${timestamp}</td></tr>
-                <tr><td style="color:#64748b;">Status:</td><td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700;">UNVERIFIED</span></td></tr>
-              </table>
-            </div>
-          </div>
-
-          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">
-            Hello,<br/><br/>
-            This is an automated notification from <strong>Attest (Human Verified Email Layer)</strong>. 
-            An email sent from your address to <strong>${senderName}</strong> was flagged because it lacked a valid human verification stamp.
-          </p>
-
-          <div style="background:#fff7ed;border-left:4px solid #f97316;padding:16px;border-radius:4px 12px 12px 4px;margin-bottom:24px;">
-            <p style="margin:0;font-size:14px;color:#9a3412;line-height:1.5;">
-              <strong>Why this matters:</strong> To protect against AI-generated spam and phishing, ${senderName} uses Attest to ensure they only interact with verified humans. Unverified emails may be deprioritized or moved to junk.
-            </p>
-          </div>
-
-          <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">How to Restore Trust:</h3>
-          <div style="display:grid;gap:12px;">
-            <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">1. Install HVEL Extension</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Get the extension <a href="https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa?utm_source=item-share-cb" style="color:#007A5E;text-decoration:none;font-weight:600;">from the Chrome Web Store</a>.</p>
-            </div>
-            <div style="background:#f1f5f9;padding:16px;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#475569;">2. Link Your Account</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Click the Attest toolbar icon and sign in with your email to link your account.</p>
-            </div>
-            <div style="background:#ecfdf5;padding:16px;border:1px solid #d1fae5;border-radius:12px;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#059669;">3. Seamless Background Verification</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#065f46;">Attest automatically verifies your human intent in the background as you type. Simply click "Send" as normal to append your trust stamp.</p>
-            </div>
-          </div>
-
-          <div style="text-align:center;margin-top:32px;">
-            <a href="https://attest.page/verify" style="display:inline-block;background:#007A5E;color:white;padding:12px 32px;text-decoration:none;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 4px 6px -1px rgba(0, 122, 94, 0.4);">Open Attest Portal</a>
-          </div>
-        </div>
-
-        <div style="background:#f8fafc;padding:24px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-            This security report was generated for communication with ${hvelUserEmail}.<br/>
-            Attest Identity Protocol v2.4 | <a href="https://attest.page" style="color:#007A5E;text-decoration:none;">Learn More</a>
-          </p>
-        </div>
-      </div>
-    `;
-
-    console.log(`[SMTP] 📤 Sending nudge email to ${noExtUserEmail}...`);
-    const info = await hrmsTransporter.sendMail({
-      from: `"Attest Security" <${process.env.EMAIL_USER}>`,
+    console.log(`[SMTP] 📤 Sending security notification to ${noExtUserEmail}...`);
+    const info = await sendTransactionalMail({
       to: noExtUserEmail,
-      subject: `⚠️ Your reply to ${hvelUserEmail} was not Human Verified`,
-      headers: { 'X-Priority': '1 (Highest)', 'X-MSMail-Priority': 'High', 'Importance': 'high', 'X-Entity-Ref-ID': Date.now().toString() },
-      html: nudgeHtml
+      subject: `Security notice regarding your email to ${hvelUserEmail}`,
+      title: 'Attest Security Notice',
+      mainContent: `An email sent from your address to <strong>${senderName}</strong> was received without a cryptographic human verification stamp.<br/><br/>To protect against automated phishing and AI impersonation, ${senderName} uses the Attest Security Layer.`,
+      buttonText: 'Get Attest Extension — Free',
+      buttonUrl: 'https://chromewebstore.google.com/detail/emgidilonchdpmibbcjlbgkddmpcfmpa',
+      footerNote: `This notification was automatically sent for communication with ${hvelUserEmail}.`
     });
-    console.log(`[SMTP] ✅ Nudge email sent: ${info.messageId}`);
+    console.log(`[SMTP] ✅ Security notice sent`);
 
 
 
@@ -2473,39 +2433,14 @@ app.post('/api/aliases/request-otp', async (req, res) => {
       [aliasEmail, otp, expiresAt]
     );
 
-    const linkHtml = `
-      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;max-width:500px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <div style="background:#007A5E;padding:24px;text-align:center;color:white;">
-          <h2 style="margin:0;font-size:20px;font-weight:700;">HVEL Link Account Verification</h2>
-        </div>
-        <div style="padding:24px;text-align:center;">
-          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;"><strong>${authEmail}</strong> has requested to link your email address to their Attest account.</p>
-          <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">Use the verification code below to authorize this request. This code will expire in 5 minutes.</p>
-          <div style="background:#f3f4f6;padding:16px;font-size:32px;font-weight:800;letter-spacing:6px;border-radius:8px;color:#0f172a;display:inline-block;margin:10px 0;">${otp}</div>
-          <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">If you did not request this, you can safely ignore this email.</p>
-        </div>
-      </div>
-    `;
-
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      mainTransporter.sendMail({
-        from: `"HVEL Security" <${process.env.EMAIL_USER}>`,
-        replyTo: process.env.EMAIL_USER,
-        to: aliasEmail,
-        subject: `HVEL Account Link Code: ${otp}`,
-        text: `Your HVEL account link code is: ${otp}. It will expire in 5 minutes.`,
-        html: linkHtml,
-        headers: {
-          'X-Priority': '3 (Normal)',
-          'Importance': 'normal'
-        }
-      }, (err) => {
-        if (err) console.error('[ALIAS OTP] Email error:', err);
-        else console.log(`[ALIAS OTP] ✅ OTP email sent to alias: ${aliasEmail}`);
-      });
-    } else {
-      console.log(`[ALIAS OTP] ⚠️ Mailer not configured. OTP for alias ${aliasEmail} is: ${otp}`);
-    }
+    await sendTransactionalMail({
+      to: aliasEmail,
+      subject: `Authorize linked inbox on Attest: ${otp}`,
+      title: 'Link Email Inbox Authorization',
+      mainContent: `<strong>${authEmail}</strong> has requested to link this email address (<strong>${aliasEmail}</strong>) to their Attest account to share verified email capacity.<br/><br/>Use the verification code below to authorize linking:`,
+      code: otp,
+      footerNote: `If you did not authorize this request, you can safely ignore this message.`
+    }).catch(err => console.error('[ALIAS OTP] Send error:', err.message));
 
     res.json({ success: true, message: 'Verification code sent to alias email.' });
   } catch (err) {

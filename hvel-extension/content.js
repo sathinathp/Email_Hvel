@@ -531,6 +531,7 @@ document.addEventListener('click', async (e) => {
 
                         const realEmail = getSenderEmail();
                         const recipientEmail = getRecipientEmail(sendBtn);
+                        const emailSubject = getSubjectText(sendBtn);
                         
                         // Find compose body related to this send button
                         let composeBody = document.querySelector('div[aria-label="Message Body"]');
@@ -566,7 +567,7 @@ document.addEventListener('click', async (e) => {
                             }
 
                             showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
+                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -583,6 +584,7 @@ document.addEventListener('click', async (e) => {
                             type: verificationType,
                             senderEmail: realEmail,
                             recipientEmail: recipientEmail,
+                            subject: emailSubject,
                             contentHash: contentHash
                         }, (verifyRes) => {
                             try {
@@ -611,7 +613,7 @@ document.addEventListener('click', async (e) => {
                                         });
                                     }
                                     showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail });
+                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();
@@ -626,8 +628,11 @@ document.addEventListener('click', async (e) => {
                                         const extraData = {
                                             sender: realEmail,
                                             recipient: recipientEmail,
+                                            subject: emailSubject,
                                             verificationId: recordUrl ? recordUrl.split('/v/').pop() : null,
-                                            contentHash: contentHash
+                                            contentHash: contentHash,
+                                            status: isHuman ? 'VERIFIED' : 'WARNING',
+                                            proof: isHuman ? 'Level 3 · Cryptographic Human Verification' : 'Robotic / Automated Dispatch'
                                         };
 
                                         if (stampMode === 'hash_only' || !recordUrl) {
@@ -1446,24 +1451,62 @@ async function computeHash(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Extract recipient emails from the "To" field
+// Extract recipient emails from the "To" field (Gmail)
 function getRecipientEmail(sendBtn) {
-    const dialog = sendBtn.closest('div[role="dialog"]');
-    if (!dialog) return null;
+    const container = (sendBtn ? (sendBtn.closest('div[role="dialog"]') || sendBtn.closest('.AD') || sendBtn.closest('form') || sendBtn.closest('table[role="presentation"]') || sendBtn.closest('div[role="region"]') || sendBtn.closest('.M9')) : null) || document;
 
-    const recipientChips = dialog.querySelectorAll('div[role="listitem"] span[email], .vT');
-    if (recipientChips.length > 0) {
-        const email = recipientChips[0].getAttribute('email') || recipientChips[0].innerText.trim();
-        return email.includes('@') ? email : null;
+    // 1. Search for explicit email chips with email attribute or data-hovercard-id
+    const chips = container.querySelectorAll('span[email], div[data-hovercard-id], span[data-hovercard-id], div[role="listitem"] span[email], .vT, .vN, .vR, .afV, div[aria-label*="To"] span');
+    for (const chip of chips) {
+        const attrEmail = chip.getAttribute('email') || chip.getAttribute('data-hovercard-id') || chip.getAttribute('data-email');
+        if (attrEmail && attrEmail.includes('@')) {
+            const match = attrEmail.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            if (match) return match[0].toLowerCase().trim();
+        }
+        const textMatch = (chip.innerText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (textMatch) return textMatch[0].toLowerCase().trim();
     }
 
-    const recipientArea = dialog.querySelector('textarea[name="to"], input[name="to"]');
-    if (recipientArea && recipientArea.value) {
-        const match = recipientArea.value.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        return match ? match[0] : null;
+    // 2. Search inputs / textareas for "To"
+    const inputs = container.querySelectorAll('input[name="to"], textarea[name="to"], input[aria-label="To recipients"], input[aria-label*="To"], input[peoplekit-id], input[aria-haspopup="listbox"], input[type="text"]');
+    for (const inp of inputs) {
+        const val = inp.value || inp.getAttribute('value') || '';
+        const match = val.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+
+    // 3. Search in any To header section
+    const toHeader = container.querySelector('div[name="to"], tr[role="row"], div[role="region"][aria-label*="To"], td[aria-label*="To"], div[aria-label*="Search people"]');
+    if (toHeader) {
+        const match = (toHeader.innerText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match) return match[0].toLowerCase().trim();
+    }
+
+    // 4. Global fallback across dialog excluding sender
+    const sender = getSenderEmail();
+    const allMatches = (container.innerText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    for (const m of allMatches) {
+        const clean = m.toLowerCase().trim();
+        if (sender && clean === sender.toLowerCase().trim()) continue;
+        if (clean.includes('attest.page') || clean.includes('hvel.io') || clean.includes('google.com') || clean.includes('gstatic.com')) continue;
+        return clean;
     }
 
     return null;
+}
+
+// Extract subject line from Gmail compose dialog
+function getSubjectText(sendBtn) {
+    const container = (sendBtn ? (sendBtn.closest('div[role="dialog"]') || sendBtn.closest('.AD') || sendBtn.closest('form') || sendBtn.closest('table[role="presentation"]') || sendBtn.closest('div[role="region"]')) : null) || document;
+    const subjectInput = container.querySelector('input[name="subjectbox"], input[name="subject"], input[aria-label="Subject"], input[placeholder="Subject"], input[aria-label*="Subject"]');
+    if (subjectInput && subjectInput.value && subjectInput.value.trim()) {
+        return subjectInput.value.trim();
+    }
+    const threadHeader = document.querySelector('h2[data-thread-perm-id], h2.hP, div[role="main"] h2');
+    if (threadHeader && threadHeader.innerText && threadHeader.innerText.trim()) {
+        return threadHeader.innerText.trim();
+    }
+    return 'Attested Email Message';
 }
 
 

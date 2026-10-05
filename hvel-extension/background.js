@@ -328,6 +328,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         body: JSON.stringify({
           senderEmail: request.senderEmail || 'unknown-sender@gmail.com',
           recipientEmail: request.recipientEmail,
+          subject: request.subject,
           type: request.type,
           contentHash: request.contentHash
         })
