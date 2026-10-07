@@ -1,8 +1,13 @@
-# HumanAttest (HVEL): Universal Human Verification Protocol
+<div align="center">
+  <img src="logo.png" alt="Attest Logo" width="140" />
 
-HumanAttest is a robust, zero-trust authentication ecosystem designed to ensure "Proof of Humanity" for secure digital communications. It eliminates session hijacking and bot-driven emails through mandatory behavioral mouse-tracking analysis, specifically tailored for seamless Gmail integration.
+  # Attest (HVEL)
+  ### Universal Human Verification Protocol
+</div>
 
-![HumanAttest Logo](logo.png)
+Attest is a robust, zero-trust authentication ecosystem designed to ensure "Proof of Humanity" for secure digital communications. It eliminates session hijacking and bot-driven emails through mandatory behavioral mouse-tracking analysis, specifically tailored for seamless Gmail integration.
+
+
 
 ## 🚀 Overview
 
