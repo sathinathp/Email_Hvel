@@ -2966,32 +2966,20 @@ app.post('/api/audit-logs/delete', async (req, res) => {
 
 // POST /api/auth/change-password — authenticated password update
 app.post('/api/auth/change-password', async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Current password and new password are required.' });
-  }
-
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  const { newPassword } = req.body;
+  if (!newPassword) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'New password is required.' });
   }
 
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
-      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired. Please log in again.' });
+    const emailLower = await getAuthEmail(req);
+    if (!emailLower) {
+      return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
     }
-    const emailLower = sessionRes.rows[0].email.toLowerCase();
 
     const userRes = await pool.query('SELECT password_hash FROM users WHERE LOWER(email) = $1', [emailLower]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'User account not found.' });
-    }
-
-    const currentHash = userRes.rows[0].password_hash;
-    if (currentHash && !verifyPassword(currentPassword, currentHash)) {
-      return res.status(400).json({ error: 'INVALID_CURRENT_PASSWORD', message: 'Current password does not match.' });
     }
 
     const policyCheck = validatePasswordPolicy(newPassword);

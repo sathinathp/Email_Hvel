@@ -118,7 +118,6 @@ export default function PortalPage() {
   const [profileModalTab, setProfileModalTab] = useState<'profile' | 'password' | 'plan' | 'danger'>('profile');
 
   // Change Password Form State
-  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [showPasswordInputs, setShowPasswordInputs] = useState(false);
@@ -813,10 +812,6 @@ export default function PortalPage() {
     setChangePasswordError('');
     setChangePasswordSuccess('');
 
-    if (!currentPasswordInput) {
-      setChangePasswordError('Please enter your current password.');
-      return;
-    }
     if (newPasswordInput.length < 8) {
       setChangePasswordError('New password must be at least 8 characters long.');
       return;
@@ -837,7 +832,6 @@ export default function PortalPage() {
           'X-User-Email': currentUser.email.toLowerCase()
         },
         body: JSON.stringify({
-          currentPassword: currentPasswordInput,
           newPassword: newPasswordInput
         })
       });
@@ -845,7 +839,6 @@ export default function PortalPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setChangePasswordSuccess('Password updated successfully in database!');
-        setCurrentPasswordInput('');
         setNewPasswordInput('');
         setConfirmPasswordInput('');
         triggerToast('Password successfully updated!');
@@ -3057,7 +3050,7 @@ export default function PortalPage() {
             {profileModalTab === 'password' && (
               <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.4 }}>
-                  Update your Attest account password. This will directly synchronize with our database.
+                  Enter your new password below. It will be securely synchronized directly with our database.
                 </div>
 
                 {changePasswordError && (
@@ -3071,20 +3064,6 @@ export default function PortalPage() {
                     ✓ {changePasswordSuccess}
                   </div>
                 )}
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4, textTransform: 'uppercase' }}>
-                    Current Password
-                  </label>
-                  <input
-                    type={showPasswordInputs ? 'text' : 'password'}
-                    required
-                    placeholder="Enter current password"
-                    value={currentPasswordInput}
-                    onChange={(e) => { setCurrentPasswordInput(e.target.value); setChangePasswordError(''); }}
-                    style={{ width: '100%', padding: '9px 12px', border: '1px solid #CBD5E1', borderRadius: 8, fontSize: 13, outline: 'none' }}
-                  />
-                </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#334155', marginBottom: 4, textTransform: 'uppercase' }}>
@@ -3114,18 +3093,27 @@ export default function PortalPage() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B' }}>
-                  <input
-                    type="checkbox"
-                    id="showPassModal"
-                    checked={showPasswordInputs}
-                    onChange={(e) => setShowPasswordInputs(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="showPassModal" style={{ cursor: 'pointer' }}>Show password characters</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B' }}>
+                    <input
+                      type="checkbox"
+                      id="showPassModal"
+                      checked={showPasswordInputs}
+                      onChange={(e) => setShowPasswordInputs(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <label htmlFor="showPassModal" style={{ cursor: 'pointer' }}>Show password characters</label>
+                  </div>
+
+                  <Link
+                    href={`/forgot-password?email=${encodeURIComponent(currentUser.email || '')}`}
+                    style={{ fontSize: 12, color: '#007A5E', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    Forgot Password?
+                  </Link>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                   <button
                     type="submit"
                     disabled={isChangingPassword}
@@ -3147,7 +3135,6 @@ export default function PortalPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setCurrentPasswordInput('');
                       setNewPasswordInput('');
                       setConfirmPasswordInput('');
                       setChangePasswordError('');
@@ -3155,8 +3142,44 @@ export default function PortalPage() {
                     }}
                     style={{ padding: '10px 14px', background: '#F1F5F9', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                   >
-                    Reset
+                    Clear
                   </button>
+                </div>
+
+                {/* Direct Reset Password Flow Button */}
+                <div style={{
+                  borderTop: '1px solid #F1F5F9',
+                  paddingTop: 12,
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#F8FAFC',
+                  padding: '10px 12px',
+                  borderRadius: 8
+                }}>
+                  <div style={{ fontSize: 12, color: '#475569' }}>
+                    <strong>Need OTP verification?</strong>
+                    <div style={{ fontSize: 11, color: '#64748B' }}>Reset via 6-digit email code</div>
+                  </div>
+                  <Link
+                    href={`/forgot-password?email=${encodeURIComponent(currentUser.email || '')}`}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: '#007A5E',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    Reset Password →
+                  </Link>
                 </div>
               </form>
             )}

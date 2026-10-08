@@ -24,6 +24,17 @@ export default function ForgotPasswordPage() {
       : (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.page'))
   : (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.page');
 
+  // Pre-fill email from URL query param if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get('email');
+      if (emailParam) {
+        setEmail(emailParam);
+      }
+    }
+  }, []);
+
   // Timer countdown effect for resend OTP
   useEffect(() => {
     let interval: any = null;
