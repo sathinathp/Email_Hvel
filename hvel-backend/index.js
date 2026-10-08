@@ -3279,7 +3279,7 @@ app.post('/api/user/delete-account', async (req, res) => {
     await pool.query('DELETE FROM plan_quota_log WHERE LOWER(email) = $1', [emailLower]);
 
     // 6. Delete audit logs
-    await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1 OR LOWER(metadata->>'account') = $1', [emailLower]);
+    await pool.query("DELETE FROM audit_logs WHERE LOWER(user_email) = $1 OR LOWER(metadata->>'account') = $1", [emailLower]);
 
     // 7. Delete security alert logs
     await pool.query('DELETE FROM security_alert_log WHERE LOWER(recipient_email) = $1 OR LOWER(attacker_email) = $1', [emailLower]);

@@ -103,13 +103,32 @@ setInterval(checkBackendUrl, 10000);
 fetchAndCacheAliases('outlook');
 fetchAndCacheAliases('gmail');
 
+// Safe fetch helper that handles HTML / 502 Bad Gateway error pages from Nginx/Cloudflare gracefully
+async function safeFetchJson(url, options = {}) {
+  const r = await fetch(url, options);
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await r.text().catch(() => '');
+    if (r.status === 502 || r.status === 503 || r.status === 504) {
+      throw new Error(`Server is temporarily unavailable (${r.status} Bad Gateway). The Attest API service is offline.`);
+    }
+    if (r.status === 404) {
+      throw new Error(`API endpoint not found (${r.status}).`);
+    }
+    if (r.status >= 400) {
+      throw new Error(`Server returned error (${r.status}): ${text.substring(0, 100)}`);
+    }
+    throw new Error(`Non-JSON response (${r.status})`);
+  }
+  return r.json();
+}
+
 function fetchAndCacheAliases(siteType) {
   getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
     if (!res.hvel_auth_token) return;
-    fetch(`${API_BASE_URL}/api/aliases`, {
+    safeFetchJson(`${API_BASE_URL}/api/aliases`, {
       headers: { 'Authorization': `Bearer ${res.hvel_auth_token}` }
     })
-    .then(r => r.json())
     .then(data => {
       if (data && data.success && Array.isArray(data.aliases)) {
         chrome.storage.local.set({ hvel_linked_aliases: data.aliases });
@@ -129,8 +148,7 @@ function fetchAndCachePlanStatus(email, siteType) {
     if (res.hvel_auth_token) {
       headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
     }
-    fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
-      .then(r => r.json())
+    safeFetchJson(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
       .then(data => {
         if (data.success) {
           setPrefixedValues(siteType, {
@@ -162,12 +180,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'forgotPassword') {
-    fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    safeFetchJson(`${API_BASE_URL}/api/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email })
     })
-    .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
@@ -175,12 +192,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // ─── AUTHENTICATION ACTIONS ────────────────────────────────────────────────
   if (request.action === 'login') {
-    fetch(`${API_BASE_URL}/api/auth/login`, {
+    safeFetchJson(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email, password: request.password })
     })
-    .then(r => r.json())
     .then(data => {
       if (data.success) {
         setPrefixedValues(siteType, {
@@ -199,17 +215,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'sendLoginOtp') {
-    fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+    safeFetchJson(`${API_BASE_URL}/api/auth/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
       body: JSON.stringify({ email: request.email })
-    })
-    .then(r => {
-      const ct = r.headers.get('content-type') || '';
-      if (!ct.includes('application/json')) {
-        return r.text().then(t => { throw new Error(`Non-JSON response (${r.status}): ${t.substring(0,200)}`); });
-      }
-      return r.json();
     })
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
@@ -217,12 +226,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'verifyLoginOtp') {
-    fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+    safeFetchJson(`${API_BASE_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email, otp: request.otp })
     })
-    .then(r => r.json())
     .then(data => {
       if (data.success) {
         setPrefixedValues(siteType, {
@@ -241,12 +249,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'signup') {
-    fetch(`${API_BASE_URL}/api/auth/signup`, {
+    safeFetchJson(`${API_BASE_URL}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: request.email, password: request.password })
     })
-    .then(r => r.json())
     .then(data => {
       if (data.success) {
         setPrefixedValues(siteType, {
@@ -322,7 +329,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
       }
       
-      fetch(`${API_BASE_URL}/api/verify`, {
+      safeFetchJson(`${API_BASE_URL}/api/verify`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -333,7 +340,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           contentHash: request.contentHash
         })
       })
-      .then(response => response.json())
       .then(data => {
         if(data.success) {
           sendResponse({ success: true, url: data.data.verificationUrl });
@@ -343,7 +349,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
       .catch(error => {
         console.error("Error connecting to HVEL API:", error);
-        sendResponse({ success: false, error: 'Network Error' });
+        sendResponse({ success: false, error: error.message || 'Network Error' });
       });
     });
     
@@ -351,7 +357,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'validateVerification') {
-    fetch(`${API_BASE_URL}/api/validate`, {
+    safeFetchJson(`${API_BASE_URL}/api/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -360,7 +366,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         recipientEmail: request.recipientEmail
       })
     })
-    .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
@@ -368,7 +373,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'reportUnverifiedReply') {
     console.log(`[HVEL EXT] Reporting unverified reply from: ${request.noExtensionEmail}`);
-    fetch(`${API_BASE_URL}/api/notify-unverified-reply`, {
+    safeFetchJson(`${API_BASE_URL}/api/notify-unverified-reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -376,7 +381,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         noExtensionEmail: request.noExtensionEmail
       })
     })
-    .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
@@ -391,12 +395,11 @@ const userVerificationCache = new Map();
       return true;
     }
 
-    fetch(`${API_BASE_URL}/api/check-user-verified`, {
+    safeFetchJson(`${API_BASE_URL}/api/check-user-verified`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: normEmail })
     })
-    .then(r => r.json())
     .then(data => {
       const isVerified = !!(data && data.verified);
       userVerificationCache.set(normEmail, isVerified);
@@ -407,19 +410,18 @@ const userVerificationCache = new Map();
   }
 
   if (request.action === 'verifyHumanity') {
-    fetch(`${API_BASE_URL}/api/verify-human`, {
+    safeFetchJson(`${API_BASE_URL}/api/verify-human`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ points: request.points })
     })
-    .then(r => r.json())
     .then(data => sendResponse(data))
     .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
   if (request.action === 'reportSecurityAlert') {
-    fetch(`${API_BASE_URL}/api/report-security-alert`, {
+    safeFetchJson(`${API_BASE_URL}/api/report-security-alert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -442,8 +444,7 @@ const userVerificationCache = new Map();
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
       }
       
-      fetch(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
-        .then(r => r.json())
+      safeFetchJson(`${API_BASE_URL}/api/plan/status?email=${encodeURIComponent(email)}`, { headers })
         .then(data => {
           if (data.success) {
             setPrefixedValues(siteType, {
@@ -470,12 +471,11 @@ const userVerificationCache = new Map();
         headers['Authorization'] = `Bearer ${res.hvel_auth_token}`;
       }
       
-      fetch(`${API_BASE_URL}/api/plan/check-quota`, {
+      safeFetchJson(`${API_BASE_URL}/api/plan/check-quota`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ email: request.email, feature: request.feature })
       })
-      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(err => sendResponse({ success: false, allowed: true, error: err.message }));
     });
@@ -495,20 +495,19 @@ const userVerificationCache = new Map();
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
       }
-      fetch(`${API_BASE_URL}/api/audit-logs`, {
+      safeFetchJson(`${API_BASE_URL}/api/audit-logs`, {
         headers: {
           'Authorization': `Bearer ${res.hvel_auth_token}`
         }
       })
-      .then(r => r.json())
       .then(data => {
         if (data.success) {
           setPrefixedValues(siteType, {
-            hvel_stats_sent_stamped_link: data.stats.sent_stamped_link || 0,
-            hvel_stats_sent_stamped_hash: data.stats.sent_stamped_hash || 0,
-            hvel_stats_sent_unstamped: data.stats.sent_unstamped || 0,
-            hvel_stats_received_stamped: data.stats.received_stamped || 0,
-            hvel_stats_received_unstamped: data.stats.received_unstamped || 0,
+            hvel_stats_sent_stamped_link: data.stats?.sent_stamped_link || 0,
+            hvel_stats_sent_stamped_hash: data.stats?.sent_stamped_hash || 0,
+            hvel_stats_sent_unstamped: data.stats?.sent_unstamped || 0,
+            hvel_stats_received_stamped: data.stats?.received_stamped || 0,
+            hvel_stats_received_unstamped: data.stats?.received_unstamped || 0,
             hvel_audit_log: data.logs || []
           }, () => {
             sendResponse({ success: true, logs: data.logs, stats: data.stats });
@@ -573,7 +572,7 @@ const userVerificationCache = new Map();
         }
       }
 
-      fetch(`${API_BASE_URL}/api/audit-logs/log`, {
+      safeFetchJson(`${API_BASE_URL}/api/audit-logs/log`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -595,13 +594,12 @@ const userVerificationCache = new Map();
         sendResponse({ success: false });
         return;
       }
-      fetch(`${API_BASE_URL}/api/audit-logs/clear`, {
+      safeFetchJson(`${API_BASE_URL}/api/audit-logs/clear`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${res.hvel_auth_token}`
         }
       })
-      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(() => sendResponse({ success: false }));
     });
@@ -615,12 +613,11 @@ const userVerificationCache = new Map();
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
       }
-      fetch(`${API_BASE_URL}/api/aliases`, {
+      safeFetchJson(`${API_BASE_URL}/api/aliases`, {
         headers: {
           'Authorization': `Bearer ${res.hvel_auth_token}`
         }
       })
-      .then(r => r.json())
       .then(data => {
         if (data && data.success && Array.isArray(data.aliases)) {
           chrome.storage.local.set({ hvel_linked_aliases: data.aliases });
@@ -638,7 +635,7 @@ const userVerificationCache = new Map();
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
       }
-      fetch(`${API_BASE_URL}/api/aliases/request-otp`, {
+      safeFetchJson(`${API_BASE_URL}/api/aliases/request-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -646,7 +643,6 @@ const userVerificationCache = new Map();
         },
         body: JSON.stringify({ aliasEmail: request.aliasEmail })
       })
-      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(err => sendResponse({ success: false, error: err.message }));
     });
@@ -659,7 +655,7 @@ const userVerificationCache = new Map();
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
       }
-      fetch(`${API_BASE_URL}/api/aliases`, {
+      safeFetchJson(`${API_BASE_URL}/api/aliases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -667,7 +663,6 @@ const userVerificationCache = new Map();
         },
         body: JSON.stringify({ aliasEmail: request.aliasEmail, otp: request.otp })
       })
-      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(err => sendResponse({ success: false, error: err.message }));
     });
@@ -680,7 +675,7 @@ const userVerificationCache = new Map();
         sendResponse({ success: false, error: 'Not authenticated' });
         return;
       }
-      fetch(`${API_BASE_URL}/api/aliases`, {
+      safeFetchJson(`${API_BASE_URL}/api/aliases`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -688,7 +683,6 @@ const userVerificationCache = new Map();
         },
         body: JSON.stringify({ aliasEmail: request.aliasEmail })
       })
-      .then(r => r.json())
       .then(data => sendResponse(data))
       .catch(err => sendResponse({ success: false, error: err.message }));
     });
