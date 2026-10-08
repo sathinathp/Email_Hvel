@@ -655,22 +655,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Trust Indicators below the Buttons */}
-              <div style={{ marginTop: 28, display: 'flex', flexWrap: 'wrap', gap: '12px 24px', color: '#4B5563', fontSize: 13, fontWeight: 600 }}>
-                {[
-                  'Verify Human Participation',
-                  'Privacy-First Design',
-                  'Never Reads Email',
-                  'One Click Integration'
-                ].map((item) => (
-                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    {item}
-                  </div>
-                ))}
-              </div>
 
             </div>
 
@@ -827,6 +811,113 @@ export default function Home() {
               </div>
             </div>
 
+          </div>
+
+          {/* VERIFIED TRUST & COMPLIANCE STANDARDS (100% Seamless Continuous Infinite Marquee) */}
+          <div style={{ marginTop: 48, borderTop: '1px solid #E2E8F0', paddingTop: 28, textAlign: 'center', width: '100%' }}>
+            <p style={{ fontSize: 12, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 20 }}>
+              VERIFIED TRUST &amp; COMPLIANCE STANDARDS
+            </p>
+
+            <style dangerouslySetInnerHTML={{
+              __html: `
+              @keyframes seamless-hero-marquee {
+                0% { transform: translateX(0%); }
+                100% { transform: translateX(-100%); }
+              }
+              .hero-marquee-wrapper {
+                display: flex;
+                overflow: hidden;
+                user-select: none;
+                width: 100%;
+                position: relative;
+                mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+                -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+              }
+              .hero-marquee-track {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: space-around;
+                min-width: 100%;
+                gap: 64px;
+                padding-right: 64px;
+                animation: seamless-hero-marquee 22s linear infinite;
+              }
+              .hero-marquee-wrapper:hover .hero-marquee-track {
+                animation-play-state: paused;
+              }
+              .hero-marquee-badge-item {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.88;
+                transition: opacity 0.2s, transform 0.2s;
+              }
+              .hero-marquee-badge-item:hover {
+                opacity: 1;
+                transform: scale(1.08);
+              }
+            `}} />
+
+            <div className="hero-marquee-wrapper">
+              {/* TRACK 1 */}
+              <div className="hero-marquee-track">
+                <div className="hero-marquee-badge-item">
+                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+              </div>
+
+              {/* TRACK 2 (Cloned for seamless infinite continuity) */}
+              <div className="hero-marquee-track" aria-hidden="true">
+                <div className="hero-marquee-badge-item">
+                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+                <div className="hero-marquee-badge-item">
+                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -3448,83 +3539,6 @@ export default function Home() {
               </div>
             </div>
 
-          </div>
-
-          {/* ── TRUST & COMPLIANCE LOGOS (Redesigned to infinite marquee slider) ── */}
-          <div style={{ marginTop: 80, borderTop: '1px solid #E2E8F0', paddingTop: 48, textAlign: 'center' }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 28 }}>
-              VERIFIED TRUST &amp; COMPLIANCE STANDARDS
-            </p>
-
-            <style dangerouslySetInnerHTML={{
-              __html: `
-              @keyframes marquee-badges {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .marquee-badges-container {
-                overflow: hidden;
-                white-space: nowrap;
-                position: relative;
-                width: 100%;
-                margin-top: 40px;
-                padding: 10px 0;
-                display: flex;
-              }
-              .marquee-badges-inner {
-                display: flex;
-                width: max-content;
-                gap: 96px;
-                animation: marquee-badges 20s linear infinite;
-              }
-              .marquee-badges-inner:hover {
-                animation-play-state: paused;
-              }
-              .marquee-badge-item {
-                flex-shrink: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0.85;
-                transition: opacity 0.2s, transform 0.2s;
-              }
-              .marquee-badge-item:hover {
-                opacity: 1;
-                transform: scale(1.05);
-              }
-            `}} />
-
-            <div className="marquee-badges-container">
-              <div className="marquee-badges-inner">
-                {/* SET 1 */}
-                <div className="marquee-badge-item">
-                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-
-                {/* SET 2 (Duplicate for seamless wrapping) */}
-                <div className="marquee-badge-item">
-                  <img src="/aes-256.png" alt="AES-256 Encrypted" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/zero-data.png" alt="Zero Data Retention" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/soc2.png" alt="SOC 2 Ready" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-                <div className="marquee-badge-item">
-                  <img src="/gdpr.png" alt="GDPR Compliant" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
-                </div>
-              </div>
-            </div>
           </div>
 
         </div>
