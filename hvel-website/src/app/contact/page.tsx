@@ -10,8 +10,10 @@ const INQUIRY_TYPES = [
 ];
 
 const BACKEND_URL = (typeof window !== 'undefined' && window.location?.hostname)
-  ? `http://${window.location.hostname}:5000`
-  : (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000');
+  ? (['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.') || window.location.hostname.endsWith('.local')
+      ? `http://${window.location.hostname}:5000`
+      : (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.page'))
+  : (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.attest.page');
 
 const sharedStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');

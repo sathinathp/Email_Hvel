@@ -2777,18 +2777,11 @@ app.post('/api/audit-logs/log', async (req, res) => {
     return res.status(400).json({ error: 'type is required' });
   }
 
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const primaryEmail = await getAuthEmail(req);
+    if (!primaryEmail) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const primaryEmail = sessionRes.rows[0].email.toLowerCase();
     
     // Fetch valid aliases to determine target user_email
     const aliasRows = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [primaryEmail]);
@@ -2924,18 +2917,12 @@ app.post('/api/audit-logs/log', async (req, res) => {
 // POST /api/audit-logs/delete — delete selected audit logs or all logs for the user
 app.post('/api/audit-logs/delete', async (req, res) => {
   const { ids, all } = req.body;
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
 
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const emailLower = await getAuthEmail(req);
+    if (!emailLower) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const emailLower = sessionRes.rows[0].email.toLowerCase();
 
     // Get primary + alias emails
     const aliasRes = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [emailLower]);
@@ -3025,18 +3012,11 @@ app.post('/api/auth/change-password', async (req, res) => {
 
 // DELETE /api/audit-logs/clear — clears all audit logs for the user
 app.delete('/api/audit-logs/clear', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const email = await getAuthEmail(req);
+    if (!email) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const email = sessionRes.rows[0].email.toLowerCase();
 
     await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1', [email]);
 

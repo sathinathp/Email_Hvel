@@ -550,8 +550,21 @@ const userVerificationCache = new Map();
   }
 
   if (request.action === 'logAuditEvent') {
-    getPrefixedValues(siteType, ['hvel_auth_token', 'hvel_user_aliases'], (res) => {
-      if (!res.hvel_auth_token) {
+    chrome.storage.local.get([
+      'hvel_auth_token',
+      `${siteType}_hvel_auth_token`,
+      'gmail_hvel_auth_token',
+      'outlook_hvel_auth_token',
+      'hvel_auth_email',
+      `${siteType}_hvel_auth_email`,
+      'gmail_hvel_auth_email',
+      'outlook_hvel_auth_email',
+      'hvel_user_aliases',
+      `${siteType}_hvel_user_aliases`
+    ], (res) => {
+      const token = res[`${siteType}_hvel_auth_token`] || res.hvel_auth_token || res.gmail_hvel_auth_token || res.outlook_hvel_auth_token;
+      const userEmail = res[`${siteType}_hvel_auth_email`] || res.hvel_auth_email || res.gmail_hvel_auth_email || res.outlook_hvel_auth_email;
+      if (!token && !userEmail) {
         return;
       }
       const rawExtra = request.extra || {};
@@ -561,9 +574,9 @@ const userVerificationCache = new Map();
         client: rawExtra.client || (siteType === 'outlook' ? 'outlook' : 'gmail')
       });
 
-      // If on Outlook, resolve account to linked Outlook alias if extra.account is missing or primary Gmail
-      if (siteType === 'outlook' && Array.isArray(res.hvel_user_aliases)) {
-        const outlookAlias = res.hvel_user_aliases.find(a => {
+      const aliases = res[`${siteType}_hvel_user_aliases`] || res.hvel_user_aliases;
+      if (siteType === 'outlook' && Array.isArray(aliases)) {
+        const outlookAlias = aliases.find(a => {
           const low = (a || '').toLowerCase();
           return !low.endsWith('@gmail.com') && !low.endsWith('@googlemail.com');
         });
@@ -572,12 +585,13 @@ const userVerificationCache = new Map();
         }
       }
 
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (userEmail) headers['X-User-Email'] = userEmail;
+
       safeFetchJson(`${API_BASE_URL}/api/audit-logs/log`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${res.hvel_auth_token}`
-        },
+        headers: headers,
         body: JSON.stringify({
           type: request.type,
           email: request.email,

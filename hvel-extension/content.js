@@ -636,9 +636,9 @@ document.addEventListener('click', async (e) => {
                                         };
 
                                         if (stampMode === 'hash_only' || !recordUrl) {
-                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData, false);
+                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData, true);
                                         } else {
-                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData, false);
+                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData, true);
                                         }
 
                                         if (composeBody) {
