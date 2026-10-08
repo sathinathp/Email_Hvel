@@ -194,7 +194,7 @@ const sections = [
         <ul>
           <li>TLS 1.3 encryption during transmission</li>
           <li>AES-256 encryption for stored data</li>
-          <li>Encrypted PostgreSQL databases</li>
+          <li>Encrypted databases</li>
           <li>Multi-factor authentication for administrative access</li>
           <li>Access controls based on least privilege</li>
           <li>Continuous monitoring</li>

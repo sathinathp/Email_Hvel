@@ -1658,9 +1658,9 @@ section[id] {
 .responsive-video-showcase-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 28px;
+  gap: 20px;
   align-items: stretch;
-  margin-bottom: 48px;
+  margin-bottom: 24px;
 }
 @media (min-width: 1024px) {
   .responsive-video-showcase-grid {

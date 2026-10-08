@@ -31,7 +31,7 @@ export default function AuditEngine() {
           <div>
             <h2 style={{ fontSize:24, fontWeight:800, color:'#0F172A', marginBottom:12 }}>What Gets Logged</h2>
             <p style={{ color:'#64748B', lineHeight:1.75, marginBottom:20 }}>
-              Each verification event writes exactly one record to our PostgreSQL database.
+              Each verification event writes exactly one record to our database.
               The record contains only these four fields — nothing more:
             </p>
             <div style={{ background:'#0F172A', borderRadius:14, padding:28, fontFamily:'monospace', fontSize:13 }}>

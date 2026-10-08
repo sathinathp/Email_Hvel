@@ -551,10 +551,28 @@ const userVerificationCache = new Map();
   }
 
   if (request.action === 'logAuditEvent') {
-    getPrefixedValues(siteType, ['hvel_auth_token'], (res) => {
+    getPrefixedValues(siteType, ['hvel_auth_token', 'hvel_user_aliases'], (res) => {
       if (!res.hvel_auth_token) {
         return;
       }
+      const rawExtra = request.extra || {};
+      const extraPayload = Object.assign({}, rawExtra, {
+        siteType: siteType,
+        provider: rawExtra.provider || (siteType === 'outlook' ? 'outlook' : 'gmail'),
+        client: rawExtra.client || (siteType === 'outlook' ? 'outlook' : 'gmail')
+      });
+
+      // If on Outlook, resolve account to linked Outlook alias if extra.account is missing or primary Gmail
+      if (siteType === 'outlook' && Array.isArray(res.hvel_user_aliases)) {
+        const outlookAlias = res.hvel_user_aliases.find(a => {
+          const low = (a || '').toLowerCase();
+          return !low.endsWith('@gmail.com') && !low.endsWith('@googlemail.com');
+        });
+        if (outlookAlias && (!extraPayload.account || extraPayload.account.endsWith('@gmail.com') || extraPayload.account === 'unknown-outlook-sender@outlook.com')) {
+          extraPayload.account = outlookAlias.toLowerCase().trim();
+        }
+      }
+
       fetch(`${API_BASE_URL}/api/audit-logs/log`, {
         method: 'POST',
         headers: {
@@ -564,7 +582,7 @@ const userVerificationCache = new Map();
         body: JSON.stringify({
           type: request.type,
           email: request.email,
-          extra: request.extra
+          extra: extraPayload
         })
       }).catch(() => {});
     });

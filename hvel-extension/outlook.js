@@ -133,33 +133,75 @@ async function markVerified(email) {
     });
 }
 
+// Cached Outlook user email
+let cachedOutlookAccount = null;
+
+// Initialize linked Outlook account from extension storage if available
+try {
+    chrome.storage.local.get(['hvel_user_aliases', 'hvel_auth_email'], (storage) => {
+        const aliases = Array.isArray(storage.hvel_user_aliases) ? storage.hvel_user_aliases : [];
+        const outlookMatch = aliases.find(a => {
+            const low = (a || '').toLowerCase();
+            return !low.endsWith('@gmail.com') && !low.endsWith('@googlemail.com');
+        });
+        if (outlookMatch) {
+            cachedOutlookAccount = outlookMatch.toLowerCase().trim();
+        }
+    });
+} catch (e) {}
+
 // Extract actual user email and name from Outlook DOM
 function getSenderProfile() {
-    // Try all known selectors for the account manager / profile button in old & new OWA
+    // Try all known selectors for the account manager / profile button in old & new OWA / Cloud
     const selectors = [
         '#O365_MainLink_Me',
         'button[aria-label*="Account manager"]',
         'button[title*="Account manager"]',
+        'button[aria-label*="Account info"]',
+        'button[aria-label*="Account details"]',
+        'button[aria-label*="Current Account"]',
         '[data-automationid="meControl"]',
         '[aria-label*="My account"]',
         '[aria-label*="your account"]',
         'button[class*="meControl"]',
         'button[class*="MeControl"]',
-        // New Outlook on cloud.microsoft uses a different button
+        'div[id*="mectrl"]',
+        'button[id*="mectrl"]',
         'button[aria-label*="profile"]',
         'button[aria-label*="Profile"]',
         '[data-testid="meControl"]',
+        'div[data-log-name="Persona"]',
+        'button[data-automation-id="splitbutton"]',
+        'div[role="banner"] [title*="@"]',
+        'div[role="banner"] [aria-label*="@"]',
+        'header [title*="@"]',
+        'header [aria-label*="@"]'
     ];
 
     for (const sel of selectors) {
         const el = document.querySelector(sel);
         if (!el) continue;
-        const label = el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '';
+        const label = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-upn') || el.textContent || '';
         const emailMatch = label.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        if (emailMatch) {
+        if (emailMatch && !emailMatch[0].toLowerCase().endsWith('@gmail.com')) {
             return { email: emailMatch[0].toLowerCase(), name: null };
         }
     }
+
+    // Try finding email in sessionStorage
+    try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i) || '';
+            const v = sessionStorage.getItem(k) || '';
+            if (k.toLowerCase().includes('email') || k.toLowerCase().includes('user') || k.toLowerCase().includes('upn')) {
+                const match = v.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+                if (match && !match[0].toLowerCase().endsWith('@gmail.com')) {
+                    return { email: match[0].toLowerCase(), name: null };
+                }
+            }
+        }
+    } catch (e) {}
+
     return { email: null, name: null };
 }
 
@@ -197,7 +239,7 @@ function getSenderEmail() {
         const hdr = document.querySelector(sel);
         if (!hdr) continue;
         const match = hdr.innerHTML.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (match) return match[0].toLowerCase().trim();
+        if (match && !match[0].toLowerCase().endsWith('@gmail.com')) return match[0].toLowerCase().trim();
     }
 
     // 3. Meta tags (some OWA versions embed user email here)
@@ -205,7 +247,7 @@ function getSenderEmail() {
     for (const meta of metas) {
         const content = meta.getAttribute('content') || '';
         const match = content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (match) return match[0].toLowerCase().trim();
+        if (match && !match[0].toLowerCase().endsWith('@gmail.com')) return match[0].toLowerCase().trim();
     }
 
     // 4. Compose From field
@@ -216,13 +258,18 @@ function getSenderEmail() {
 
     // 5. Document title
     const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (titleMatch) return titleMatch[0].toLowerCase();
+    if (titleMatch && !titleMatch[0].toLowerCase().endsWith('@gmail.com')) return titleMatch[0].toLowerCase();
 
     // 6. URL-embedded user hint (some OWA URLs contain the UPN or tenant hints)
     const urlMatch = window.location.href.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (urlMatch) return urlMatch[0].toLowerCase();
+    if (urlMatch && !urlMatch[0].toLowerCase().endsWith('@gmail.com')) return urlMatch[0].toLowerCase();
 
-    // 7. cachedUserEmail if it's a real email (not placeholder or gmail)
+    // 7. cachedOutlookAccount from linked aliases
+    if (cachedOutlookAccount) {
+        return cachedOutlookAccount;
+    }
+
+    // 8. cachedUserEmail if it's a real email (not placeholder or gmail)
     if (cachedUserEmail &&
         !cachedUserEmail.endsWith('@gmail.com') &&
         !cachedUserEmail.endsWith('@googlemail.com') &&
@@ -727,9 +774,9 @@ document.addEventListener('click', async (e) => {
                                             proof: isHuman ? 'Level 3 · Cryptographic Human Verification' : 'Robotic / Automated Dispatch'
                                         };
                                         if (stampMode === 'hash_only' || !recordUrl) {
-                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData);
+                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData, false);
                                         } else {
-                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData);
+                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData, false);
                                         }
 
                                         if (composeBody) {
@@ -947,7 +994,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
             ">
                 <div>
                     <div style="display: flex; align-items: baseline; gap: 4px;">
-                        <span style="font-size: 26px; font-weight: 800; color: #10b981; letter-spacing: -0.03em;">$3</span>
+                        <span style="font-size: 26px; font-weight: 800; color: #10b981; letter-spacing: -0.03em;">$1</span>
                         <span style="font-size: 13px; color: #64748b; font-weight: 500;">/month</span>
                     </div>
                     <div style="margin-top: 2px;">
@@ -1196,6 +1243,7 @@ function injectHeaderBadge(cardContainer, bodyEl, senderEmail, status) {
 }
 
 // ─── PASSIVE INCOMING INBOX SCANNER ───
+const auditedSessionMessages = new Set();
 async function scanIncomingMessages() {
     // 1. Find all email body containers in the page — cover old OWA, new OWA (cloud.microsoft), and Outlook.com
     const bodies = document.querySelectorAll([
@@ -1341,17 +1389,46 @@ async function scanIncomingMessages() {
             senderEl = bodyEl.previousElementSibling || bodyEl.parentElement || bodyEl;
         }
 
-        // Resolve recipient: prefer DOM resolution, fall back to cached auth email
-        let recipientEmail = getCurrentUserEmail() || '';
-        if (!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com') {
-            recipientEmail = cachedUserEmail || '';
+        // Resolve recipient: 
+        // 1. Try extracting 'To:' recipient directly from the message header in DOM
+        let recipientEmail = '';
+        const recipientSelectors = [
+            '[aria-label*="To:"], [aria-label*="To "], [aria-label*="to:"]',
+            '[aria-label*="Cc:"], [aria-label*="Cc "], [aria-label*="cc:"]',
+            '[class*="recipient"], [class*="ToLine"], [class*="toLine"], [data-app-section="Recipient"]',
+            '[aria-label*="Recipients"], [aria-label*="recipients"]',
+            'div[role="region"] [title*="@"]',
+            'div[role="main"] [title*="@"]'
+        ];
+        for (const rSel of recipientSelectors) {
+            const rEl = cardContainer.querySelector(rSel) || document.querySelector(rSel);
+            if (rEl) {
+                const rText = rEl.getAttribute('title') || rEl.getAttribute('aria-label') || rEl.innerText || '';
+                const rMatch = rText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                if (rMatch && rMatch[0].toLowerCase() !== senderEmail.toLowerCase()) {
+                    recipientEmail = rMatch[0].toLowerCase().trim();
+                    break;
+                }
+            }
         }
+
+        // 2. Fall back to current Outlook user email detector
         if (!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com') {
-            // Last resort: try storage directly
-            recipientEmail = await new Promise(resolve => {
-                chrome.storage.local.get(['hvel_auth_email'], r => resolve(r.hvel_auth_email || ''));
-            });
+            recipientEmail = getCurrentUserEmail() || '';
         }
+
+        // 3. Fall back to cached Outlook account from user aliases
+        if ((!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com' || recipientEmail.endsWith('@gmail.com')) && cachedOutlookAccount) {
+            recipientEmail = cachedOutlookAccount;
+        }
+
+        // 4. Fall back to any non-gmail cachedUserEmail
+        if (!recipientEmail || recipientEmail === 'unknown-outlook-sender@outlook.com') {
+            if (cachedUserEmail && !cachedUserEmail.endsWith('@gmail.com') && !cachedUserEmail.endsWith('@googlemail.com')) {
+                recipientEmail = cachedUserEmail;
+            }
+        }
+
         const IGNORED_DOMAINS = [
             'google.com', 'googleapis.com', 'googlemail.com',
             'microsoft.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office.com', 'azure.com',
@@ -1371,6 +1448,56 @@ async function scanIncomingMessages() {
         // Only skip if sender matches recipient exactly (self-send) or domain is ignored
         const isSelfSend = recipientEmail && senderEmail.toLowerCase() === recipientEmail.toLowerCase();
         if (senderEmail && !isSelfSend && !isIgnoredDomain) {
+            // Extract Subject from Outlook DOM
+            let emailSubject = 'Incoming Communication';
+            const subjectCandidates = [
+                cardContainer.querySelector('[role="heading"]'),
+                document.querySelector('[role="heading"][aria-level="2"]'),
+                document.querySelector('div[aria-label*="Subject"]'),
+                document.querySelector('[data-app-section="Subject"]'),
+                cardContainer.querySelector('div[class*="Subject"], span[class*="Subject"], div[class*="subject"]'),
+                document.querySelector('div[class*="Subject"], span[class*="Subject"]')
+            ];
+            for (const sEl of subjectCandidates) {
+                if (sEl && sEl.innerText?.trim()) {
+                    emailSubject = sEl.innerText.trim();
+                    break;
+                }
+            }
+            if (emailSubject === 'Incoming Communication' && document.title && !document.title.toLowerCase().startsWith('outlook')) {
+                emailSubject = document.title.replace(/\s*-\s*Outlook.*$/i, '').trim();
+            }
+
+            // Extract Email Date / Exact Timestamp from Outlook DOM
+            let emailTimestamp = new Date().toISOString();
+            const timeSelectors = [
+                'span[title*="/"]',
+                'span[title*=":"]',
+                'span[aria-label*="/"]',
+                'span[aria-label*=":"]',
+                'div[aria-label*="Received"]',
+                'div[class*="Date"]',
+                'div[class*="date"]',
+                'span[class*="Date"]',
+                'span[class*="date"]',
+                'time'
+            ];
+            for (const tSel of timeSelectors) {
+                const tEl = cardContainer.querySelector(tSel) || document.querySelector(tSel);
+                if (tEl) {
+                    const titleAttr = tEl.getAttribute('title') || tEl.getAttribute('aria-label') || tEl.innerText || '';
+                    if (titleAttr && (titleAttr.includes('/') || titleAttr.includes(':') || titleAttr.includes('202') || titleAttr.includes('AM') || titleAttr.includes('PM'))) {
+                        const parsedDate = new Date(titleAttr);
+                        if (!isNaN(parsedDate.getTime())) {
+                            emailTimestamp = parsedDate.toISOString();
+                        } else {
+                            emailTimestamp = titleAttr.trim();
+                        }
+                        break;
+                    }
+                }
+            }
+
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
                 const verifyReceived = res.hvel_verify_received !== false;
                 console.log(`[HVEL OWA] Body #${idx}: Checking storage for hvel_verify_received: ${verifyReceived}`);
@@ -1390,17 +1517,43 @@ async function scanIncomingMessages() {
                         recipientEmail: recipientEmail
                     }, (response) => {
                         console.log(`[HVEL OWA] Body #${idx}: Validation result for ID ${id}:`, response);
+                        const msgAuditKey = `recv_${senderEmail}_${id || ''}_${(bodyEl.innerText || '').substring(0, 40)}`;
                         if (response && (response.status === 'verified' || response.status === 'tampered')) {
                             injectHeaderBadge(cardContainer, bodyEl, senderEmail, 'verified');
-                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                            if (!bodyEl.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail, verificationId: id });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_stamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    provider: 'outlook',
+                                    client: 'outlook',
+                                    siteType: 'outlook',
+                                    subject: 'Incoming Verified Communication',
+                                    emailTimestamp: emailTimestamp,
+                                    verificationId: id,
+                                    status: 'VERIFIED',
+                                    proof: 'Level 3 · Cryptographic Human Verification'
+                                });
                             }
                         } else {
                             injectHeaderBadge(cardContainer, bodyEl, senderEmail, 'unverified');
-                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                            if (!bodyEl.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_unstamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    provider: 'outlook',
+                                    client: 'outlook',
+                                    siteType: 'outlook',
+                                    subject: 'Incoming Standard Email',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'UNVERIFIED',
+                                    proof: 'Standard Unsigned Message'
+                                });
                             }
                         }
                     });
@@ -1408,17 +1561,42 @@ async function scanIncomingMessages() {
                     console.log(`[HVEL OWA] Body #${idx}: No trust badge link found. Checking user verification status for: ${senderEmail}`);
                     chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userRes) => {
                         const isVerifiedSender = !!(userRes && userRes.verified);
+                        const msgAuditKey = `recv_${senderEmail}_${isVerifiedSender ? 'ver' : 'unver'}_${(bodyEl.innerText || '').substring(0, 40)}`;
                         if (isVerifiedSender) {
                             injectHeaderBadge(cardContainer, bodyEl, senderEmail, 'verified');
-                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                            if (!bodyEl.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_stamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    provider: 'outlook',
+                                    client: 'outlook',
+                                    siteType: 'outlook',
+                                    subject: 'Incoming Verified Communication',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'VERIFIED',
+                                    proof: 'Level 3 · Cryptographic Human Verification'
+                                });
                             }
                         } else {
                             injectHeaderBadge(cardContainer, bodyEl, senderEmail, 'unverified');
-                            if (!bodyEl.hasAttribute('data-hvel-audited')) {
+                            if (!bodyEl.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 bodyEl.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_unstamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    provider: 'outlook',
+                                    client: 'outlook',
+                                    siteType: 'outlook',
+                                    subject: 'Incoming Standard Email',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'UNVERIFIED',
+                                    proof: 'Standard Unsigned Message'
+                                });
                             }
                         }
                     });
@@ -1772,7 +1950,7 @@ function scanAndStyleComposeRecipients() {
     });
 }
 
-function logAuditEvent(type, emailDetail, extra = null) {
+function logAuditEvent(type, emailDetail, extra = null, syncToBackend = true) {
     const key = `outlook_hvel_stats_${type}`;
     chrome.storage.local.get([key, 'outlook_hvel_audit_log', 'hvel_auth_token'], (res) => {
         const count = (res[key] || 0) + 1;
@@ -1789,14 +1967,16 @@ function logAuditEvent(type, emailDetail, extra = null) {
             [key]: count,
             outlook_hvel_audit_log: updatedLog
         }, () => {
-            try {
-                chrome.runtime.sendMessage({
-                    action: 'logAuditEvent',
-                    type: type,
-                    email: emailDetail,
-                    extra: extra
-                });
-            } catch (err) {}
+            if (syncToBackend) {
+                try {
+                    chrome.runtime.sendMessage({
+                        action: 'logAuditEvent',
+                        type: type,
+                        email: emailDetail,
+                        extra: extra
+                    });
+                } catch (err) {}
+            }
         });
     });
 }

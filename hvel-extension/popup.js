@@ -50,6 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const userPlanBtn = document.getElementById('userPlanBtn');
     const closePlanDrawerBtn = document.getElementById('closePlanDrawerBtn');
     const planDetailsDrawer = document.getElementById('planDetailsDrawer');
+    const headerUserPill = document.getElementById('headerUserPill');
+    const profileDropdownMenu = document.getElementById('profileDropdownMenu');
+    const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
 
     if (stampModeSelect) {
       stampModeSelect.addEventListener('change', () => {
@@ -62,6 +65,25 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const isVisible = planDetailsDrawer.style.display === 'flex';
         planDetailsDrawer.style.display = isVisible ? 'none' : 'flex';
+      });
+    }
+    if (headerUserPill && profileDropdownMenu) {
+      headerUserPill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isShown = profileDropdownMenu.style.display === 'flex';
+        profileDropdownMenu.style.display = isShown ? 'none' : 'flex';
+      });
+
+      document.addEventListener('click', (e) => {
+        if (profileDropdownMenu.style.display === 'flex' && !profileDropdownMenu.contains(e.target) && !headerUserPill.contains(e.target)) {
+          profileDropdownMenu.style.display = 'none';
+        }
+      });
+    }
+    if (dropdownLogoutBtn) {
+      dropdownLogoutBtn.addEventListener('click', () => {
+        if (profileDropdownMenu) profileDropdownMenu.style.display = 'none';
+        handleLogout();
       });
     }
     if (closePlanDrawerBtn && planDetailsDrawer) {
@@ -639,8 +661,13 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
   const proActiveLabel = document.getElementById('proActiveLabel');
 
   const avatarInitial = document.getElementById('userAvatarInitial');
+  const headerAvatarInitial = document.getElementById('headerAvatarInitial');
+  const initialChar = email ? email.trim()[0].toUpperCase() : 'H';
   if (avatarInitial) {
-    avatarInitial.innerText = email ? email.trim()[0].toUpperCase() : 'U';
+    avatarInitial.innerText = initialChar;
+  }
+  if (headerAvatarInitial) {
+    headerAvatarInitial.innerText = initialChar;
   }
 
   if (emailSpan) emailSpan.innerText = email;
@@ -689,9 +716,48 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
   if (usageSpan) {
     usageSpan.innerText = `Daily verifications: ${used} / ${limit} used`;
   }
+
+  // Populate floating profile dropdown
+  const dropdownAvatarInitial = document.getElementById('dropdownAvatarInitial');
+  const dropdownUserName = document.getElementById('dropdownUserName');
+  const dropdownUserEmail = document.getElementById('dropdownUserEmail');
+  const dropdownPlanTier = document.getElementById('dropdownPlanTier');
+
+  if (dropdownAvatarInitial) dropdownAvatarInitial.innerText = initialChar;
+  if (dropdownUserEmail) dropdownUserEmail.innerText = email || '—';
+  if (dropdownUserName) dropdownUserName.innerText = email ? email.split('@')[0] : 'Verified User';
+  if (dropdownPlanTier) dropdownPlanTier.innerText = isPro ? (planKey === 'enterprise' ? 'Enterprise' : 'Professional') : 'Free';
   
   // Update the aliases view (locked vs active) based on the loaded plan
   updateAliasesUI(isAlias, primaryEmail);
+}
+
+function updateSiteTypeUI() {
+  const iconSlot = document.getElementById('platformIconSlot');
+  const nameText = document.getElementById('platformNameText');
+  if (!iconSlot || !nameText) return;
+
+  if (currentSiteType === 'outlook') {
+    nameText.innerText = 'Outlook';
+    nameText.style.color = '#0078D4';
+    iconSlot.innerHTML = `
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="4" width="18" height="16" rx="3" fill="#0078D4" opacity="0.15"/>
+        <rect x="3" y="4" width="18" height="16" rx="3" stroke="#0078D4" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="4" stroke="#0078D4" stroke-width="1.8"/>
+      </svg>
+    `;
+  } else {
+    nameText.innerText = 'Gmail';
+    nameText.style.color = '#EA4335';
+    iconSlot.innerHTML = `
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6Z" fill="#EA4335" opacity="0.15"/>
+        <path d="M20 4H4C2.9 4 2 4.9 2 6L12 13L22 6C22 4.9 21.1 4 20 4Z" fill="#EA4335"/>
+        <path d="M2 18V6L12 13L22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18Z" stroke="#EA4335" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+    `;
+  }
 }
 
 function showAuthMessage(text, isError = true) {
@@ -1153,17 +1219,41 @@ function showAuditDetailModal(entry) {
   modal.style.display = 'flex';
 }
 
-// ─── SYNC WEB PORTAL ACCESS ────────────────────────────────────────────────
+// ─── PORTAL CONFIGURATION (Production & Localhost URLs) ─────────────────────
+const PROD_PORTAL_BASE = 'https://attest.page';
+const LOCAL_PORTAL_BASE = 'http://localhost:3000';
+
+// Set to LOCAL_PORTAL_BASE to test against local Next.js dev server, or PROD_PORTAL_BASE for live
+const ACTIVE_PORTAL_BASE = PROD_PORTAL_BASE;
+
+function buildPortalUrl(baseUrl, token, email) {
+  let url = `${baseUrl}/portal`;
+  if (token && email) {
+    url = `${baseUrl}/portal?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  }
+  return url;
+}
+
 const openPortalBtn = document.getElementById('openPortalBtn');
 if (openPortalBtn) {
   openPortalBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    chrome.storage.local.get(['hvel_auth_token', 'hvel_auth_email'], (res) => {
-      let portalUrl = 'https://attest.page/portal';
-      if (res.hvel_auth_token && res.hvel_auth_email) {
-        portalUrl = `https://attest.page/portal?token=${encodeURIComponent(res.hvel_auth_token)}&email=${encodeURIComponent(res.hvel_auth_email)}`;
-      }
-      chrome.tabs.create({ url: portalUrl });
+    chrome.storage.local.get(['hvel_auth_token', 'hvel_auth_email', 'hvel_primary_email', 'gmail_hvel_auth_token', 'outlook_hvel_auth_token'], (res) => {
+      const token = res.hvel_auth_token || res.gmail_hvel_auth_token || res.outlook_hvel_auth_token;
+      const email = res.hvel_auth_email || res.hvel_primary_email;
+      chrome.tabs.create({ url: buildPortalUrl(ACTIVE_PORTAL_BASE, token, email) });
+    });
+  });
+}
+
+const dropdownPortalLink = document.getElementById('dropdownPortalLink');
+if (dropdownPortalLink) {
+  dropdownPortalLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.storage.local.get(['hvel_auth_token', 'hvel_auth_email', 'hvel_primary_email', 'gmail_hvel_auth_token', 'outlook_hvel_auth_token'], (res) => {
+      const token = res.hvel_auth_token || res.gmail_hvel_auth_token || res.outlook_hvel_auth_token;
+      const email = res.hvel_auth_email || res.hvel_primary_email;
+      chrome.tabs.create({ url: buildPortalUrl(ACTIVE_PORTAL_BASE, token, email) });
     });
   });
 }

@@ -18,7 +18,9 @@ export default function ForgotPasswordPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const API_BASE = (typeof window !== 'undefined' && window.location?.hostname)
+    ? `http://${window.location.hostname}:5000`
+    : (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000');
 
   // Timer countdown effect for resend OTP
   useEffect(() => {

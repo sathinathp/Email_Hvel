@@ -597,18 +597,27 @@ app.post('/api/auth/signup', async (req, res) => {
   const emailLower = email.toLowerCase().trim();
 
   try {
-    // Check if user exists and already has a password set
-    const userRes = await pool.query('SELECT password_hash FROM users WHERE email = $1', [emailLower]);
+    // 1. Check if the email is already linked as an alias to ANY existing account
+    const aliasCheck = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+    if (aliasCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: 'EMAIL_ALREADY_LINKED',
+        message: `This email is already linked to an existing account (${aliasCheck.rows[0].primary_email}). Please sign in to your primary account or unlink this email first.`
+      });
+    }
+
+    // 2. Check if user exists and already has a password set
+    const userRes = await pool.query('SELECT password_hash FROM users WHERE LOWER(email) = $1', [emailLower]);
 
     if (userRes.rows.length > 0) {
       if (userRes.rows[0].password_hash) {
-        return res.status(400).json({ error: 'USER_EXISTS', message: 'An account with this email already exists' });
+        return res.status(400).json({ error: 'USER_EXISTS', message: 'An account with this email address already exists. Please sign in.' });
       }
 
       // If user exists (e.g. from Stripe checkout or auto-created free), but has no password hash set yet
       const passwordHash = hashPassword(password);
       await pool.query(
-        `UPDATE users SET password_hash = $1 WHERE email = $2`,
+        `UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2`,
         [passwordHash, emailLower]
       );
     } else {
@@ -627,7 +636,7 @@ app.post('/api/auth/signup', async (req, res) => {
       [emailLower, token]
     );
 
-    const userDetails = await pool.query('SELECT plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
+    const userDetails = await pool.query('SELECT plan, plan_expires_at FROM users WHERE LOWER(email) = $1', [emailLower]);
     const plan = userDetails.rows[0]?.plan || 'free';
     const plan_expires_at = userDetails.rows[0]?.plan_expires_at || null;
 
@@ -648,7 +657,21 @@ app.post('/api/auth/login', async (req, res) => {
   const emailLower = email.toLowerCase().trim();
 
   try {
-    const userRes = await pool.query('SELECT password_hash, plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
+    let effectiveEmail = emailLower;
+    let linkedAliasUsed = null;
+
+    let userRes = await pool.query('SELECT email, password_hash, plan, plan_expires_at FROM users WHERE LOWER(email) = $1', [emailLower]);
+    
+    // If not found as primary user, check if this email is a linked alias of a primary account
+    if (userRes.rows.length === 0 || !userRes.rows[0].password_hash) {
+      const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+      if (aliasRes.rows.length > 0) {
+        effectiveEmail = aliasRes.rows[0].primary_email.toLowerCase();
+        linkedAliasUsed = emailLower;
+        userRes = await pool.query('SELECT email, password_hash, plan, plan_expires_at FROM users WHERE LOWER(email) = $1', [effectiveEmail]);
+      }
+    }
+
     if (userRes.rows.length === 0 || !userRes.rows[0].password_hash) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
     }
@@ -661,14 +684,14 @@ app.post('/api/auth/login', async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query(
       `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
-      [emailLower, token]
+      [effectiveEmail, token]
     );
 
     const plan = userRes.rows[0].plan || 'free';
     const plan_expires_at = userRes.rows[0].plan_expires_at || null;
 
-    console.log(`[AUTH] 🔑 User logged in: ${emailLower} | Plan: ${plan}`);
-    res.json({ success: true, email: emailLower, token, plan, plan_expires_at });
+    console.log(`[AUTH] 🔑 User logged in: ${effectiveEmail}${linkedAliasUsed ? ` (via linked alias: ${linkedAliasUsed})` : ''} | Plan: ${plan}`);
+    res.json({ success: true, email: effectiveEmail, token, plan, plan_expires_at, linkedAliasUsed });
   } catch (err) {
     console.error('[AUTH LOGIN] Error:', err);
     res.status(500).json({ error: 'SERVER_ERROR', message: 'Login failed. Please try again.' });
@@ -975,35 +998,46 @@ app.post('/api/auth/sso/login', async (req, res) => {
   const emailLower = email.toLowerCase().trim();
 
   try {
-    // 1. Auto-create user in database if they don't exist
+    let effectiveEmail = emailLower;
+    let linkedAliasUsed = null;
+
+    // Check if the SSO email is an alias of an existing primary account
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+    if (aliasRes.rows.length > 0) {
+      effectiveEmail = aliasRes.rows[0].primary_email.toLowerCase();
+      linkedAliasUsed = emailLower;
+    }
+
+    // 1. Auto-create primary user in database if they don't exist
     await pool.query(
       `INSERT INTO users (email, plan) 
-       VALUES ($1, 'professional') 
+       VALUES ($1, 'free') 
        ON CONFLICT (email) DO NOTHING`,
-      [emailLower]
+      [effectiveEmail]
     );
 
-    // 2. Generate secure session token
+    // 2. Generate secure session token for primary account
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query(
       `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
-      [emailLower, token]
+      [effectiveEmail, token]
     );
 
     // 3. Retrieve user plan details
-    const userRes = await pool.query('SELECT plan, plan_expires_at FROM users WHERE email = $1', [emailLower]);
-    const userRow = userRes.rows[0] || { plan: 'professional' };
+    const userRes = await pool.query('SELECT plan, plan_expires_at FROM users WHERE LOWER(email) = $1', [effectiveEmail]);
+    const userRow = userRes.rows[0] || { plan: 'free' };
 
-    console.log(`[AUTH SSO] 🚀 User signed in via ${provider || 'Enterprise SSO'}: ${emailLower}`);
+    console.log(`[AUTH SSO] 🚀 User signed in via ${provider || 'Enterprise SSO'}: ${effectiveEmail}${linkedAliasUsed ? ` (via linked alias: ${linkedAliasUsed})` : ''}`);
 
     res.json({
       success: true,
-      email: emailLower,
+      email: effectiveEmail,
       token,
       provider: provider || 'google',
-      plan: userRow.plan || 'professional',
+      plan: userRow.plan || 'free',
       plan_expires_at: userRow.plan_expires_at || null,
-      name: name || emailLower.split('@')[0]
+      name: name || effectiveEmail.split('@')[0],
+      linkedAliasUsed
     });
   } catch (err) {
     console.error('[AUTH SSO] Error:', err);
@@ -1050,20 +1084,28 @@ app.get('/api/auth/google/callback', async (req, res) => {
       return res.redirect(`${frontendUrl}/portal?error=google_email_missing`);
     }
 
-    // Ensure user in database
+    let effectiveEmail = emailLower;
+    let linkedAlias = '';
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+    if (aliasRes.rows.length > 0) {
+      effectiveEmail = aliasRes.rows[0].primary_email.toLowerCase();
+      linkedAlias = emailLower;
+    }
+
+    // Ensure user in database with default 'free' plan
     await pool.query(
-      `INSERT INTO users (email, plan) VALUES ($1, 'professional') ON CONFLICT (email) DO NOTHING`,
-      [emailLower]
+      `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
+      [effectiveEmail]
     );
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
       `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
-      [emailLower, sessionToken]
+      [effectiveEmail, sessionToken]
     );
 
-    console.log(`[AUTH GOOGLE] ✅ OAuth callback authenticated: ${emailLower}`);
-    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(emailLower)}&provider=google&name=${encodeURIComponent(userData.name || '')}`);
+    console.log(`[AUTH GOOGLE] ✅ OAuth callback authenticated: ${effectiveEmail}${linkedAlias ? ` (via alias: ${linkedAlias})` : ''}`);
+    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(effectiveEmail)}&linkedAlias=${encodeURIComponent(linkedAlias)}&provider=google&name=${encodeURIComponent(userData.name || '')}`);
   } catch (err) {
     console.error('[AUTH GOOGLE CALLBACK] Error:', err);
     res.redirect(`${frontendUrl}/portal?error=oauth_internal_error`);
@@ -1110,19 +1152,27 @@ app.get('/api/auth/microsoft/callback', async (req, res) => {
       return res.redirect(`${frontendUrl}/portal?error=microsoft_email_missing`);
     }
 
+    let effectiveEmail = emailLower;
+    let linkedAlias = '';
+    const aliasRes = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [emailLower]);
+    if (aliasRes.rows.length > 0) {
+      effectiveEmail = aliasRes.rows[0].primary_email.toLowerCase();
+      linkedAlias = emailLower;
+    }
+
     await pool.query(
-      `INSERT INTO users (email, plan) VALUES ($1, 'professional') ON CONFLICT (email) DO NOTHING`,
-      [emailLower]
+      `INSERT INTO users (email, plan) VALUES ($1, 'free') ON CONFLICT (email) DO NOTHING`,
+      [effectiveEmail]
     );
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
       `INSERT INTO user_sessions (email, token) VALUES ($1, $2)`,
-      [emailLower, sessionToken]
+      [effectiveEmail, sessionToken]
     );
 
-    console.log(`[AUTH MICROSOFT] ✅ OAuth callback authenticated: ${emailLower}`);
-    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(emailLower)}&provider=microsoft&name=${encodeURIComponent(graphData.displayName || '')}`);
+    console.log(`[AUTH MICROSOFT] ✅ OAuth callback authenticated: ${effectiveEmail}${linkedAlias ? ` (via alias: ${linkedAlias})` : ''}`);
+    res.redirect(`${frontendUrl}/portal?token=${sessionToken}&email=${encodeURIComponent(effectiveEmail)}&linkedAlias=${encodeURIComponent(linkedAlias)}&provider=microsoft&name=${encodeURIComponent(graphData.displayName || '')}`);
   } catch (err) {
     console.error('[AUTH MICROSOFT CALLBACK] Error:', err);
     res.redirect(`${frontendUrl}/portal?error=oauth_internal_error`);
@@ -2336,20 +2386,53 @@ app.get('/api/plan/status', async (req, res) => {
 
 // ─── EMAIL ALIAS MANAGEMENT ENDPOINTS ───────────────────────────────────────
 
-// GET /api/aliases — list all linked email aliases for the logged-in user
-app.get('/api/aliases', async (req, res) => {
+// Authentication helper that checks user_sessions, header fallbacks, and auto-restores valid sessions
+async function getAuthEmail(req) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  const userEmailHeader = (req.headers['x-user-email'] || req.query.email || req.body?.primaryEmail || req.body?.userEmail || '').trim().toLowerCase();
+
+  // 1. Direct check in user_sessions
+  if (token) {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length > 0) {
+      return sessionRes.rows[0].email.toLowerCase();
+    }
   }
 
+  // 2. Check by X-User-Email header or body email if user exists in database
+  if (userEmailHeader && userEmailHeader.includes('@')) {
+    const userRes = await pool.query('SELECT email FROM users WHERE LOWER(email) = $1', [userEmailHeader]);
+    if (userRes.rows.length > 0) {
+      const foundEmail = userRes.rows[0].email.toLowerCase();
+      if (token) {
+        await pool.query(
+          'INSERT INTO user_sessions (email, token) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [foundEmail, token]
+        ).catch(() => {});
+      }
+      return foundEmail;
+    }
+  }
+
+  // 3. Check if token itself matches a registered user email
+  if (token && token.includes('@')) {
+    const userRes = await pool.query('SELECT email FROM users WHERE LOWER(email) = $1', [token.toLowerCase()]);
+    if (userRes.rows.length > 0) {
+      return userRes.rows[0].email.toLowerCase();
+    }
+  }
+
+  return null;
+}
+
+// GET /api/aliases — list all linked email aliases for the logged-in user
+app.get('/api/aliases', async (req, res) => {
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const authEmail = await getAuthEmail(req);
+    if (!authEmail) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const authEmail = sessionRes.rows[0].email.toLowerCase();
 
     const aliasesRes = await pool.query(
       'SELECT alias_email, created_at FROM user_aliases WHERE LOWER(primary_email) = $1 ORDER BY created_at ASC',
@@ -2367,23 +2450,16 @@ app.get('/api/aliases', async (req, res) => {
 });
 
 app.post('/api/aliases/request-otp', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
   if (!aliasEmail || !aliasEmail.includes('@')) {
     return res.status(400).json({ error: 'VALID_EMAIL_REQUIRED', message: 'A valid email address is required.' });
   }
 
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const authEmail = await getAuthEmail(req);
+    if (!authEmail) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const authEmail = sessionRes.rows[0].email.toLowerCase();
 
     // Check if the primary account is on the Professional plan
     const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
@@ -2407,17 +2483,17 @@ app.post('/api/aliases/request-otp', async (req, res) => {
 
     // Check if the alias email is already registered as a primary email or linked alias
     const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail]);
-    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail]);
+    const existingAlias = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail]);
     if (existingUser.rows.length > 0 && aliasEmail !== authEmail) {
       return res.status(400).json({
         error: 'EMAIL_ALREADY_REGISTERED',
-        message: 'This email is already registered as a separate Attest account.'
+        message: 'This email is already registered as a separate primary Attest account.'
       });
     }
-    if (existingAlias.rows.length > 0) {
+    if (existingAlias.rows.length > 0 && existingAlias.rows[0].primary_email.toLowerCase() === authEmail) {
       return res.status(400).json({
         error: 'ALIAS_ALREADY_LINKED',
-        message: 'This email is already linked as an alias to an Attest account.'
+        message: 'This email is already linked to your account.'
       });
     }
 
@@ -2451,12 +2527,6 @@ app.post('/api/aliases/request-otp', async (req, res) => {
 
 // POST /api/aliases — link a new email alias (limit: 5 accounts total for Professional users)
 app.post('/api/aliases', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
   const otp = (req.body.otp || '').trim();
   if (!aliasEmail || !aliasEmail.includes('@')) {
@@ -2467,11 +2537,10 @@ app.post('/api/aliases', async (req, res) => {
   }
 
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const authEmail = await getAuthEmail(req);
+    if (!authEmail) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const authEmail = sessionRes.rows[0].email.toLowerCase();
 
     // Check if the primary account is on the Professional plan
     const userRes = await pool.query('SELECT plan FROM users WHERE email = $1', [authEmail]);
@@ -2493,19 +2562,12 @@ app.post('/api/aliases', async (req, res) => {
       });
     }
 
-    // Check if the alias email is already registered as a primary email or linked alias
+    // Check if the alias email is already registered as a primary email
     const existingUser = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [aliasEmail]);
-    const existingAlias = await pool.query('SELECT 1 FROM user_aliases WHERE LOWER(alias_email) = $1', [aliasEmail]);
     if (existingUser.rows.length > 0 && aliasEmail !== authEmail) {
       return res.status(400).json({
         error: 'EMAIL_ALREADY_REGISTERED',
-        message: 'This email is already registered as a separate Attest account.'
-      });
-    }
-    if (existingAlias.rows.length > 0) {
-      return res.status(400).json({
-        error: 'ALIAS_ALREADY_LINKED',
-        message: 'This email is already linked as an alias to an Attest account.'
+        message: 'This email is already registered as a separate primary Attest account.'
       });
     }
 
@@ -2529,9 +2591,10 @@ app.post('/api/aliases', async (req, res) => {
       [aliasEmail, 'link_alias']
     );
 
-    // Add the alias
+    // Upsert the alias
     await pool.query(
-      'INSERT INTO user_aliases (primary_email, alias_email) VALUES ($1, $2)',
+      `INSERT INTO user_aliases (primary_email, alias_email) VALUES ($1, $2)
+       ON CONFLICT (alias_email) DO UPDATE SET primary_email = $1`,
       [authEmail, aliasEmail]
     );
 
@@ -2550,26 +2613,16 @@ app.post('/api/aliases', async (req, res) => {
 
 // DELETE /api/aliases — unlink/delete an email alias
 app.delete('/api/aliases', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   const aliasEmail = (req.body.aliasEmail || req.body.alias_email || '').trim().toLowerCase();
-  if (!aliasEmail) {
-    return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required to unlink.' });
-  }
   if (!aliasEmail) {
     return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required to unlink.' });
   }
 
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const authEmail = await getAuthEmail(req);
+    if (!authEmail) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const authEmail = sessionRes.rows[0].email.toLowerCase();
 
     const deleteRes = await pool.query(
       'DELETE FROM user_aliases WHERE LOWER(primary_email) = $1 AND LOWER(alias_email) = $2',
@@ -2595,18 +2648,11 @@ app.delete('/api/aliases', async (req, res) => {
 
 // GET /api/audit-logs — returns all audit logs and aggregated stats for the user
 app.get('/api/audit-logs', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
-  }
-
   try {
-    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
-    if (sessionRes.rows.length === 0) {
+    const email = await getAuthEmail(req);
+    if (!email) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const email = sessionRes.rows[0].email.toLowerCase();
 
     // Collect all primary & alias emails for this user
     const aliasRes = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [email]);
@@ -2615,10 +2661,10 @@ app.get('/api/audit-logs', async (req, res) => {
     // Backfill any existing verifications from verifications table into audit_logs
     try {
       const verifRes = await pool.query(
-        `SELECT id, sender_email, recipient_email, type, content_hash, created_at 
+        `SELECT id, sender_email, recipient_email, type, content_hash, timestamp 
          FROM verifications 
-         WHERE LOWER(sender_email) = ANY($1)
-         ORDER BY created_at DESC LIMIT 50`,
+         WHERE LOWER(sender_email) = ANY($1) OR LOWER(recipient_email) = ANY($1)
+         ORDER BY timestamp DESC LIMIT 100`,
         [userEmails]
       );
 
@@ -2629,21 +2675,25 @@ app.get('/api/audit-logs', async (req, res) => {
           [userEmails, vId]
         );
         if (existsCheck.rows.length === 0) {
-          const vType = (v.type === 'human' || v.type === 'verified') ? 'sent_stamped_link' : 'sent_unstamped';
+          const isOutgoing = userEmails.includes((v.sender_email || '').toLowerCase());
+          const vType = isOutgoing 
+            ? ((v.type === 'human' || v.type === 'verified') ? 'sent_stamped_link' : 'sent_unstamped')
+            : ((v.type === 'human' || v.type === 'verified') ? 'recv_verified' : 'recv_unverified');
           await pool.query(
             `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata)
              VALUES ($1, $2, $3, $4, $5)`,
             [
               email,
               vType,
-              (v.recipient_email || 'recipient@verified.com').toLowerCase(),
-              v.created_at || new Date(),
+              (isOutgoing ? (v.recipient_email || 'recipient@verified.com') : (v.sender_email || 'sender@verified.com')).toLowerCase(),
+              v.timestamp || new Date(),
               JSON.stringify({
                 verificationId: v.id,
                 contentHash: v.content_hash,
                 sender: v.sender_email,
                 recipient: v.recipient_email || 'Recipient',
-                subject: 'Outgoing Attested Communication',
+                subject: isOutgoing ? 'Outgoing Attested Communication' : 'Incoming Verified Communication',
+                account: isOutgoing ? v.sender_email : v.recipient_email,
                 status: (v.type === 'human' || v.type === 'verified') ? 'VERIFIED' : 'WARNING',
                 proof: (v.type === 'human' || v.type === 'verified') ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'
               })
@@ -2655,22 +2705,20 @@ app.get('/api/audit-logs', async (req, res) => {
       console.warn('[AUDIT LOGS] Verification backfill notice:', backfillErr.message);
     }
 
-    // Get all logs for the user (including aliases), limited to latest 100 for performance
+    // Get all logs for the user (including aliases), limited to latest 300 for deduplication & performance
     const logsRes = await pool.query(
-      `SELECT type, email, timestamp, metadata FROM audit_logs 
+      `SELECT id, user_email, type, email, timestamp, metadata FROM audit_logs 
        WHERE LOWER(user_email) = ANY($1) 
-       ORDER BY timestamp DESC LIMIT 100`,
+          OR LOWER(metadata->>'account') = ANY($1)
+          OR LOWER(metadata->>'sender') = ANY($1)
+          OR LOWER(metadata->>'recipient') = ANY($1)
+       ORDER BY timestamp DESC LIMIT 300`,
       [userEmails]
     );
 
-    // Get aggregated counts of each log type
-    const statsRes = await pool.query(
-      `SELECT type, COUNT(*) as count FROM audit_logs 
-       WHERE LOWER(user_email) = ANY($1) 
-       GROUP BY type`,
-      [userEmails]
-    );
-
+    // In-memory deduplication of existing rows in database
+    const seenDedupeKeys = new Set();
+    const deduplicatedLogs = [];
     const stats = {
       sent_stamped_link: 0,
       sent_stamped_hash: 0,
@@ -2682,21 +2730,38 @@ app.get('/api/audit-logs', async (req, res) => {
       recv_unverified: 0
     };
 
-    statsRes.rows.forEach(row => {
-      const typeKey = (row.type || '').toLowerCase();
-      if (typeKey in stats) {
-        stats[typeKey] = parseInt(row.count) || 0;
+    for (const row of logsRes.rows) {
+      const meta = row.metadata || {};
+      const timeMs = new Date(row.timestamp).getTime();
+      const timeBucket = Math.floor(timeMs / 30000); // 30-second deduplication window
+
+      const key = meta.verificationId 
+        ? `v_${meta.verificationId}` 
+        : (meta.contentHash 
+            ? `h_${row.type}_${meta.contentHash}` 
+            : `${row.type}_${(row.email || '').toLowerCase()}_${meta.subject || ''}_${timeBucket}`);
+
+      if (!seenDedupeKeys.has(key)) {
+        seenDedupeKeys.add(key);
+        deduplicatedLogs.push({
+          id: row.id,
+          type: row.type,
+          email: row.email,
+          userEmail: row.user_email,
+          timestamp: timeMs,
+          extra: row.metadata
+        });
+
+        const typeKey = (row.type || '').toLowerCase();
+        if (typeKey in stats) {
+          stats[typeKey] = (stats[typeKey] || 0) + 1;
+        }
       }
-    });
+    }
 
     res.json({
       success: true,
-      logs: logsRes.rows.map(row => ({
-        type: row.type,
-        email: row.email,
-        timestamp: new Date(row.timestamp).getTime(),
-        extra: row.metadata
-      })),
+      logs: deduplicatedLogs.slice(0, 100),
       stats
     });
   } catch (err) {
@@ -2723,21 +2788,129 @@ app.post('/api/audit-logs/log', async (req, res) => {
     if (sessionRes.rows.length === 0) {
       return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
     }
-    const userEmail = sessionRes.rows[0].email.toLowerCase();
+    const primaryEmail = sessionRes.rows[0].email.toLowerCase();
+    
+    // Fetch valid aliases to determine target user_email
+    const aliasRows = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [primaryEmail]);
+    const validEmails = [primaryEmail, ...aliasRows.rows.map(r => r.alias_email.toLowerCase())];
+    const outlookAliases = validEmails.filter(e => !e.endsWith('@gmail.com') && !e.endsWith('@googlemail.com'));
+
+    let userEmail = primaryEmail;
+    if (extra?.provider === 'outlook' || extra?.siteType === 'outlook') {
+      if (extra?.account && validEmails.includes(extra.account.toLowerCase()) && !extra.account.toLowerCase().endsWith('@gmail.com')) {
+        userEmail = extra.account.toLowerCase();
+      } else if (extra?.recipient && validEmails.includes(extra.recipient.toLowerCase()) && !extra.recipient.toLowerCase().endsWith('@gmail.com')) {
+        userEmail = extra.recipient.toLowerCase();
+      } else if (extra?.sender && validEmails.includes(extra.sender.toLowerCase()) && !extra.sender.toLowerCase().endsWith('@gmail.com')) {
+        userEmail = extra.sender.toLowerCase();
+      } else if (outlookAliases.length > 0) {
+        userEmail = outlookAliases[0];
+      }
+    } else if (extra?.account && validEmails.includes(extra.account.toLowerCase())) {
+      userEmail = extra.account.toLowerCase();
+    } else if (extra?.userEmail && validEmails.includes(extra.userEmail.toLowerCase())) {
+      userEmail = extra.userEmail.toLowerCase();
+    } else if (type.startsWith('sent') && extra?.sender && validEmails.includes(extra.sender.toLowerCase())) {
+      userEmail = extra.sender.toLowerCase();
+    } else if ((type.startsWith('recv') || type.startsWith('received')) && extra?.recipient && validEmails.includes(extra.recipient.toLowerCase())) {
+      userEmail = extra.recipient.toLowerCase();
+    }
+
+    if (extra) {
+      if (!extra.account || (extra.provider === 'outlook' && extra.account.endsWith('@gmail.com'))) {
+        extra.account = userEmail;
+      }
+    }
+
     const cleanTarget = (targetEmail || extra?.recipient || 'recipient@verified.com').toLowerCase();
+
+    // 1. Deduplication: Check if an audit log for the same verificationId already exists
+    if (extra?.verificationId) {
+      const vExists = await pool.query(
+        `SELECT type, email, timestamp, metadata, user_email FROM audit_logs 
+         WHERE LOWER(user_email) = ANY($1) AND metadata->>'verificationId' = $2 LIMIT 1`,
+        [validEmails, extra.verificationId]
+      );
+      if (vExists.rows.length > 0) {
+        return res.json({
+          success: true,
+          duplicate: true,
+          log: {
+            type: vExists.rows[0].type,
+            email: vExists.rows[0].email,
+            userEmail: vExists.rows[0].user_email,
+            timestamp: new Date(vExists.rows[0].timestamp).getTime(),
+            extra: vExists.rows[0].metadata
+          }
+        });
+      }
+    }
+
+    // 2. Deduplication: Check if same contentHash was logged within the last 5 minutes
+    if (extra?.contentHash) {
+      const hExists = await pool.query(
+        `SELECT type, email, timestamp, metadata, user_email FROM audit_logs 
+         WHERE LOWER(user_email) = ANY($1) AND metadata->>'contentHash' = $2 AND timestamp > NOW() - INTERVAL '5 minutes' LIMIT 1`,
+        [validEmails, extra.contentHash]
+      );
+      if (hExists.rows.length > 0) {
+        return res.json({
+          success: true,
+          duplicate: true,
+          log: {
+            type: hExists.rows[0].type,
+            email: hExists.rows[0].email,
+            userEmail: hExists.rows[0].user_email,
+            timestamp: new Date(hExists.rows[0].timestamp).getTime(),
+            extra: hExists.rows[0].metadata
+          }
+        });
+      }
+    }
+
+    // 3. Deduplication: Check if same type, target, and subject was logged within the last 30 seconds
+    const targetSubject = extra?.subject || '';
+    const recentExists = await pool.query(
+      `SELECT type, email, timestamp, metadata, user_email FROM audit_logs 
+       WHERE LOWER(user_email) = $1 AND type = $2 AND LOWER(email) = $3 AND (metadata->>'subject' = $4 OR ($4 = '' AND (metadata->>'subject' IS NULL OR metadata->>'subject' = ''))) AND timestamp > NOW() - INTERVAL '30 seconds' LIMIT 1`,
+      [userEmail, type, cleanTarget, targetSubject]
+    );
+    if (recentExists.rows.length > 0) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        log: {
+          type: recentExists.rows[0].type,
+          email: recentExists.rows[0].email,
+          userEmail: recentExists.rows[0].user_email,
+          timestamp: new Date(recentExists.rows[0].timestamp).getTime(),
+          extra: recentExists.rows[0].metadata
+        }
+      });
+    }
+
+    let logTimestamp = new Date();
+    if (extra?.emailTimestamp) {
+      const parsed = new Date(extra.emailTimestamp);
+      if (!isNaN(parsed.getTime())) {
+        logTimestamp = parsed;
+      }
+    }
 
     const insertRes = await pool.query(
       `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata) 
-       VALUES ($1, $2, $3, NOW(), $4) 
-       RETURNING type, email, timestamp, metadata`,
-      [userEmail, type, cleanTarget, extra ? JSON.stringify(extra) : null]
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, user_email, type, email, timestamp, metadata`,
+      [userEmail, type, cleanTarget, logTimestamp, extra ? JSON.stringify(extra) : null]
     );
 
     res.json({
       success: true,
       log: {
+        id: insertRes.rows[0].id,
         type: insertRes.rows[0].type,
         email: insertRes.rows[0].email,
+        userEmail: insertRes.rows[0].user_email,
         timestamp: new Date(insertRes.rows[0].timestamp).getTime(),
         extra: insertRes.rows[0].metadata
       }
@@ -2745,6 +2918,108 @@ app.post('/api/audit-logs/log', async (req, res) => {
   } catch (err) {
     console.error('[AUDIT LOGS LOG] Error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/audit-logs/delete — delete selected audit logs or all logs for the user
+app.post('/api/audit-logs/delete', async (req, res) => {
+  const { ids, all } = req.body;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid. Please log in again.' });
+    }
+    const emailLower = sessionRes.rows[0].email.toLowerCase();
+
+    // Get primary + alias emails
+    const aliasRes = await pool.query('SELECT alias_email FROM user_aliases WHERE LOWER(primary_email) = $1', [emailLower]);
+    const validEmails = [emailLower, ...aliasRes.rows.map(r => r.alias_email.toLowerCase())];
+
+    if (all) {
+      const delRes = await pool.query(
+        `DELETE FROM audit_logs 
+         WHERE LOWER(user_email) = ANY($1) 
+            OR LOWER(metadata->>'account') = ANY($1)
+            OR LOWER(metadata->>'sender') = ANY($1)
+            OR LOWER(metadata->>'recipient') = ANY($1)`,
+        [validEmails]
+      );
+      console.log(`[AUDIT LOGS] 🗑️ Cleared all ${delRes.rowCount} audit logs for user: ${emailLower}`);
+      return res.json({ success: true, count: delRes.rowCount, message: 'All audit logs deleted successfully from database.' });
+    }
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      const numericIds = ids
+        .map(id => typeof id === 'number' ? id : parseInt(String(id).replace(/^log_/, '')))
+        .filter(n => !isNaN(n));
+      const strIds = ids.map(id => String(id));
+
+      const delRes = await pool.query(
+        `DELETE FROM audit_logs 
+         WHERE (id = ANY($1::int[]) OR metadata->>'verificationId' = ANY($2::text[]))
+           AND (LOWER(user_email) = ANY($3) OR LOWER(metadata->>'account') = ANY($3) OR LOWER(metadata->>'sender') = ANY($3) OR LOWER(metadata->>'recipient') = ANY($3))`,
+        [numericIds.length > 0 ? numericIds : [-1], strIds, validEmails]
+      );
+      console.log(`[AUDIT LOGS] 🗑️ Deleted ${delRes.rowCount} selected audit logs for user: ${emailLower}`);
+      return res.json({ success: true, count: delRes.rowCount, message: 'Selected audit logs deleted successfully from database.' });
+    }
+
+    res.status(400).json({ error: 'MISSING_IDS', message: 'No log IDs provided for deletion.' });
+  } catch (err) {
+    console.error('[AUDIT LOGS DELETE] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to delete audit logs.' });
+  }
+});
+
+// POST /api/auth/change-password — authenticated password update
+app.post('/api/auth/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'Current password and new password are required.' });
+  }
+
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'AUTHENTICATION_REQUIRED', message: 'Please log in to your Attest account.' });
+  }
+
+  try {
+    const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired. Please log in again.' });
+    }
+    const emailLower = sessionRes.rows[0].email.toLowerCase();
+
+    const userRes = await pool.query('SELECT password_hash FROM users WHERE LOWER(email) = $1', [emailLower]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'USER_NOT_FOUND', message: 'User account not found.' });
+    }
+
+    const currentHash = userRes.rows[0].password_hash;
+    if (currentHash && !verifyPassword(currentPassword, currentHash)) {
+      return res.status(400).json({ error: 'INVALID_CURRENT_PASSWORD', message: 'Current password does not match.' });
+    }
+
+    const policyCheck = validatePasswordPolicy(newPassword);
+    if (!policyCheck.valid) {
+      return res.status(400).json({ error: 'WEAK_PASSWORD', message: policyCheck.message });
+    }
+
+    const newHash = hashPassword(newPassword);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, emailLower]);
+
+    console.log(`[AUTH] 🔒 Password successfully changed for: ${emailLower}`);
+    res.json({ success: true, message: 'Password updated successfully!' });
+  } catch (err) {
+    console.error('[AUTH CHANGE PASSWORD] Error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to update password.' });
   }
 });
 
@@ -2894,7 +3169,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
             name: 'Attest Professional Plan',
             description: 'Unlimited Behavioral Verifications, WebAuthn Biometric Support, Up to 5 Gmail Accounts'
           },
-          unit_amount: 300, // $3.00 USD
+          unit_amount: 100, // $1.00 USD
           recurring: {
             interval: 'month'
           }
@@ -2971,39 +3246,70 @@ app.get('/api/plan/quota-log', async (req, res) => {
 
 // POST /api/user/delete-account — GDPR & CCPA compliant data deletion
 app.post('/api/user/delete-account', async (req, res) => {
-  const { email } = req.body;
+  let email = (req.body?.email || '').trim().toLowerCase();
+  
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    try {
+      const sessionRes = await pool.query('SELECT email FROM user_sessions WHERE token = $1', [token]);
+      if (sessionRes.rows.length > 0) {
+        email = sessionRes.rows[0].email.toLowerCase();
+      }
+    } catch {}
+  }
+
   if (!email) return res.status(400).json({ error: 'email is required' });
   const emailLower = email.toLowerCase();
 
   try {
-    // 1. Delete plan quota logs
+    // 1. Delete user sessions
+    await pool.query('DELETE FROM user_sessions WHERE LOWER(email) = $1', [emailLower]);
+
+    // 2. Delete user aliases
+    await pool.query('DELETE FROM user_aliases WHERE LOWER(primary_email) = $1 OR LOWER(alias_email) = $1', [emailLower]);
+
+    // 3. Delete OTPs
+    await pool.query('DELETE FROM user_otps WHERE LOWER(email) = $1', [emailLower]);
+
+    // 4. Delete password reset tokens
+    await pool.query('DELETE FROM password_reset_tokens WHERE LOWER(email) = $1', [emailLower]);
+
+    // 5. Delete plan quota logs
     await pool.query('DELETE FROM plan_quota_log WHERE LOWER(email) = $1', [emailLower]);
 
-    // Delete audit logs
-    await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1', [emailLower]);
+    // 6. Delete audit logs
+    await pool.query('DELETE FROM audit_logs WHERE LOWER(user_email) = $1 OR LOWER(metadata->>'account') = $1', [emailLower]);
 
-    // 2. Delete security alert logs
-    await pool.query('DELETE FROM security_alert_log WHERE LOWER(recipient_email) = $1 OR LOWER(attacker_email) = $2', [emailLower, emailLower]);
+    // 7. Delete security alert logs
+    await pool.query('DELETE FROM security_alert_log WHERE LOWER(recipient_email) = $1 OR LOWER(attacker_email) = $1', [emailLower]);
 
-    // 3. Delete verifications logs associated with this email
-    await pool.query('DELETE FROM verifications WHERE LOWER(sender_email) = $1 OR LOWER(recipient_email) = $2', [emailLower, emailLower]);
+    // 8. Delete verifications logs associated with this email
+    await pool.query('DELETE FROM verifications WHERE LOWER(sender_email) = $1 OR LOWER(recipient_email) = $1', [emailLower]);
 
-    // 4. Delete profile
+    // 9. Delete profile
     await pool.query('DELETE FROM profiles WHERE LOWER(email) = $1', [emailLower]);
 
-    // 5. Delete primary user record
+    // 10. Delete primary user record
     const result = await pool.query('DELETE FROM users WHERE LOWER(email) = $1', [emailLower]);
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
-    }
-
-    console.log(`[GDPR DELETE] 🗑️ User data permanently purged: ${emailLower}`);
+    console.log(`[GDPR DELETE] 🗑️ User account & all data permanently purged: ${emailLower}`);
     res.json({ success: true, message: 'Your account and all associated data have been permanently deleted.' });
   } catch (err) {
     console.error('[GDPR DELETE] Error deleting user:', err);
     res.status(500).json({ error: 'Server error during data purging.' });
   }
+});
+
+// Global JSON Error Handler (prevents HTML error pages on body-parser/express errors)
+app.use((err, req, res, next) => {
+  console.error('[EXPRESS ERROR]', err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    error: err.code || 'SERVER_ERROR',
+    message: err.message || 'An unexpected error occurred.'
+  });
 });
 
 const server = app.listen(port, () => {

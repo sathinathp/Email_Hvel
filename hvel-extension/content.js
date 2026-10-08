@@ -636,9 +636,9 @@ document.addEventListener('click', async (e) => {
                                         };
 
                                         if (stampMode === 'hash_only' || !recordUrl) {
-                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData);
+                                            logAuditEvent('sent_stamped_hash', recipientEmail, extraData, false);
                                         } else {
-                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData);
+                                            logAuditEvent('sent_stamped_link', recipientEmail, extraData, false);
                                         }
 
                                         if (composeBody) {
@@ -865,7 +865,7 @@ function showPlanLimitModal(featureKey, usageData = {}) {
             ">
                 <div>
                     <div style="display: flex; align-items: baseline; gap: 4px;">
-                        <span style="font-size: 26px; font-weight: 800; color: #10b981; letter-spacing: -0.03em;">$3</span>
+                        <span style="font-size: 26px; font-weight: 800; color: #10b981; letter-spacing: -0.03em;">$1</span>
                         <span style="font-size: 13px; color: #64748b; font-weight: 500;">/month</span>
                     </div>
                     <div style="margin-top: 2px;">
@@ -1064,6 +1064,7 @@ function shakeElement(el) {
 
 
 // ─── PASSIVE INCOMING INBOX SCANNER ───
+const auditedSessionMessages = new Set();
 async function scanIncomingMessages() {
     const messages = document.querySelectorAll('.adn, .ads');
 
@@ -1263,6 +1264,9 @@ async function scanIncomingMessages() {
         console.log(`[HVEL Gmail] Message detected. Sender: "${senderEmail}", Domain Ignored: ${isIgnoredDomain}, Recipient: "${recipientEmail}"`);
 
         if (senderEmail && !isIgnoredDomain) {
+            let emailSubject = document.querySelector('h2.hP')?.innerText?.trim() || document.title.replace(/\s*-\s*Gmail.*$/i, '').replace(/\s*\(\d+\)\s*/, '').trim() || 'Incoming Email';
+            let emailTimestamp = msg.querySelector('span[title]')?.getAttribute('title') || msg.querySelector('.g3')?.getAttribute('title') || msg.querySelector('.g3')?.innerText || new Date().toISOString();
+
             chrome.storage.local.get(['hvel_verify_received'], (res) => {
                 const verifyReceived = res.hvel_verify_received !== false;
                 console.log(`[HVEL Gmail] Checking storage for hvel_verify_received: ${verifyReceived}`);
@@ -1282,19 +1286,39 @@ async function scanIncomingMessages() {
                         recipientEmail: recipientEmail
                     }, (response) => {
                         console.log(`[HVEL Gmail] Validation result for ID ${id}:`, response);
+                        const msgAuditKey = `recv_${senderEmail}_${id || ''}_${(msg.innerText || '').substring(0, 40)}`;
                         // Even if mismatch (tampered) or verified, show the normal Attest Verified stamp
                         if (response && (response.status === 'verified' || response.status === 'tampered')) {
                             showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
-                            if (!msg.hasAttribute('data-hvel-audited')) {
+                            if (!msg.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail, verificationId: id });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_stamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    subject: 'Incoming Verified Communication',
+                                    emailTimestamp: emailTimestamp,
+                                    verificationId: id,
+                                    status: 'VERIFIED',
+                                    proof: 'Level 3 · Cryptographic Human Verification'
+                                });
                             }
                         } else {
                             // If invalid (not found / user does not have extension), show as unverified
                             showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                            if (!msg.hasAttribute('data-hvel-audited')) {
+                            if (!msg.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_unstamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    subject: 'Incoming Standard Email',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'UNVERIFIED',
+                                    proof: 'Standard Unsigned Message'
+                                });
                             }
                         }
                     });
@@ -1302,17 +1326,36 @@ async function scanIncomingMessages() {
                     console.log(`[HVEL Gmail] No trust badge link found. Checking user verification status for: ${senderEmail}`);
                     chrome.runtime.sendMessage({ action: 'checkUserVerified', email: senderEmail }, (userRes) => {
                         const isVerifiedSender = !!(userRes && userRes.verified);
+                        const msgAuditKey = `recv_${senderEmail}_${isVerifiedSender ? 'ver' : 'unver'}_${(msg.innerText || '').substring(0, 40)}`;
                         if (isVerifiedSender) {
                             showTrustStatus(msg, 'verified', `Verified Human (${senderEmail})`);
-                            if (!msg.hasAttribute('data-hvel-audited')) {
+                            if (!msg.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_stamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_stamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    subject: 'Incoming Verified Communication',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'VERIFIED',
+                                    proof: 'Level 3 · Cryptographic Human Verification'
+                                });
                             }
                         } else {
                             showTrustStatus(msg, 'unverified', 'Not registered with Attest. This does not mean the email is fake — we just have no trust record on file for this sender.');
-                            if (!msg.hasAttribute('data-hvel-audited')) {
+                            if (!msg.hasAttribute('data-hvel-audited') && !auditedSessionMessages.has(msgAuditKey)) {
                                 msg.setAttribute('data-hvel-audited', 'true');
-                                logAuditEvent('received_unstamped', senderEmail, { sender: senderEmail, recipient: recipientEmail });
+                                auditedSessionMessages.add(msgAuditKey);
+                                logAuditEvent('received_unstamped', senderEmail, {
+                                    sender: senderEmail,
+                                    recipient: recipientEmail,
+                                    account: recipientEmail,
+                                    subject: 'Incoming Standard Email',
+                                    emailTimestamp: emailTimestamp,
+                                    status: 'UNVERIFIED',
+                                    proof: 'Standard Unsigned Message'
+                                });
                             }
                         }
                     });
@@ -2133,7 +2176,7 @@ function _runQuickStartTour() {
 
 showFirstTimeGuide();
 
-function logAuditEvent(type, emailDetail, extra = null) {
+function logAuditEvent(type, emailDetail, extra = null, syncToBackend = true) {
     const key = `gmail_hvel_stats_${type}`;
     chrome.storage.local.get([key, 'gmail_hvel_audit_log', 'hvel_auth_token'], (res) => {
         const count = (res[key] || 0) + 1;
@@ -2150,14 +2193,16 @@ function logAuditEvent(type, emailDetail, extra = null) {
             [key]: count,
             gmail_hvel_audit_log: updatedLog
         }, () => {
-            try {
-                chrome.runtime.sendMessage({
-                    action: 'logAuditEvent',
-                    type: type,
-                    email: emailDetail,
-                    extra: extra
-                });
-            } catch (err) {}
+            if (syncToBackend) {
+                try {
+                    chrome.runtime.sendMessage({
+                        action: 'logAuditEvent',
+                        type: type,
+                        email: emailDetail,
+                        extra: extra
+                    });
+                } catch (err) {}
+            }
         });
     });
 }

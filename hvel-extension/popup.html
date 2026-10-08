@@ -1,132 +1,348 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Attest Settings</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     html {
       background: transparent;
-      margin: 0;
-      padding: 0;
     }
 
     body {
-      width: 330px;
+      width: 368px;
       background: #ffffff;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #0f172a;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0F172A;
       margin: 0;
       padding: 0;
       border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      overflow: visible;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.08), 0 6px 12px -4px rgba(0, 0, 0, 0.03);
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Header Bar */
+    /* Top Header Bar */
     .header {
       background: #ffffff;
-      border-bottom: 1px solid #f1f5f9;
-      padding: 12px 16px;
+      border-bottom: 1px solid #F1F5F9;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-top-left-radius: 16px;
       border-top-right-radius: 16px;
+      position: relative;
     }
 
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 10px;
     }
 
     .brand-logo-img {
-      width: 20px;
-      height: 20px;
+      width: 28px;
+      height: 28px;
       object-fit: contain;
       display: block;
+      border-radius: 6px;
+    }
+
+    .brand-info-wrap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
     }
 
     .brand-title {
-      font-size: 15px;
+      font-size: 19px;
       font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.025em;
+      color: #0F172A;
+      letter-spacing: -0.03em;
     }
 
-    /* Platform Indicator (Clean Icon, Name, Tick - No background box) */
-    .platform-badge {
+    /* 2-line Status & Platform Indicator beside Attest */
+    .active-platform-indicator {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+      padding-left: 9px;
+      border-left: 1px solid #E2E8F0;
+      line-height: 1.15;
+    }
+
+    .status-active-line {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 11.5px;
-      font-weight: 600;
+      gap: 4px;
+    }
+
+    .status-live-dot {
+      width: 5.5px;
+      height: 5.5px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+      display: inline-block;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.25);
+        opacity: 0.7;
+      }
+    }
+
+    .status-live-text {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #10B981;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .platform-name-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .platform-icon-slot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .platform-name-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: #EA4335;
+      /* Dynamic: #EA4335 for Gmail, #0078D4 for Outlook */
       letter-spacing: -0.01em;
-      background: transparent !important;
-      border: none !important;
-      padding: 0 !important;
     }
 
-    .platform-badge .tick {
-      font-weight: 800;
-      font-size: 11.5px;
-      margin-left: 1px;
+    /* Header Top-Right User Pill Container */
+    .header-user-pill-container {
+      position: relative;
     }
 
-    .platform-badge .tick {
+    .header-user-pill {
+      background: #FEF08A;
+      border-radius: 12px;
+      padding: 5px 9px 5px 6px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      border: 1px solid rgba(234, 179, 8, 0.25);
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+
+    .header-user-pill:hover {
+      background: #FDE047;
+      transform: translateY(-1px);
+    }
+
+    .header-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #0B192C;
+      color: #FFFFFF;
+      font-size: 13px;
       font-weight: 800;
-      font-size: 11.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .header-chevron {
+      stroke: #0F172A;
+      transition: transform 0.2s ease;
+    }
+
+    /* Floating Profile Dropdown Menu */
+    .profile-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 235px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.14), 0 6px 12px -2px rgba(0, 0, 0, 0.05);
+      padding: 8px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      animation: dropdownFadeIn 0.15s ease-out;
+    }
+
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dropdown-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px 10px 10px;
+    }
+
+    .dropdown-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #0B192C;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .dropdown-user-info {
+      min-width: 0;
+    }
+
+    .dropdown-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0F172A;
+    }
+
+    .dropdown-email {
+      font-size: 11px;
+      color: #64748B;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 155px;
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: #F1F5F9;
+      margin: 4px 0;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      text-decoration: none;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.12s ease;
+    }
+
+    .dropdown-item:hover {
+      background: #F8FAFC;
+      color: #0F172A;
+    }
+
+    .dropdown-item .external-arrow {
+      margin-left: auto;
+      font-size: 11px;
+      color: #94A3B8;
+    }
+
+    .dropdown-logout-item {
+      color: #EF4444 !important;
+    }
+
+    .dropdown-logout-item:hover {
+      background: #FEF2F2 !important;
+      color: #DC2626 !important;
     }
 
     /* Body Container */
     .body {
-      padding: 14px 16px;
+      padding: 12px 14px 14px 14px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      background: #FFFFFF;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
     }
 
     /* Account Card */
     .account-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 11px 13px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 14px;
+      padding: 15px 16px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
     .account-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 10px;
     }
 
     .user-info {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       min-width: 0;
     }
 
     .user-avatar {
-      width: 24px;
-      height: 24px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
-      background: #0f172a;
-      color: #ffffff;
-      font-size: 10.5px;
-      font-weight: 700;
+      background: #0B192C;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 800;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -135,111 +351,165 @@
     }
 
     .user-email-text {
-      font-size: 12px;
-      font-weight: 600;
-      color: #1e293b;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0F172A;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 150px;
+      max-width: 175px;
+      letter-spacing: -0.01em;
     }
 
     .plan-chip-btn {
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-      border-radius: 16px;
-      padding: 3px 9px;
-      font-size: 11px;
+      background: #F0FDF4;
+      color: #16A34A;
+      border: 1px solid #BBF7D0;
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-size: 12.5px;
       font-weight: 700;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       font-family: inherit;
       transition: all 0.15s ease;
       flex-shrink: 0;
     }
 
     .plan-chip-btn:hover {
-      background: #d1fae5;
-      border-color: #6ee7b7;
+      background: #DCFCE7;
+      border-color: #86EFAC;
       transform: translateY(-0.5px);
     }
 
-    /* Plan Drawer */
+    /* Collapsible Plan Details Drawer */
     .plan-drawer {
       display: none;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
       border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 11px;
+      padding: 12px 14px;
+      font-size: 12px;
       flex-direction: column;
-      gap: 6px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
       margin-top: 2px;
     }
 
     .plan-row {
       display: flex;
       justify-content: space-between;
-      color: #475569;
+      color: #64748B;
     }
 
     .plan-row strong {
-      color: #0f172a;
-      font-weight: 600;
+      color: #0F172A;
+      font-weight: 700;
+    }
+
+    /* Account Bottom Row */
+    .account-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .user-usage-text {
+      color: #64748B;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .logout-btn {
+      background: none;
+      border: none;
+      font-size: 13px;
+      color: #EF4444;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      transition: color 0.15s ease;
+    }
+
+    .logout-btn:hover {
+      color: #DC2626;
+      text-decoration: underline;
     }
 
     /* Section Label */
     .section-title {
-      font-size: 10.5px;
-      font-weight: 700;
-      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 800;
+      color: #64748B;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-top: 6px;
-      margin-bottom: 3px;
-      padding-left: 2px;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+      margin-bottom: 8px;
     }
 
-    /* Form Rows & Inputs */
+    /* Preferences Cards */
+    .pref-cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
     .pref-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 11px;
       padding: 9px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: border-color 0.15s ease;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .pref-card:hover {
-      border-color: #cbd5e1;
+      border-color: #CBD5E1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .pref-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5px;
     }
 
     .pref-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: #0f172a;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0F172A;
+      letter-spacing: -0.01em;
     }
 
     .pref-desc {
       font-size: 10.5px;
-      color: #64748b;
-      margin-top: 1px;
+      color: #64748B;
+      font-weight: 400;
+    }
+
+    /* Select Pill Dropdown */
+    .select-pill-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
     }
 
     .custom-select {
-      padding: 5px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      border: 1px solid #cbd5e1;
-      border-radius: 16px;
-      background: #f8fafc;
-      color: #0f172a;
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 5px 24px 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border: 1px solid #CBD5E1;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      color: #0F172A;
       outline: none;
       cursor: pointer;
       font-family: inherit;
@@ -247,26 +517,28 @@
     }
 
     .custom-select:hover {
-      border-color: #94a3b8;
-      background: #ffffff;
+      border-color: #94A3B8;
     }
 
     .custom-select:focus {
-      border-color: #10b981;
+      border-color: #10B981;
       box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
     }
 
-    .divider {
-      height: 1px;
-      background: #f1f5f9;
-      margin: 1px 0;
+    .select-chevron-icon {
+      position: absolute;
+      right: 8px;
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+      stroke: #0F172A;
     }
 
-    /* Toggle Switch */
+    /* iOS-Style Toggle Switch */
     .switch {
       position: relative;
       display: inline-block;
-      width: 34px;
+      width: 36px;
       height: 20px;
       flex-shrink: 0;
     }
@@ -284,9 +556,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: #cbd5e1;
-      transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
-      border-radius: 20px;
+      background-color: #E2E8F0;
+      transition: .22s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 9999px;
     }
 
     .slider:before {
@@ -296,138 +568,93 @@
       width: 14px;
       left: 3px;
       bottom: 3px;
-      background-color: white;
-      transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
+      background-color: #FFFFFF;
+      transition: .22s cubic-bezier(0.4, 0, 0.2, 1);
       border-radius: 50%;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.15);
     }
 
-    input:checked + .slider {
-      background-color: #10b981;
+    input:checked+.slider {
+      background-color: #00BA88;
     }
 
-    input:checked + .slider:before {
-      transform: translateX(14px);
+    input:checked+.slider:before {
+      transform: translateX(16px);
     }
 
-    .status-pill-active {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2.5px 8px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: 700;
-      background: #f0fdf4;
-      color: #166534;
-      border: 1px solid #bbf7d0;
+    /* Auth View Styles */
+    .auth-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0F172A;
+      text-align: center;
+      margin-bottom: 4px;
     }
 
-    .pulse-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #10b981;
-      display: inline-block;
+    .auth-desc {
+      font-size: 12px;
+      color: #64748B;
+      text-align: center;
+      margin-bottom: 14px;
     }
 
-    /* Footer */
-    .footer {
-      padding: 10px 16px;
-      border-top: 1px solid #f1f5f9;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #f8fafc;
-      border-bottom-left-radius: 16px;
-      border-bottom-right-radius: 16px;
-    }
-
-    .footer-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 10.5px;
-      color: #64748b;
-      font-weight: 500;
-    }
-
-    .footer-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #10b981;
-    }
-
-    .portal-link {
-      font-size: 11px;
-      font-weight: 700;
-      color: #059669;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      transition: color 0.15s ease, transform 0.15s ease;
-    }
-
-    .portal-link:hover {
-      color: #047857;
-      transform: translateX(1px);
-    }
-
-    /* Form Fields for Auth */
     .form-input {
       width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
+      padding: 10px 14px;
+      border: 1px solid #CBD5E1;
+      border-radius: 10px;
       font-family: inherit;
-      font-size: 12px;
-      color: #0f172a;
+      font-size: 13px;
+      color: #0F172A;
       outline: none;
       transition: all 0.15s ease;
+      background: #FFFFFF;
     }
 
     .form-input:focus {
-      border-color: #10b981;
+      border-color: #10B981;
       box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
     }
 
     .submit-btn {
       width: 100%;
-      background: #0f172a;
-      color: #ffffff;
+      background: #0B192C;
+      color: #FFFFFF;
       border: none;
-      border-radius: 8px;
-      padding: 9px 14px;
-      font-size: 12px;
-      font-weight: 600;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
       font-family: inherit;
-      transition: background 0.15s ease;
+      transition: background 0.15s ease, transform 0.1s ease;
     }
 
     .submit-btn:hover {
-      background: #1e293b;
+      background: #1E293B;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.99);
     }
 
     .toast {
       position: fixed;
-      bottom: 12px;
+      bottom: 14px;
       left: 50%;
       transform: translateX(-50%);
-      background: #0f172a;
+      background: #0B192C;
       color: white;
-      padding: 6px 14px;
+      padding: 7px 16px;
       border-radius: 20px;
-      font-size: 11px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 600;
       opacity: 0;
       transition: opacity 0.2s ease, transform 0.2s ease;
       pointer-events: none;
       white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 100;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      z-index: 1000;
     }
 
     .toast.show {
@@ -435,118 +662,164 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Top Header -->
   <div class="header">
     <div class="brand-group">
-      <img src="icon-32.png" alt="Attest" class="brand-logo-img" />
-      <div class="brand-title">Attest</div>
+      <!-- Exact Attest Logo from icon-512.png -->
+      <img src="icon-512.png" alt="Attest" class="brand-logo-img" />
+      <div class="brand-info-wrap">
+        <div class="brand-title">Attest</div>
+
+        <!-- Active 2-Line Indicator (Active + Platform) -->
+        <div class="active-platform-indicator" id="activePlatformIndicator">
+          <div class="status-active-line">
+            <span class="status-live-dot"></span>
+            <span class="status-live-text">Active</span>
+          </div>
+          <div class="platform-name-line" id="platformNameLine">
+            <span id="platformIconSlot" class="platform-icon-slot">
+              <!-- Default Gmail Icon -->
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6Z"
+                  fill="#EA4335" opacity="0.15" />
+                <path d="M20 4H4C2.9 4 2 4.9 2 6L12 13L22 6C22 4.9 21.1 4 20 4Z" fill="#EA4335" />
+                <path d="M2 18V6L12 13L22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18Z" stroke="#EA4335"
+                  stroke-width="1.6" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span id="platformNameText" class="platform-name-text">Gmail</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Active Mailbox Platform Indicator (Clean Icon, Name, Tick - No background box) -->
-    <div id="activePlatformBadge" class="platform-badge">
-      <span id="platformIconArea" style="display: flex; align-items: center;"></span>
-      <span id="platformNameArea" style="color: #ea4335;">Gmail</span>
-      <span id="platformTick" class="tick" style="color: #ea4335;">✓</span>
+    <!-- Header Right User Pill (Initial + Downward Chevron) -->
+    <div class="header-user-pill-container">
+      <div class="header-user-pill" id="headerUserPill" title="Account Menu">
+        <div class="header-avatar" id="headerAvatarInitial">H</div>
+        <svg class="header-chevron" id="headerChevronIcon" width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+
+      <!-- Floating Profile Dropdown Menu -->
+      <div class="profile-dropdown-menu" id="profileDropdownMenu" style="display: none;">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar" id="dropdownAvatarInitial">H</div>
+          <div class="dropdown-user-info">
+            <div class="dropdown-name" id="dropdownUserName">Verified User</div>
+            <div class="dropdown-email" id="dropdownUserEmail">hrms2819@gmail.com</div>
+          </div>
+        </div>
+        <div class="dropdown-divider"></div>
+        <a href="https://attest.page/portal" target="_blank" class="dropdown-item" id="dropdownPortalLink">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>My Profile & Inboxes</span>
+          <span class="external-arrow">↗</span>
+        </a>
+        <a href="https://attest.page/pricing" target="_blank" class="dropdown-item" id="dropdownSubscriptionLink">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+            <line x1="2" y1="10" x2="22" y2="10"></line>
+          </svg>
+          <span>Plan: <strong id="dropdownPlanTier"
+              style="color: #10B981; margin-left: 2px;">Professional</strong></span>
+        </a>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item dropdown-logout-item" id="dropdownLogoutBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>Log Out</span>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Auth View (Shown when logged out) -->
-  <div class="body" id="authView" style="display: none; min-height: 200px;">
-    <div style="text-align: center; margin-bottom: 10px; margin-top: 4px;">
-      <div style="font-size: 14px; font-weight: 700; color: #0f172a;">Sign in to Attest</div>
-      <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Passwordless login with one-time verification</div>
+  <div class="body" id="authView" style="display: none; min-height: 220px;">
+    <div>
+      <div class="auth-title">Sign in to Attest</div>
+      <div class="auth-desc">Passwordless login with one-time verification</div>
     </div>
-    
-    <div style="display: flex; flex-direction: column; gap: 11px;">
-      <div id="authMessage" style="font-size: 11px; text-align: center; display: none; padding: 8px 12px; border-radius: 6px; line-height: 1.4;"></div>
-      
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div id="authMessage"
+        style="font-size: 12px; text-align: center; display: none; padding: 8px 12px; border-radius: 8px; line-height: 1.4;">
+      </div>
+
       <div>
-        <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 5px; letter-spacing: 0.04em;">Email Address</label>
+        <label
+          style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.04em;">Email
+          Address</label>
         <input type="email" id="authEmail" class="form-input" placeholder="you@company.com" />
       </div>
-      
+
       <div id="authOtpArea" style="display: none;">
-        <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 5px; letter-spacing: 0.04em;">Verification Code (OTP)</label>
-        <input type="text" id="authOtpInput" class="form-input" placeholder="••••••" maxlength="6" style="text-align: center; letter-spacing: 6px; font-weight: 700; font-size: 14px;" />
+        <label
+          style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 0.04em;">Verification
+          Code (OTP)</label>
+        <input type="text" id="authOtpInput" class="form-input" placeholder="••••••" maxlength="6"
+          style="text-align: center; letter-spacing: 6px; font-weight: 700; font-size: 15px;" />
       </div>
-      
+
       <button class="submit-btn" id="authSubmitBtn">Send Verification Code</button>
-      
-      <div id="authLinksArea" style="display: none; text-align: center; margin-top: 2px; justify-content: center; gap: 12px;">
-        <button id="btnChangeEmail" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Change Email</button>
-        <span style="font-size: 11px; color: #cbd5e1;">|</span>
-        <button id="btnResendOtp" style="background: none; border: none; font-size: 11px; color: #64748b; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Resend Code</button>
+
+      <div id="authLinksArea"
+        style="display: none; text-align: center; margin-top: 4px; justify-content: center; gap: 12px;">
+        <button id="btnChangeEmail"
+          style="background: none; border: none; font-size: 12px; color: #64748B; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Change
+          Email</button>
+        <span style="font-size: 12px; color: #CBD5E1;">|</span>
+        <button id="btnResendOtp"
+          style="background: none; border: none; font-size: 12px; color: #64748B; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; text-underline-offset: 2px;">Resend
+          Code</button>
       </div>
     </div>
   </div>
 
   <!-- Main Settings View -->
   <div class="body" id="mainView" style="display: none;">
-    
-    <!-- Account Summary Card -->
-    <div class="account-card">
-      <div class="account-top">
-        <div class="user-info">
-          <div class="user-avatar" id="userAvatarInitial">U</div>
-          <span class="user-email-text" id="userEmailSpan">loading...</span>
-        </div>
-        <button id="userPlanBtn" class="plan-chip-btn">
-          <span id="userPlanText">Plan</span>
-          <span style="font-size: 9px; opacity: 0.85;">▼</span>
-        </button>
-      </div>
 
-      <!-- Collapsible Plan Details Drawer -->
-      <div id="planDetailsDrawer" class="plan-drawer">
-        <div class="plan-row">
-          <span>Tier</span>
-          <strong id="planDetailTier" style="color: #059669; text-transform: capitalize;">Professional</strong>
-        </div>
-        <div class="plan-row">
-          <span>Daily Attestations</span>
-          <strong id="planDetailLimit">Unlimited</strong>
-        </div>
-        <div class="plan-row">
-          <span>Linked Inboxes</span>
-          <strong id="planDetailInboxes">Up to 5 Inboxes</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px solid #f1f5f9;">
-          <a href="https://attest.page/portal" target="_blank" style="color: #059669; font-weight: 700; text-decoration: none; font-size: 11px;">Manage Subscription ↗</a>
-          <button id="closePlanDrawerBtn" style="background: none; border: none; font-size: 10.5px; color: #94a3b8; cursor: pointer; padding: 0;">Close</button>
-        </div>
-      </div>
+    <!-- PREFERENCES Section Header -->
+    <div class="section-title">PREFERENCES</div>
 
-      <!-- Verification Usage & Actions -->
-      <div style="font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
-        <span id="userUsageSpan">Daily: checking...</span>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <a href="https://attest.page/pricing" target="_blank" id="upgradeBtn" style="font-size: 11px; font-weight: 700; color: #059669; text-decoration: none; display: none;">Upgrade ↗</a>
-          <button id="logoutBtn" style="background: none; border: none; font-size: 11px; color: #ef4444; font-weight: 600; cursor: pointer; padding: 0; font-family: inherit;">Log Out</button>
-        </div>
-      </div>
-    </div>
+    <!-- Preferences Cards List -->
+    <div class="pref-cards-container" id="settingsTabContent">
 
-    <!-- Preferences Section -->
-    <div id="settingsTabContent" style="display: flex; flex-direction: column; gap: 9px; margin-top: 4px;">
-      <div class="section-title">Preferences</div>
-
-      <!-- Stamp Mode Dropdown -->
+      <!-- 1. Stamp Mode Card -->
       <div class="pref-card">
-        <div>
+        <div class="pref-text">
           <div class="pref-title">Stamp Mode</div>
           <div class="pref-desc">Include web link or crypto hash</div>
         </div>
-        <select id="stampModeSelect" class="custom-select">
-          <option value="with_link">Stamp with Link</option>
-          <option value="hash_only">Hash Only</option>
-        </select>
+        <div class="select-pill-wrapper">
+          <select id="stampModeSelect" class="custom-select">
+            <option value="with_link">Stamp with Link</option>
+            <option value="hash_only">Hash Only</option>
+          </select>
+          <svg class="select-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
       </div>
 
-      <!-- Sender Trust Dots Toggle -->
+      <!-- 2. Sender Trust Dots Card -->
       <div class="pref-card">
-        <div>
+        <div class="pref-text">
           <div class="pref-title">Sender Trust Dots</div>
           <div class="pref-desc">Inbox verification badges</div>
         </div>
@@ -556,21 +829,9 @@
         </label>
       </div>
 
-      <!-- Compose Tracking Status -->
+      <!-- 3. Nudge Senders Card -->
       <div class="pref-card">
-        <div>
-          <div class="pref-title">Compose Tracking</div>
-          <div class="pref-desc">Real-time attestation engine</div>
-        </div>
-        <span class="status-pill-active">
-          <span class="pulse-dot"></span>
-          <span>Active</span>
-        </span>
-      </div>
-
-      <!-- Nudge Senders Toggle -->
-      <div class="pref-card">
-        <div>
+        <div class="pref-text">
           <div class="pref-title">Nudge Senders</div>
           <div class="pref-desc">Invite unverified senders</div>
         </div>
@@ -579,23 +840,13 @@
           <span class="slider"></span>
         </label>
       </div>
-    </div>
-  </div>
 
-  <!-- Polished Footer -->
-  <div class="footer">
-    <div class="footer-left">
-      <span class="footer-dot" id="footerPlatformDot"></span>
-      <span id="footerPlatformText">Active on Gmail</span>
     </div>
-    <a href="https://attest.page/portal" target="_blank" id="openPortalBtn" class="portal-link">
-      <span>Web Portal</span>
-      <span>↗</span>
-    </a>
   </div>
 
   <div class="toast" id="toast">Settings updated</div>
 
   <script src="popup.js"></script>
 </body>
+
 </html>
