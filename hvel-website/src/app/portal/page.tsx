@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 
 // API Base URL Detection (supports LAN IP and localhost)
@@ -116,6 +116,20 @@ export default function PortalPage() {
   // Profile & Account Management Modal
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileModalTab, setProfileModalTab] = useState<'profile' | 'password' | 'plan' | 'danger'>('profile');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Change Password Form State
   const [newPasswordInput, setNewPasswordInput] = useState('');
@@ -1676,23 +1690,24 @@ export default function PortalPage() {
           </button>
         </nav>
 
-        {/* User Identity, Plan Click Badge & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* Clickable Profile & Plan Pill */}
+        {/* User Identity & Dropdown Menu */}
+        <div ref={userDropdownRef} style={{ position: 'relative' }}>
+          {/* Clickable Profile Pill */}
           <div
-            onClick={() => { setProfileModalTab('profile'); setShowProfileModal(true); }}
-            title="Click to view profile, change password, or manage account"
+            onClick={() => setShowUserDropdown(!showUserDropdown)}
+            title="Account Menu"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '4px 12px 4px 6px',
-              background: '#F8FAFC',
+              padding: '5px 12px 5px 6px',
+              background: showUserDropdown ? '#F1F5F9' : '#F8FAFC',
               borderRadius: 30,
-              border: '1.5px solid #E2E8F0',
+              border: showUserDropdown ? '1.5px solid #007A5E' : '1.5px solid #E2E8F0',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              userSelect: 'none'
+              transition: 'all 0.15s ease',
+              userSelect: 'none',
+              boxShadow: showUserDropdown ? '0 0 0 3px rgba(0, 122, 94, 0.1)' : 'none'
             }}
           >
             <img
@@ -1705,44 +1720,121 @@ export default function PortalPage() {
               <div style={{ fontSize: 10, color: '#64748B' }}>{currentUser.email}</div>
             </div>
 
-            {/* Clickable Plan Badge */}
-            <span style={{
-              fontSize: 10,
-              fontWeight: 800,
-              padding: '3px 9px',
-              borderRadius: 9999,
-              background: currentUser.plan === 'enterprise' ? '#FAF5FF' : currentUser.plan === 'professional' ? '#F0FDF4' : '#F1F5F9',
-              color: currentUser.plan === 'enterprise' ? '#9333EA' : currentUser.plan === 'professional' ? '#166534' : '#475569',
-              border: currentUser.plan === 'professional' ? '1px solid #BBF7D0' : currentUser.plan === 'enterprise' ? '1px solid #E9D5FF' : '1px solid #CBD5E1',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5
-            }}>
-              <span>{currentUser.plan}</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
-            </span>
+            {/* Dropdown Chevron */}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748B"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                marginLeft: 2,
+                transform: showUserDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </div>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '8px 14px',
-              background: '#FFFFFF',
-              border: '1px solid #FCA5A5',
-              borderRadius: 8,
-              color: '#DC2626',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Sign Out
-          </button>
+          {/* Dropdown Popover */}
+          {showUserDropdown && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 'calc(100% + 8px)',
+                width: 210,
+                background: '#FFFFFF',
+                borderRadius: 12,
+                border: '1px solid #E2E8F0',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                padding: '6px',
+                zIndex: 100
+              }}
+            >
+              {/* User Email Subheader */}
+              <div style={{ padding: '8px 10px 8px', borderBottom: '1px solid #F1F5F9', marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  Signed in as
+                </div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                  {currentUser.email}
+                </div>
+              </div>
+
+              {/* My Profile Item */}
+              <button
+                onClick={() => {
+                  setProfileModalTab('profile');
+                  setShowProfileModal(true);
+                  setShowUserDropdown(false);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '8px 10px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 8,
+                  color: '#1E293B',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFC')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#007A5E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>My Profile</span>
+              </button>
+
+              <div style={{ height: 1, background: '#F1F5F9', margin: '4px 0' }} />
+
+              {/* Logout Item */}
+              <button
+                onClick={() => {
+                  setShowUserDropdown(false);
+                  handleLogout();
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '8px 10px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 8,
+                  color: '#DC2626',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#FEF2F2')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

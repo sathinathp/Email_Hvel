@@ -1,6 +1,7 @@
 let currentMode = 'with_link';
 let activeTab = 'login'; // 'login' or 'signup'
-let currentSiteType = 'gmail'; // 'gmail' or 'outlook'
+let currentSiteType = 'gmail'; // 'gmail' or 'outlook' (default storage context)
+let currentTabPlatform = null; // 'gmail', 'outlook', or null (other pages)
 
 // Load saved settings and check auth status on popup open
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,10 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
         url.includes('mail.dialog.office.com')
       ) {
         currentSiteType = 'outlook';
+        currentTabPlatform = 'outlook';
+      } else if (
+        url.includes('mail.google.com')
+      ) {
+        currentSiteType = 'gmail';
+        currentTabPlatform = 'gmail';
+      } else {
+        currentTabPlatform = null;
       }
+    } else {
+      currentTabPlatform = null;
     }
 
-    // Update UI headers / indicators for Gmail vs Outlook
+    // Update UI headers / indicators for Gmail vs Outlook vs Other
     updateSiteTypeUI();
 
     // Load global settings
@@ -346,77 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-function updateSiteTypeUI() {
-  const activePlatformBadge = document.getElementById('activePlatformBadge');
-  const platformIconArea = document.getElementById('platformIconArea');
-  const platformNameArea = document.getElementById('platformNameArea');
-  const platformTick = document.getElementById('platformTick');
-  const emailInput = document.getElementById('authEmail');
-  const footerPlatformText = document.getElementById('footerPlatformText');
-  const footerPlatformDot = document.getElementById('footerPlatformDot');
 
-  if (currentSiteType === 'outlook') {
-    if (activePlatformBadge) {
-      activePlatformBadge.className = 'platform-badge';
-    }
-    if (platformIconArea) {
-      platformIconArea.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;">
-          <rect x="3" y="4" width="18" height="16" rx="3.5" fill="#0078D4"/>
-          <path d="M3.5 5.5L12 12.5L20.5 5.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="14" r="3.2" fill="#ffffff"/>
-          <text x="12" y="16.1" font-family="'Segoe UI', system-ui, sans-serif" font-size="5.2" font-weight="800" fill="#0078D4" text-anchor="middle">O</text>
-        </svg>
-      `;
-    }
-    if (platformNameArea) {
-      platformNameArea.innerText = 'Outlook';
-      platformNameArea.style.color = '#0078D4';
-    }
-    if (platformTick) {
-      platformTick.style.color = '#0078D4';
-    }
-    if (emailInput) {
-      emailInput.placeholder = 'you@outlook.com';
-    }
-    if (footerPlatformText) {
-      footerPlatformText.innerText = 'Active on Outlook';
-    }
-    if (footerPlatformDot) {
-      footerPlatformDot.style.background = '#0078D4';
-    }
-  } else {
-    if (activePlatformBadge) {
-      activePlatformBadge.className = 'platform-badge';
-    }
-    if (platformIconArea) {
-      platformIconArea.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;">
-          <rect x="2.5" y="4.5" width="19" height="15" rx="3" fill="#ffffff" stroke="#EA4335" stroke-width="1.6"/>
-          <path d="M2.5 5.5L12 12.8L21.5 5.5" stroke="#EA4335" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2.5 18.5L8.5 12" stroke="#4285F4" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M21.5 18.5L15.5 12" stroke="#34A853" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      `;
-    }
-    if (platformNameArea) {
-      platformNameArea.innerText = 'Gmail';
-      platformNameArea.style.color = '#EA4335';
-    }
-    if (platformTick) {
-      platformTick.style.color = '#EA4335';
-    }
-    if (emailInput) {
-      emailInput.placeholder = 'you@gmail.com';
-    }
-    if (footerPlatformText) {
-      footerPlatformText.innerText = 'Active on Gmail';
-    }
-    if (footerPlatformDot) {
-      footerPlatformDot.style.background = '#10B981';
-    }
-  }
-}
 
 function showToast(message = 'Settings updated') {
   const toast = document.getElementById('toast');
@@ -577,9 +518,13 @@ function checkAuthStatus() {
       const primaryEmail = result.hvel_primary_email;
       const pendingEmail = result.hvel_auth_otp_pending_email;
 
+      const headerUserPillContainer = document.getElementById('headerUserPillContainer') || document.querySelector('.header-user-pill-container');
+      const profileDropdownMenu = document.getElementById('profileDropdownMenu');
+
       if (token && email) {
         authView.style.display = 'none';
         mainView.style.display = 'block';
+        if (headerUserPillContainer) headerUserPillContainer.style.display = 'block';
         if (saveBtn) saveBtn.style.display = 'block';
 
         updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail);
@@ -604,6 +549,8 @@ function checkAuthStatus() {
       } else {
         mainView.style.display = 'none';
         authView.style.display = 'block';
+        if (headerUserPillContainer) headerUserPillContainer.style.display = 'none';
+        if (profileDropdownMenu) profileDropdownMenu.style.display = 'none';
         if (saveBtn) saveBtn.style.display = 'none';
 
         // Restore pending login OTP state if exists
@@ -662,7 +609,7 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
 
   const avatarInitial = document.getElementById('userAvatarInitial');
   const headerAvatarInitial = document.getElementById('headerAvatarInitial');
-  const initialChar = email ? email.trim()[0].toUpperCase() : 'H';
+  const initialChar = email ? email.trim()[0].toUpperCase() : '';
   if (avatarInitial) {
     avatarInitial.innerText = initialChar;
   }
@@ -670,7 +617,7 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
     headerAvatarInitial.innerText = initialChar;
   }
 
-  if (emailSpan) emailSpan.innerText = email;
+  if (emailSpan) emailSpan.innerText = email || '';
 
   const planKey = plan || 'free';
   const isPro = planKey.toLowerCase() === 'professional' || planKey.toLowerCase() === 'enterprise';
@@ -707,7 +654,7 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
 
   if (upgradeBtn) {
     upgradeBtn.style.display = isPro ? 'none' : 'inline-block';
-    upgradeBtn.href = `https://attest.page/pricing?email=${encodeURIComponent(email)}`;
+    upgradeBtn.href = `https://attest.page/pricing?email=${encodeURIComponent(email || '')}`;
   }
   if (proActiveLabel) {
     proActiveLabel.style.display = isPro ? 'inline-block' : 'none';
@@ -724,8 +671,8 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
   const dropdownPlanTier = document.getElementById('dropdownPlanTier');
 
   if (dropdownAvatarInitial) dropdownAvatarInitial.innerText = initialChar;
-  if (dropdownUserEmail) dropdownUserEmail.innerText = email || '—';
-  if (dropdownUserName) dropdownUserName.innerText = email ? email.split('@')[0] : 'Verified User';
+  if (dropdownUserEmail) dropdownUserEmail.innerText = email || '';
+  if (dropdownUserName) dropdownUserName.innerText = email ? email.split('@')[0] : '';
   if (dropdownPlanTier) dropdownPlanTier.innerText = isPro ? (planKey === 'enterprise' ? 'Enterprise' : 'Professional') : 'Free';
   
   // Update the aliases view (locked vs active) based on the loaded plan
@@ -733,30 +680,55 @@ function updateAccountUI(email, plan, usage, planDetails, isAlias, primaryEmail)
 }
 
 function updateSiteTypeUI() {
+  const activePlatformIndicator = document.getElementById('activePlatformIndicator');
   const iconSlot = document.getElementById('platformIconSlot');
   const nameText = document.getElementById('platformNameText');
-  if (!iconSlot || !nameText) return;
+  const emailInput = document.getElementById('authEmail');
 
-  if (currentSiteType === 'outlook') {
-    nameText.innerText = 'Outlook';
-    nameText.style.color = '#0078D4';
-    iconSlot.innerHTML = `
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="16" rx="3" fill="#0078D4" opacity="0.15"/>
-        <rect x="3" y="4" width="18" height="16" rx="3" stroke="#0078D4" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="4" stroke="#0078D4" stroke-width="1.8"/>
-      </svg>
-    `;
+  if (!activePlatformIndicator) return;
+
+  if (currentTabPlatform === 'gmail') {
+    activePlatformIndicator.style.display = 'flex';
+    if (nameText) {
+      nameText.innerText = 'Gmail';
+      nameText.style.color = '#EA4335';
+    }
+    if (iconSlot) {
+      iconSlot.innerHTML = `
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+          <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6Z" fill="#EA4335" opacity="0.15"/>
+          <path d="M20 4H4C2.9 4 2 4.9 2 6L12 13L22 6C22 4.9 21.1 4 20 4Z" fill="#EA4335"/>
+          <path d="M2 18V6L12 13L22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18Z" stroke="#EA4335" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      `;
+    }
+    if (emailInput && !emailInput.value) {
+      emailInput.placeholder = 'you@company.com';
+    }
+  } else if (currentTabPlatform === 'outlook') {
+    activePlatformIndicator.style.display = 'flex';
+    if (nameText) {
+      nameText.innerText = 'Outlook';
+      nameText.style.color = '#0078D4';
+    }
+    if (iconSlot) {
+      iconSlot.innerHTML = `
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="16" rx="3" fill="#0078D4" opacity="0.15"/>
+          <rect x="3" y="4" width="18" height="16" rx="3" stroke="#0078D4" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="4" stroke="#0078D4" stroke-width="1.8"/>
+        </svg>
+      `;
+    }
+    if (emailInput && !emailInput.value) {
+      emailInput.placeholder = 'you@outlook.com';
+    }
   } else {
-    nameText.innerText = 'Gmail';
-    nameText.style.color = '#EA4335';
-    iconSlot.innerHTML = `
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-        <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6Z" fill="#EA4335" opacity="0.15"/>
-        <path d="M20 4H4C2.9 4 2 4.9 2 6L12 13L22 6C22 4.9 21.1 4 20 4Z" fill="#EA4335"/>
-        <path d="M2 18V6L12 13L22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18Z" stroke="#EA4335" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-    `;
+    // If not on Gmail or Outlook, hide the Active platform indicator completely
+    activePlatformIndicator.style.display = 'none';
+    if (emailInput && !emailInput.value) {
+      emailInput.placeholder = 'you@company.com';
+    }
   }
 }
 

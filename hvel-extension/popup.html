@@ -673,8 +673,8 @@
       <div class="brand-info-wrap">
         <div class="brand-title">Attest</div>
 
-        <!-- Active 2-Line Indicator (Active + Platform) -->
-        <div class="active-platform-indicator" id="activePlatformIndicator">
+        <!-- Active 2-Line Indicator (Active + Platform) - Only shown on Gmail / Outlook tabs -->
+        <div class="active-platform-indicator" id="activePlatformIndicator" style="display: none;">
           <div class="status-active-line">
             <span class="status-live-dot"></span>
             <span class="status-live-text">Active</span>
@@ -697,9 +697,9 @@
     </div>
 
     <!-- Header Right User Pill (Initial + Downward Chevron) -->
-    <div class="header-user-pill-container">
+    <div class="header-user-pill-container" id="headerUserPillContainer" style="display: none;">
       <div class="header-user-pill" id="headerUserPill" title="Account Menu">
-        <div class="header-avatar" id="headerAvatarInitial">H</div>
+        <div class="header-avatar" id="headerAvatarInitial"></div>
         <svg class="header-chevron" id="headerChevronIcon" width="13" height="13" viewBox="0 0 24 24" fill="none"
           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -709,10 +709,10 @@
       <!-- Floating Profile Dropdown Menu -->
       <div class="profile-dropdown-menu" id="profileDropdownMenu" style="display: none;">
         <div class="dropdown-header">
-          <div class="dropdown-avatar" id="dropdownAvatarInitial">H</div>
+          <div class="dropdown-avatar" id="dropdownAvatarInitial"></div>
           <div class="dropdown-user-info">
-            <div class="dropdown-name" id="dropdownUserName">Verified User</div>
-            <div class="dropdown-email" id="dropdownUserEmail">hrms2819@gmail.com</div>
+            <div class="dropdown-name" id="dropdownUserName"></div>
+            <div class="dropdown-email" id="dropdownUserEmail"></div>
           </div>
         </div>
         <div class="dropdown-divider"></div>
