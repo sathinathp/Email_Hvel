@@ -219,17 +219,10 @@ function getSenderProfile() {
 
 function getComposeFromEmail(container) {
     if (!container) return null;
-    // Look for a From dropdown or text
-    const fromButton = container.querySelector('button[aria-label*="From"], [role="combobox"][aria-label*="From"]');
-    if (fromButton) {
-        const text = fromButton.innerText || '';
-        const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (match) return match[0].toLowerCase().trim();
-    }
-    // Check all buttons or dropdowns inside compose header that might display the sender email
-    const elements = container.querySelectorAll('.ms-ComposeHeader, [class*="composeHeader"], [class*="From"]');
-    for (let el of elements) {
-        const text = el.innerText || '';
+    // Look for a From dropdown or text specifically
+    const fromButton = container.querySelector('button[aria-label*="From"], [role="combobox"][aria-label*="From"], div[aria-label*="From:"], [class*="From"]');
+    if (fromButton && !fromButton.closest('[aria-label*="To"], [aria-label*="Cc"], [aria-label*="Bcc"], .ms-BasePicker')) {
+        const text = (fromButton.innerText || fromButton.getAttribute('aria-label') || '') + '';
         const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (match) return match[0].toLowerCase().trim();
     }

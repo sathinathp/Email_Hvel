@@ -159,25 +159,17 @@ function getSenderProfile() {
 }
 
 function getSenderEmail(composeDialog = null) {
-    // ATTEST-301 FIX: 1. Check inside active compose window first (From selector / field)
+    // 1. Profile button (account manager) - always the true logged-in Google account
+    const profile = getSenderProfile();
+    if (profile.email) return profile.email;
+
+    // 2. Only if the user has multiple Send-As accounts configured, check the explicit From: row
     const dialog = composeDialog || activeComposeDialog || document.querySelector('div[role="dialog"]');
     if (dialog) {
-        // Check input[name="from"] or select[name="from"]
-        const fromInput = dialog.querySelector('input[name="from"], select[name="from"]');
-        if (fromInput && fromInput.value && fromInput.value.includes('@')) {
-            const m = fromInput.value.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-            if (m) {
-                const found = m[1].toLowerCase().trim();
-                lastDetectedGmailMailbox = found;
-                chrome.storage.local.set({ hvel_detected_gmail_email: found });
-                return found;
-            }
-        }
-
-        // Check span with email or aria-label containing email inside compose header
-        const fromSpan = dialog.querySelector('span[email], [data-hovercard-id*="@"], div[aria-label*="From"]');
-        if (fromSpan) {
-            const text = (fromSpan.getAttribute('email') || fromSpan.getAttribute('data-hovercard-id') || fromSpan.getAttribute('aria-label') || fromSpan.innerText || '');
+        const fromRow = dialog.querySelector('div[aria-label*="From:"], tr[aria-label*="From:"], div[aria-label="From"], [aria-label*="Send-as"]');
+        if (fromRow && !fromRow.closest('[aria-label*="To"], [aria-label*="Recipients"], [name="to"], [name="cc"], [name="bcc"]')) {
+            const fromInput = fromRow.querySelector('input[name="from"], select[name="from"]');
+            const text = (fromInput ? (fromInput.value || fromInput.innerText || '') : fromRow.innerText) || '';
             const m = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
             if (m) {
                 const found = m[1].toLowerCase().trim();
@@ -188,10 +180,6 @@ function getSenderEmail(composeDialog = null) {
         }
     }
 
-    // 2. Profile button (account manager)
-    const profile = getSenderProfile();
-    if (profile.email) return profile.email;
-
     // 3. Document title match (e.g. "Inbox (1) - user@gmail.com - Gmail")
     const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     if (titleMatch) {
@@ -201,12 +189,7 @@ function getSenderEmail(composeDialog = null) {
         return found;
     }
 
-    // 4. ATTEST-301 FIX: Use last detected Gmail mailbox address (persisted across offline disconnects)
-    if (lastDetectedGmailMailbox && lastDetectedGmailMailbox !== 'unknown-sender@gmail.com') {
-        return lastDetectedGmailMailbox;
-    }
-
-    // 5. Fallback ONLY if cachedUserEmail is not an Outlook/Microsoft/Hotmail email and no other identity found
+    // 4. Authenticated extension login (cachedUserEmail)
     const isOutlookEmail = cachedUserEmail && (
         cachedUserEmail.endsWith('@outlook.com') ||
         cachedUserEmail.endsWith('@hotmail.com') ||
@@ -216,6 +199,11 @@ function getSenderEmail(composeDialog = null) {
     );
     if (cachedUserEmail && !isOutlookEmail && cachedUserEmail !== 'unknown-gmail-sender@gmail.com' && cachedUserEmail !== 'unknown-sender@gmail.com') {
         return cachedUserEmail;
+    }
+
+    // 5. Last detected Gmail mailbox address (survives offline network drops)
+    if (lastDetectedGmailMailbox && lastDetectedGmailMailbox !== 'unknown-sender@gmail.com') {
+        return lastDetectedGmailMailbox;
     }
 
     return 'unknown-gmail-sender@gmail.com';
