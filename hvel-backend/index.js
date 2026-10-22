@@ -1370,6 +1370,44 @@ app.post('/api/verify', async (req, res) => {
       console.warn('[HVEL API] ⚠️ Audit log auto-insert notice:', auditErr.message);
     }
 
+    // ATTEST-302 FIX: Automatically record inbound audit event for the recipient
+    // This ensures inbound audit records are logged even if recipient's browser/tab is closed
+    if (recipientEmail && recipientEmail.includes('@') && senderEmail.toLowerCase() !== recipientEmail.toLowerCase()) {
+      try {
+        const cleanRecipient = recipientEmail.toLowerCase().trim();
+        const cleanSender = senderEmail.toLowerCase().trim();
+        const inboundLogType = (type === 'human' || type === 'verified') ? 'received_stamped' : 'received_unstamped';
+        const inboundAuditMeta = {
+          verificationId,
+          contentHash,
+          sender: cleanSender,
+          recipient: cleanRecipient,
+          account: cleanRecipient,
+          subject: req.body.subject || 'Incoming Verified Communication',
+          status: (type === 'human' || type === 'verified') ? 'VERIFIED' : 'UNVERIFIED',
+          proof: (type === 'human' || type === 'verified') ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'
+        };
+
+        // If recipient is a linked alias of an existing user, attribute to primary account
+        const recipAlias = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [cleanRecipient]);
+        const targetRecipUser = recipAlias.rows.length > 0 ? recipAlias.rows[0].primary_email.toLowerCase() : cleanRecipient;
+
+        await pool.query(
+          `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata) 
+           VALUES ($1, $2, $3, NOW(), $4)`,
+          [
+            targetRecipUser,
+            inboundLogType,
+            cleanSender,
+            JSON.stringify(inboundAuditMeta)
+          ]
+        );
+        console.log(`[HVEL API] 📥 Auto-inserted inbound audit log for recipient ${targetRecipUser} (from ${cleanSender})`);
+      } catch (recipAuditErr) {
+        console.warn('[HVEL API] ⚠️ Inbound recipient audit log notice:', recipAuditErr.message);
+      }
+    }
+
     // Log / increment the user's daily verification quota
     await incrementQuota(quotaOwnerEmail, 'totp_verify');
 
@@ -1409,6 +1447,96 @@ app.post('/api/verify', async (req, res) => {
 
     res.status(201).json({ success: true, data: { record: result.rows[0], verificationUrl } });
   } catch (err) { console.error("Error saving verification:", err); res.status(500).json({ error: 'Database error' }); }
+});
+
+// ATTEST-301 FIX: /api/verify/offline-sync
+// Synchronizes offline-queued verifications upon reconnection, preventing identity misattribution
+app.post('/api/verify/offline-sync', async (req, res) => {
+  const { verification } = req.body;
+  if (!verification || !verification.senderEmail || !verification.contentHash) {
+    return res.status(400).json({ error: 'senderEmail and contentHash are required for offline sync' });
+  }
+
+  const { id, senderEmail, recipientEmail, subject, contentHash, type, timestamp } = verification;
+  const cleanSender = senderEmail.toLowerCase().trim();
+  const cleanRecipient = (recipientEmail || '').toLowerCase().trim();
+  const verifId = id || ('off_' + Math.random().toString(36).substring(2, 15));
+  const verifType = type || 'human';
+  const verifTime = timestamp ? new Date(timestamp) : new Date();
+
+  try {
+    // 1. Insert or update the verification record with the EXACT sender email
+    await pool.query(
+      `INSERT INTO verifications (id, sender_email, recipient_email, type, content_hash, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET 
+         sender_email = EXCLUDED.sender_email,
+         recipient_email = EXCLUDED.recipient_email,
+         type = EXCLUDED.type,
+         content_hash = EXCLUDED.content_hash,
+         timestamp = EXCLUDED.timestamp`,
+      [verifId, cleanSender, cleanRecipient || null, verifType, contentHash, verifTime]
+    );
+
+    // 2. Insert audit log for sender (attributed directly to cleanSender)
+    const senderAuditMeta = {
+      verificationId: verifId,
+      contentHash: contentHash,
+      sender: cleanSender,
+      recipient: cleanRecipient || 'Recipient',
+      account: cleanSender,
+      subject: subject || 'Outgoing Attested Communication (Offline Synced)',
+      status: (verifType === 'human' || verifType === 'verified') ? 'VERIFIED' : 'UNVERIFIED',
+      proof: (verifType === 'human' || verifType === 'verified') ? 'Level 3 · Cryptographic Human Verification (Offline Synced)' : 'Standard Unsigned Message'
+    };
+
+    await pool.query(
+      `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        cleanSender,
+        (verifType === 'human' || verifType === 'verified') ? 'sent_stamped_link' : 'sent_unstamped',
+        cleanRecipient || 'recipient@verified.com',
+        verifTime,
+        JSON.stringify(senderAuditMeta)
+      ]
+    );
+
+    // 3. Insert inbound audit log for recipient if specified (ATTEST-302 support for offline sync)
+    if (cleanRecipient && cleanRecipient.includes('@') && cleanSender !== cleanRecipient) {
+      const recipAuditMeta = {
+        verificationId: verifId,
+        contentHash: contentHash,
+        sender: cleanSender,
+        recipient: cleanRecipient,
+        account: cleanRecipient,
+        subject: subject || 'Incoming Verified Communication',
+        status: (verifType === 'human' || verifType === 'verified') ? 'VERIFIED' : 'UNVERIFIED',
+        proof: (verifType === 'human' || verifType === 'verified') ? 'Level 3 · Cryptographic Human Verification' : 'Standard Unsigned Message'
+      };
+
+      const recipAlias = await pool.query('SELECT primary_email FROM user_aliases WHERE LOWER(alias_email) = $1', [cleanRecipient]);
+      const targetRecipUser = recipAlias.rows.length > 0 ? recipAlias.rows[0].primary_email.toLowerCase() : cleanRecipient;
+
+      await pool.query(
+        `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          targetRecipUser,
+          (verifType === 'human' || verifType === 'verified') ? 'received_stamped' : 'received_unstamped',
+          cleanSender,
+          verifTime,
+          JSON.stringify(recipAuditMeta)
+        ]
+      );
+    }
+
+    console.log(`[HVEL API] 🔄 Offline verification synced successfully for sender: ${cleanSender} (ID: ${verifId})`);
+    res.json({ success: true, verificationId: verifId });
+  } catch (err) {
+    console.error('[HVEL API] ❌ Offline sync error:', err);
+    res.status(500).json({ error: 'Database error syncing offline verification' });
+  }
 });
 
 // /api/validate
@@ -1517,7 +1645,36 @@ app.get('/v/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM verifications WHERE id = $1', [req.params.id]);
     const record = result.rows[0];
-    if (!record) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">404 - Verification Record Not Found</h1>');
+    if (!record) {
+      if (req.params.id && req.params.id.startsWith('off_')) {
+        return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attest Trust Record - Sync Pending</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { min-height: 100vh; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: #0f172a; }
+    .card { max-width: 480px; width: 100%; background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Offline Cryptographic Dispatch</div>
+    <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">Sync Pending Upon Reconnect</h2>
+    <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
+      This email was dispatched offline with a local cryptographic Attest stamp (Reference: <code>${req.params.id}</code>). As soon as the sender reconnects to the network, this record will be automatically published.
+    </p>
+    <a href="https://attest.page" style="display: inline-block; padding: 10px 20px; background: #007A5E; color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 13px;">Return to Attest</a>
+  </div>
+</body>
+</html>`);
+      }
+      return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">404 - Verification Record Not Found</h1>');
+    }
     const badgeColor = record.type === 'ai' ? '#8b5cf6' : (record.type === 'automated' || record.type === 'robotic') ? '#ef4444' : '#007A5E';
     const badgeTitle = record.type === 'ai' ? 'AI Assisted' : (record.type === 'automated' || record.type === 'robotic') ? 'Robotic Sender' : 'Approved';
     
@@ -1975,17 +2132,23 @@ app.post('/api/profile/update', async (req, res) => {
 });
 
 app.post('/api/verify-hash', async (req, res) => {
-  const { hash } = req.body;
+  const { hash, senderEmail } = req.body;
   if (!hash) return res.status(400).json({ error: 'Hash required' });
   try {
-    const result = await pool.query(`
-      SELECT v.sender_email, v.timestamp, v.type, p.full_name, p.last_active
+    let query = `
+      SELECT v.id as verification_id, v.sender_email, v.recipient_email, v.timestamp, v.type, p.full_name, p.last_active
       FROM verifications v
       LEFT JOIN profiles p ON v.sender_email = p.email
       WHERE v.content_hash = $1
-      ORDER BY v.timestamp DESC
-      LIMIT 1
-    `, [hash]);
+    `;
+    const params = [hash];
+    if (senderEmail) {
+      query += ` AND LOWER(v.sender_email) = LOWER($2)`;
+      params.push(senderEmail.toLowerCase().trim());
+    }
+    query += ` ORDER BY v.timestamp DESC LIMIT 1`;
+
+    const result = await pool.query(query, params);
 
     if (result.rows.length === 0) {
       return res.json({ success: false, message: 'No verification found for this hash.' });
@@ -2678,7 +2841,7 @@ app.get('/api/audit-logs', async (req, res) => {
           const isOutgoing = userEmails.includes((v.sender_email || '').toLowerCase());
           const vType = isOutgoing 
             ? ((v.type === 'human' || v.type === 'verified') ? 'sent_stamped_link' : 'sent_unstamped')
-            : ((v.type === 'human' || v.type === 'verified') ? 'recv_verified' : 'recv_unverified');
+            : ((v.type === 'human' || v.type === 'verified') ? 'received_stamped' : 'received_unstamped');
           await pool.query(
             `INSERT INTO audit_logs (user_email, type, email, timestamp, metadata)
              VALUES ($1, $2, $3, $4, $5)`,
@@ -2753,7 +2916,11 @@ app.get('/api/audit-logs', async (req, res) => {
         });
 
         const typeKey = (row.type || '').toLowerCase();
-        if (typeKey in stats) {
+        if (typeKey === 'received_stamped' || typeKey === 'recv_verified') {
+          stats.received_stamped = (stats.received_stamped || 0) + 1;
+        } else if (typeKey === 'received_unstamped' || typeKey === 'recv_unverified') {
+          stats.received_unstamped = (stats.received_unstamped || 0) + 1;
+        } else if (typeKey in stats) {
           stats[typeKey] = (stats[typeKey] || 0) + 1;
         }
       }

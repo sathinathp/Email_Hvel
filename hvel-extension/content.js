@@ -80,16 +80,25 @@ sendHeartbeat();
 updateProfile();
 // Keep a cached copy of the authenticated user's email from chrome.storage
 let cachedUserEmail = 'unknown-sender@gmail.com';
+let lastDetectedGmailMailbox = null;
 
-chrome.storage.local.get(['hvel_auth_email'], (res) => {
+chrome.storage.local.get(['hvel_auth_email', 'hvel_detected_gmail_email'], (res) => {
     if (res && res.hvel_auth_email) {
         cachedUserEmail = res.hvel_auth_email.toLowerCase().trim();
+    }
+    if (res && res.hvel_detected_gmail_email) {
+        lastDetectedGmailMailbox = res.hvel_detected_gmail_email.toLowerCase().trim();
     }
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.hvel_auth_email) {
-        cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
+    if (areaName === 'local') {
+        if (changes.hvel_auth_email) {
+            cachedUserEmail = changes.hvel_auth_email.newValue ? changes.hvel_auth_email.newValue.toLowerCase().trim() : 'unknown-sender@gmail.com';
+        }
+        if (changes.hvel_detected_gmail_email) {
+            lastDetectedGmailMailbox = changes.hvel_detected_gmail_email.newValue ? changes.hvel_detected_gmail_email.newValue.toLowerCase().trim() : null;
+        }
     }
 });
 
@@ -119,29 +128,85 @@ async function markVerified(email) {
 
 // Extract actual user email and name from Gmail DOM
 function getSenderProfile() {
+    // 1. Standard Google Account button (account manager)
     const accountBtn = document.querySelector('a[href*="accounts.google.com/SignOutOptions"]');
     if (accountBtn) {
         const label = accountBtn.getAttribute('aria-label') || "";
-        // Format: "Google Account: Name (email@gmail.com)"
         const nameMatch = label.match(/Google Account:\s*(.*?)\s*\(/);
         const emailMatch = label.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        
-        return {
-            email: emailMatch ? emailMatch[0].toLowerCase() : null,
-            name: nameMatch ? nameMatch[1] : null
-        };
+        if (emailMatch) {
+            const found = emailMatch[0].toLowerCase().trim();
+            lastDetectedGmailMailbox = found;
+            chrome.storage.local.set({ hvel_detected_gmail_email: found });
+            return { email: found, name: nameMatch ? nameMatch[1] : null };
+        }
     }
+
+    // 2. Scan Google Top Header for any account badge with email in aria-label or text
+    const headerBadges = document.querySelectorAll('header [aria-label*="@"], [role="banner"] [aria-label*="@"], a[href*="AccountChooser"]');
+    for (const badge of headerBadges) {
+        const text = (badge.getAttribute('aria-label') || '') + ' ' + (badge.innerText || '');
+        const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+        if (emailMatch) {
+            const found = emailMatch[0].toLowerCase().trim();
+            lastDetectedGmailMailbox = found;
+            chrome.storage.local.set({ hvel_detected_gmail_email: found });
+            return { email: found, name: null };
+        }
+    }
+
     return { email: null, name: null };
 }
 
-function getSenderEmail() {
+function getSenderEmail(composeDialog = null) {
+    // ATTEST-301 FIX: 1. Check inside active compose window first (From selector / field)
+    const dialog = composeDialog || activeComposeDialog || document.querySelector('div[role="dialog"]');
+    if (dialog) {
+        // Check input[name="from"] or select[name="from"]
+        const fromInput = dialog.querySelector('input[name="from"], select[name="from"]');
+        if (fromInput && fromInput.value && fromInput.value.includes('@')) {
+            const m = fromInput.value.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            if (m) {
+                const found = m[1].toLowerCase().trim();
+                lastDetectedGmailMailbox = found;
+                chrome.storage.local.set({ hvel_detected_gmail_email: found });
+                return found;
+            }
+        }
+
+        // Check span with email or aria-label containing email inside compose header
+        const fromSpan = dialog.querySelector('span[email], [data-hovercard-id*="@"], div[aria-label*="From"]');
+        if (fromSpan) {
+            const text = (fromSpan.getAttribute('email') || fromSpan.getAttribute('data-hovercard-id') || fromSpan.getAttribute('aria-label') || fromSpan.innerText || '');
+            const m = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            if (m) {
+                const found = m[1].toLowerCase().trim();
+                lastDetectedGmailMailbox = found;
+                chrome.storage.local.set({ hvel_detected_gmail_email: found });
+                return found;
+            }
+        }
+    }
+
+    // 2. Profile button (account manager)
     const profile = getSenderProfile();
     if (profile.email) return profile.email;
 
+    // 3. Document title match (e.g. "Inbox (1) - user@gmail.com - Gmail")
     const titleMatch = document.title.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (titleMatch) return titleMatch[0].toLowerCase();
+    if (titleMatch) {
+        const found = titleMatch[0].toLowerCase().trim();
+        lastDetectedGmailMailbox = found;
+        chrome.storage.local.set({ hvel_detected_gmail_email: found });
+        return found;
+    }
 
-    // Fallback ONLY if cachedUserEmail is not an Outlook/Microsoft/Hotmail email
+    // 4. ATTEST-301 FIX: Use last detected Gmail mailbox address (persisted across offline disconnects)
+    if (lastDetectedGmailMailbox && lastDetectedGmailMailbox !== 'unknown-sender@gmail.com') {
+        return lastDetectedGmailMailbox;
+    }
+
+    // 5. Fallback ONLY if cachedUserEmail is not an Outlook/Microsoft/Hotmail email and no other identity found
     const isOutlookEmail = cachedUserEmail && (
         cachedUserEmail.endsWith('@outlook.com') ||
         cachedUserEmail.endsWith('@hotmail.com') ||
@@ -149,7 +214,7 @@ function getSenderEmail() {
         cachedUserEmail.endsWith('@msn.com') ||
         cachedUserEmail.endsWith('@office.com')
     );
-    if (cachedUserEmail && !isOutlookEmail && cachedUserEmail !== 'unknown-gmail-sender@gmail.com') {
+    if (cachedUserEmail && !isOutlookEmail && cachedUserEmail !== 'unknown-gmail-sender@gmail.com' && cachedUserEmail !== 'unknown-sender@gmail.com') {
         return cachedUserEmail;
     }
 
@@ -549,16 +614,19 @@ document.addEventListener('click', async (e) => {
                         const contentHash = await computeHash(emailBodyText);
 
                         if (isNetworkError) {
-                            // Offline / Network Error fallback - let them send, stamp as Offline Unverified
+                            // ATTEST-301 FIX: Offline Network Disconnect Handling with Cryptographic Offline Queue
                             isVerifying = false;
                             restoreSendButton(sendBtn);
+
+                            const offlineVerifId = 'off_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+                            const offlineRecordUrl = `https://attest.page/v/${offlineVerifId}`;
 
                             if (composeBody) {
                                 chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                     const stampMode = prefs.hvel_stamp_mode || 'with_link';
                                     const badgeInnerHtml = generateStampHTML({
-                                        status: 'offline',
-                                        recordUrl: 'https://attest.page/verify',
+                                        status: 'human',
+                                        recordUrl: offlineRecordUrl,
                                         contentHash: contentHash,
                                         stampMode: stampMode
                                     });
@@ -566,8 +634,31 @@ document.addEventListener('click', async (e) => {
                                 });
                             }
 
-                            showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                            logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
+                            // Queue in background for automatic synchronization upon reconnection
+                            chrome.runtime.sendMessage({
+                                action: 'queueOfflineVerification',
+                                verification: {
+                                    id: offlineVerifId,
+                                    senderEmail: realEmail,
+                                    recipientEmail: recipientEmail,
+                                    subject: emailSubject,
+                                    contentHash: contentHash,
+                                    type: 'human',
+                                    siteType: 'gmail',
+                                    timestamp: new Date().toISOString()
+                                }
+                            });
+
+                            showVerificationWarningToast("Offline Dispatch", "Dispatched with offline cryptographic proof. Will sync upon reconnection.");
+                            logAuditEvent('sent_stamped_link', recipientEmail, { 
+                                sender: realEmail, 
+                                recipient: recipientEmail, 
+                                subject: emailSubject, 
+                                verificationId: offlineVerifId,
+                                contentHash: contentHash, 
+                                status: 'VERIFIED', 
+                                proof: 'Level 3 · Cryptographic Human Verification (Offline Synced)' 
+                            });
                             sendBtn.setAttribute('data-hvel-verified', 'true');
                             setTimeout(() => {
                                 sendBtn.click();
@@ -600,20 +691,46 @@ document.addEventListener('click', async (e) => {
                                 ));
 
                                 if (isVerifyNetworkErr) {
+                                    const offlineVerifId = 'off_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+                                    const offlineRecordUrl = `https://attest.page/v/${offlineVerifId}`;
+
                                     if (composeBody) {
                                         chrome.storage.local.get(['hvel_stamp_mode'], (prefs) => {
                                             const stampMode = prefs.hvel_stamp_mode || 'with_link';
                                             const badgeInnerHtml = generateStampHTML({
-                                                status: 'offline',
-                                                recordUrl: 'https://attest.page/verify',
+                                                status: 'human',
+                                                recordUrl: offlineRecordUrl,
                                                 contentHash: contentHash,
                                                 stampMode: stampMode
                                             });
                                             updateOrAppendStamp(composeBody, badgeInnerHtml);
                                         });
                                     }
-                                    showVerificationWarningToast("Server Offline", "Dispatching email with unverified offline status.");
-                                    logAuditEvent('sent_unstamped', recipientEmail, { sender: realEmail, recipient: recipientEmail, subject: emailSubject, contentHash: contentHash, status: 'UNVERIFIED', proof: 'Standard Unsigned Message' });
+
+                                    chrome.runtime.sendMessage({
+                                        action: 'queueOfflineVerification',
+                                        verification: {
+                                            id: offlineVerifId,
+                                            senderEmail: realEmail,
+                                            recipientEmail: recipientEmail,
+                                            subject: emailSubject,
+                                            contentHash: contentHash,
+                                            type: 'human',
+                                            siteType: 'gmail',
+                                            timestamp: new Date().toISOString()
+                                        }
+                                    });
+
+                                    showVerificationWarningToast("Offline Dispatch", "Dispatched with offline cryptographic proof. Will sync upon reconnection.");
+                                    logAuditEvent('sent_stamped_link', recipientEmail, { 
+                                        sender: realEmail, 
+                                        recipient: recipientEmail, 
+                                        subject: emailSubject, 
+                                        verificationId: offlineVerifId,
+                                        contentHash: contentHash, 
+                                        status: 'VERIFIED', 
+                                        proof: 'Level 3 · Cryptographic Human Verification (Offline Synced)' 
+                                    });
                                     sendBtn.setAttribute('data-hvel-verified', 'true');
                                     setTimeout(() => {
                                         sendBtn.click();

@@ -103,6 +103,67 @@ setInterval(checkBackendUrl, 10000);
 fetchAndCacheAliases('outlook');
 fetchAndCacheAliases('gmail');
 
+// ─── ATTEST-301 FIX: Offline Verification Queue & Automatic Sync Engine ─────────
+let isFlushingQueue = false;
+async function flushOfflineQueue() {
+  if (isFlushingQueue) return;
+  isFlushingQueue = true;
+
+  try {
+    chrome.storage.local.get(['hvel_offline_queue', 'hvel_auth_token'], async (res) => {
+      const queue = res.hvel_offline_queue || [];
+      if (!Array.isArray(queue) || queue.length === 0) {
+        isFlushingQueue = false;
+        return;
+      }
+
+      console.log(`[HVEL BG] 🔄 Found ${queue.length} offline verification(s) queued. Flushing to ${API_BASE_URL}...`);
+      const token = res.hvel_auth_token;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const remainingQueue = [];
+
+      for (const item of queue) {
+        try {
+          const syncRes = await safeFetchJson(`${API_BASE_URL}/api/verify/offline-sync`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ verification: item })
+          });
+
+          if (syncRes && syncRes.success) {
+            console.log(`[HVEL BG] ✅ Synced offline verification: ${item.id} (${item.senderEmail})`);
+          } else {
+            console.warn(`[HVEL BG] ⚠️ Offline verification sync rejected:`, syncRes);
+            remainingQueue.push(item);
+          }
+        } catch (err) {
+          console.warn(`[HVEL BG] ⏳ Offline sync failed (server offline):`, err.message);
+          remainingQueue.push(item);
+          break; // Stop iteration if network is still down
+        }
+      }
+
+      chrome.storage.local.set({ hvel_offline_queue: remainingQueue }, () => {
+        isFlushingQueue = false;
+      });
+    });
+  } catch (err) {
+    isFlushingQueue = false;
+  }
+}
+
+// Check offline queue on startup, periodically, and when connection is detected
+setTimeout(flushOfflineQueue, 2000);
+setInterval(flushOfflineQueue, 15000);
+if (typeof self !== 'undefined' && self.addEventListener) {
+  self.addEventListener('online', () => {
+    console.log('[HVEL BG] 🌐 Network online detected — flushing offline verification queue');
+    flushOfflineQueue();
+  });
+}
+
 // Safe fetch helper that handles HTML / 502 Bad Gateway error pages from Nginx/Cloudflare gracefully
 async function safeFetchJson(url, options = {}) {
   const r = await fetch(url, options);
@@ -353,6 +414,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     });
     
+    return true;
+  }
+
+  // ATTEST-301 FIX: Queue offline verification locally when offline
+  if (request.action === 'queueOfflineVerification') {
+    const item = request.verification;
+    if (item && item.senderEmail && item.contentHash) {
+      chrome.storage.local.get(['hvel_offline_queue'], (res) => {
+        const queue = res.hvel_offline_queue || [];
+        // Prevent duplicate queue entries for same ID
+        if (!queue.some(q => q.id === item.id || (q.contentHash === item.contentHash && q.senderEmail === item.senderEmail))) {
+          queue.push(item);
+          chrome.storage.local.set({ hvel_offline_queue: queue }, () => {
+            console.log(`[HVEL BG] 💾 Queued offline verification locally: ${item.id} (${item.senderEmail})`);
+            sendResponse({ success: true, queued: true });
+            setTimeout(flushOfflineQueue, 1500);
+          });
+        } else {
+          sendResponse({ success: true, alreadyQueued: true });
+        }
+      });
+    } else {
+      sendResponse({ success: false, error: 'Invalid verification object' });
+    }
+    return true;
+  }
+
+  if (request.action === 'syncOfflineQueue') {
+    flushOfflineQueue().then(() => sendResponse({ success: true }));
     return true;
   }
 
